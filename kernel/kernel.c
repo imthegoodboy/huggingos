@@ -144,13 +144,6 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     }
 }
 
-// Legacy kernel_main for compatibility
-void kernel_main(void)
-{
-    // This shouldn't be called directly, but if it is, use defaults
-    mb_info = 0;
-    kernel_main_multiboot(MULTIBOOT_BOOTLOADER_MAGIC, 0);
-}
 
 // This is called from boot.asm with multiboot info
 void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
