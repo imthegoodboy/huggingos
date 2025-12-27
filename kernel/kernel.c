@@ -72,7 +72,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     terminal_writeln("========================================");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writeln("");
-    terminal_writeln("Initializing system...");
+    terminal_writeln("Initializing system components...");
     
     // Initialize GDT
     terminal_writestring("  - Setting up GDT... ");
