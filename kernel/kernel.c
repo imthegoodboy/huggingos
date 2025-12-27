@@ -47,8 +47,16 @@ void kernel_panic(const char* message)
     asm volatile("hlt");
 }
 
-void kernel_main(void)
+void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
 {
+    if (magic != MULTIBOOT_BOOTLOADER_MAGIC) {
+        kernel_panic("Invalid multiboot magic number!");
+        return;
+    }
+    
+    mb_info = mbi;
+    
+    // Continue with initialization
     // Initialize terminal with colorful theme
     terminal_initialize();
     terminal_setcolor(VGA_COLOR_CYAN, VGA_COLOR_BLACK);
@@ -134,6 +142,14 @@ void kernel_main(void)
         // Small delay to prevent CPU spinning
         asm volatile("pause");
     }
+}
+
+// Legacy kernel_main for compatibility
+void kernel_main(void)
+{
+    // This shouldn't be called directly, but if it is, use defaults
+    mb_info = 0;
+    kernel_main_multiboot(MULTIBOOT_BOOTLOADER_MAGIC, 0);
 }
 
 // This is called from boot.asm with multiboot info
