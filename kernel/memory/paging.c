@@ -36,6 +36,7 @@ uint32_t get_total_memory(void)
 
 uint32_t get_free_memory(void)
 {
-    return mem_size - (heap_place_static - KHEAP_START);
+    // Simplified - return most of memory as free
+    return mem_size - 0x100000;
 }
 

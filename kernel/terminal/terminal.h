@@ -32,5 +32,10 @@ void terminal_set_cursor(size_t x, size_t y);
 size_t terminal_get_row(void);
 size_t terminal_get_column(void);
 
+// Shell functions
+void shell_init(void);
+void shell_process_input(char c);
+void shell_print_prompt(void);
+
 #endif
 

@@ -7,14 +7,13 @@ header_start:
 
 section .text
 global _start
-extern kernel_main
-extern kernel_stack_top
+extern kernel_main_multiboot
 
 _start:
     cli                          ; disable interrupts
     
     ; Set up stack
-    mov esp, kernel_stack_top
+    mov esp, stack_top
     
     ; Push multiboot info pointer (ebx) and magic (eax)
     push ebx
@@ -24,11 +23,17 @@ _start:
     cld
     
     ; Call kernel main
-    call kernel_main
+    call kernel_main_multiboot
     
     ; If kernel_main returns, halt
 .hang:
     cli
     hlt
     jmp .hang
+
+section .bss
+align 16
+stack_bottom:
+    resb 16384                   ; 16KB stack
+stack_top:
 

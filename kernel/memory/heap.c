@@ -1,5 +1,6 @@
 #include "memory.h"
 #include "../lib/lib.h"
+#include "../kernel.h"
 
 static uint32_t heap_place = KHEAP_START;
 static uint32_t heap_max = KHEAP_START + KHEAP_INITIAL_SIZE;
