@@ -60,12 +60,14 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     terminal_initialize();
     terminal_setcolor(VGA_COLOR_CYAN, VGA_COLOR_BLACK);
     
-    // Print welcome banner
+    // Print welcome banner with colors
     terminal_writestring("\n");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     terminal_writeln("========================================");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("     Welcome to huggingOs v1.0.0");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("     A Minimal Custom Operating System");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     terminal_writeln("========================================");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);

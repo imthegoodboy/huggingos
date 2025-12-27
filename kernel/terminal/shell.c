@@ -64,7 +64,9 @@ static void cmd_info(void)
     terminal_writeln("Architecture: x86 (32-bit)");
     terminal_writeln("Kernel: Monolithic");
     terminal_writeln("Memory: Available");
-    terminal_writeln("Graphics: VGA/VESA");
+    terminal_writeln("Graphics: VGA Text Mode");
+    terminal_writeln("Features: Terminal, Shell, Keyboard");
+    terminal_writeln("Status: Operational");
 }
 
 static void cmd_version(void)
