@@ -6,7 +6,9 @@
 // Forward declarations
 extern void vga_putchar(char c);
 extern void vga_clear(void);
-static uint8_t vga_entry_color(uint8_t fg, uint8_t bg);
+
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25
 
 static size_t terminal_row = 0;
 static size_t terminal_column = 0;
@@ -17,14 +19,15 @@ void terminal_initialize(void)
 {
     terminal_row = 0;
     terminal_column = 0;
-    terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_color = VGA_COLOR_LIGHT_GREEN | (VGA_COLOR_BLACK << 4);
     vga_init();
     terminal_buffer_size = 0;
 }
 
 void terminal_setcolor(uint8_t fg, uint8_t bg)
 {
-    terminal_color = vga_entry_color(fg, bg);
+    // Combine foreground and background colors
+    terminal_color = fg | (bg << 4);
 }
 
 void terminal_putchar(char c)
@@ -131,9 +134,4 @@ size_t terminal_get_column(void)
     return terminal_column;
 }
 
-// Helper function
-static uint8_t vga_entry_color(uint8_t fg, uint8_t bg)
-{
-    return fg | bg << 4;
-}
 

@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "interrupts.h"
+#include "../lib/lib.h"
 
 struct idt_entry idt[256];
 struct idt_ptr idtp;

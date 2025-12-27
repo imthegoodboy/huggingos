@@ -15,12 +15,12 @@ _start:
     ; Set up stack
     mov esp, stack_top
     
-    ; Push multiboot info pointer (ebx) and magic (eax)
-    push ebx
-    push eax
-    
     ; Clear direction flag
     cld
+    
+    ; Push multiboot info pointer (ebx) and magic (eax)
+    push ebx     ; multiboot info structure
+    push eax     ; multiboot magic number
     
     ; Call kernel main
     call kernel_main_multiboot

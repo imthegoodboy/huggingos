@@ -2,6 +2,9 @@
 #include "../kernel.h"
 #include "../terminal/terminal.h"
 
+// Forward declaration
+extern size_t strlen(const char* str);
+
 typedef __builtin_va_list va_list;
 #define va_start(ap, last) __builtin_va_start(ap, last)
 #define va_end(ap) __builtin_va_end(ap)
