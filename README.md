@@ -16,7 +16,24 @@ Welcome to **huggingOs**, a minimal but fully functional custom operating system
 
 ## System Requirements
 
-### Build Requirements
+### Features
+
+- ✅ **Multiboot-compliant bootloader** (GRUB)
+- ✅ **32-bit x86 kernel** with protected mode
+- ✅ **Memory management** with heap allocator
+- ✅ **VGA text mode graphics** with colorful terminal
+- ✅ **Keyboard input** with PS/2 keyboard driver
+- ✅ **Interactive shell** with 15+ commands
+- ✅ **Clock and Calendar** utilities
+- ✅ **Calculator** for basic math operations
+- ✅ **Timer** functionality
+- ✅ **Color customization** for terminal
+- ✅ **ASCII art** banner display
+- ✅ **Interrupt handling** (ISR/IRQ)
+- ✅ **Global Descriptor Table** (GDT) setup
+- ✅ **Extensible architecture** for future features
+
+## Build Requirements
 
 To build huggingOs, you need the following tools installed:
 
@@ -120,6 +137,66 @@ chmod +x create_iso.sh
 
 This creates `huggingOs.iso` in the current directory.
 
+## Quick Start - Running huggingOs
+
+### Option 1: Automated Build (Recommended)
+
+1. **In Ubuntu/WSL, navigate to the project:**
+   ```bash
+   cd /mnt/c/Users/parth/Desktop/myos
+   ```
+
+2. **Run the automated build script:**
+   ```bash
+   ./INSTALL_AND_BUILD.sh
+   ```
+   
+   This will:
+   - Install all required tools (nasm, grub, etc.)
+   - Install the cross-compiler (takes 15-30 minutes)
+   - Build the OS
+   - Create the bootable ISO
+
+3. **Run in VirtualBox:**
+   - Open VirtualBox
+   - Click "New" to create a new VM
+   - Name: `huggingOs`
+   - Type: `Other`
+   - Version: `Other/Unknown (32-bit)`
+   - Memory: `128 MB` (or more)
+   - Create a virtual hard disk (any size, won't be used)
+   - Click "Settings" → "Storage"
+   - Under "Controller: IDE", click on "Empty"
+   - Click the CD icon 📀 and select "Choose a disk file"
+   - Navigate to and select `huggingOs.iso`
+   - Click "OK"
+   - Click "Start" to boot the OS!
+
+### Option 2: Manual Build
+
+1. **Install build tools:**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y build-essential nasm grub-pc-bin grub-common xorriso
+   ```
+
+2. **Install cross-compiler:**
+   ```bash
+   wget https://raw.githubusercontent.com/lordmilko/i686-elf-tools/master/i686-elf-tools.sh
+   chmod +x i686-elf-tools.sh
+   sudo ./i686-elf-tools.sh
+   ```
+   (Takes 15-30 minutes)
+
+3. **Build the OS:**
+   ```bash
+   make clean
+   make all
+   make iso
+   ```
+
+4. **Run in VirtualBox** (same as Option 1, step 3)
+
 ## Running huggingOs in VirtualBox
 
 ### Method 1: Using the Automated Script (Linux/macOS)
@@ -217,12 +294,20 @@ huggingOs>
 ```
 huggingOs> help
 huggingOs - Available Commands:
-  help    - Show this help message
-  clear   - Clear the screen
-  info    - Show system information
-  echo    - Echo text back
-  version - Show OS version
-  reboot  - Reboot the system
+  help      - Show this help message
+  clear     - Clear the screen
+  info      - Show system information
+  echo      - Echo text back
+  version   - Show OS version
+  reboot    - Reboot the system
+  color     - Change terminal color
+  calc      - Simple calculator
+  banner    - Show ASCII art banner
+  about     - About huggingOs
+  clock     - Show current time
+  calendar  - Show calendar
+  date      - Show date and time
+  timer     - Start a timer (seconds)
 
 huggingOs> info
 === huggingOs System Information ===
@@ -231,14 +316,27 @@ Version: 1.0.0
 Architecture: x86 (32-bit)
 Kernel: Monolithic
 Memory: Available
-Graphics: VGA/VESA
+Graphics: VGA Text Mode
+Features: Terminal, Shell, Keyboard
+Status: Operational
 
-huggingOs> echo Hello, World!
-Hello, World!
+huggingOs> calc 25 * 4
+Result: 100
 
-huggingOs> version
-huggingOs v1.0.0
-Built with love and dedication
+huggingOs> color cyan
+Color changed to cyan
+
+huggingOs> banner
+  _   _                   _         ___  ____
+ | | | |_   _ _ __  _   _| |_ ___  / _ \/ ___|
+...
+
+huggingOs> timer 5
+Timer set for 5 seconds
+Counting down...
+5... 4... 3... 2... 1...
+Timer complete!
+BEEP! BEEP! BEEP!
 ```
 
 ## Project Structure

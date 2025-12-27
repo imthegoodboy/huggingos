@@ -52,6 +52,10 @@ static void cmd_help(void)
     terminal_writeln("  calc      - Simple calculator");
     terminal_writeln("  banner    - Show ASCII art banner");
     terminal_writeln("  about     - About huggingOs");
+    terminal_writeln("  clock     - Show current time");
+    terminal_writeln("  calendar  - Show calendar");
+    terminal_writeln("  date      - Show date and time");
+    terminal_writeln("  timer     - Start a timer (seconds)");
 }
 
 static void cmd_clear(void)
@@ -284,6 +288,14 @@ static void shell_execute_command(const char* command)
         cmd_banner();
     } else if (strcmp(cmd, "about") == 0) {
         cmd_about();
+    } else if (strcmp(cmd, "clock") == 0) {
+        cmd_clock();
+    } else if (strcmp(cmd, "calendar") == 0 || strcmp(cmd, "cal") == 0) {
+        cmd_calendar();
+    } else if (strcmp(cmd, "date") == 0) {
+        cmd_date();
+    } else if (strcmp(cmd, "timer") == 0) {
+        cmd_timer(args);
     } else {
         terminal_write("Unknown command: ");
         terminal_writeln(cmd);
