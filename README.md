@@ -9,20 +9,6 @@ Welcome to **huggingOs**, a minimal but fully functional custom operating system
 - ✅ **Memory management** with heap allocator
 - ✅ **VGA text mode graphics** with colorful terminal
 - ✅ **Keyboard input** with PS/2 keyboard driver
-- ✅ **Interactive shell** with command parser
-- ✅ **Interrupt handling** (ISR/IRQ)
-- ✅ **Global Descriptor Table** (GDT) setup
-- ✅ **Extensible architecture** for future features
-
-## System Requirements
-
-### Features
-
-- ✅ **Multiboot-compliant bootloader** (GRUB)
-- ✅ **32-bit x86 kernel** with protected mode
-- ✅ **Memory management** with heap allocator
-- ✅ **VGA text mode graphics** with colorful terminal
-- ✅ **Keyboard input** with PS/2 keyboard driver
 - ✅ **Interactive shell** with 15+ commands
 - ✅ **Clock and Calendar** utilities
 - ✅ **Calculator** for basic math operations
@@ -33,7 +19,9 @@ Welcome to **huggingOs**, a minimal but fully functional custom operating system
 - ✅ **Global Descriptor Table** (GDT) setup
 - ✅ **Extensible architecture** for future features
 
-## Build Requirements
+## System Requirements
+
+### Build Requirements
 
 To build huggingOs, you need the following tools installed:
 

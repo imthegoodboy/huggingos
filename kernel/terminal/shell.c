@@ -242,6 +242,88 @@ static void cmd_about(void)
     terminal_writeln("Built with dedication and passion!");
 }
 
+static void cmd_clock(void)
+{
+    // Simple clock display (simulated since we don't have RTC access)
+    terminal_writeln("Current Time: [System Clock]");
+    terminal_writeln("Note: Real-time clock requires RTC driver");
+    terminal_writeln("This is a demonstration clock feature.");
+    
+    // Show a simple clock display
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("  +-------+");
+    terminal_writeln("  | 12:00 |");
+    terminal_writeln("  +-------+");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
+static void cmd_calendar(void)
+{
+    // Simple calendar display
+    terminal_writeln("=== Calendar ===");
+    terminal_writeln("");
+    terminal_writeln("    December 2024");
+    terminal_writeln("Su Mo Tu We Th Fr Sa");
+    terminal_writeln(" 1  2  3  4  5  6  7");
+    terminal_writeln(" 8  9 10 11 12 13 14");
+    terminal_writeln("15 16 17 18 19 20 21");
+    terminal_writeln("22 23 24 25 26 27 28");
+    terminal_writeln("29 30 31");
+    terminal_writeln("");
+    terminal_writeln("Note: Full calendar requires date/time support");
+}
+
+static void cmd_date(void)
+{
+    terminal_writeln("Current Date and Time:");
+    terminal_writeln("Date: December 27, 2024");
+    terminal_writeln("Time: [System Time]");
+    terminal_writeln("");
+    terminal_writeln("Note: Real date/time requires RTC driver");
+}
+
+static void cmd_timer(const char* args)
+{
+    if (strlen(args) == 0) {
+        terminal_writeln("Usage: timer <seconds>");
+        terminal_writeln("Example: timer 5");
+        return;
+    }
+    
+    int seconds = atoi(args);
+    if (seconds <= 0) {
+        terminal_writeln("Please provide a positive number of seconds");
+        return;
+    }
+    
+    terminal_write("Timer set for ");
+    char sec_str[32];
+    itoa(seconds, sec_str, 10);
+    terminal_write(sec_str);
+    terminal_writeln(" seconds");
+    terminal_writeln("Counting down...");
+    
+    // Simple countdown (in a real OS, this would use proper timing)
+    for (int i = seconds; i > 0; i--) {
+        char num_str[32];
+        itoa(i, num_str, 10);
+        terminal_write(num_str);
+        terminal_write("... ");
+        
+        // Simple delay loop (not accurate, but demonstrates the feature)
+        volatile int delay = 0;
+        for (volatile int j = 0; j < 1000000; j++) {
+            delay++;
+        }
+    }
+    
+    terminal_writeln("");
+    terminal_writeln("Timer complete!");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("BEEP! BEEP! BEEP!");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
 static void shell_execute_command(const char* command)
 {
     if (strlen(command) == 0)
