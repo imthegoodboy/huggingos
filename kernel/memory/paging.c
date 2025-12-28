@@ -1,5 +1,6 @@
 #include "memory.h"
 #include "../lib/lib.h"
+#include "../kernel.h"
 
 page_directory_t* current_directory = 0;
 uint32_t mem_size = 0x4000000; // 64MB default

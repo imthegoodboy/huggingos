@@ -19,6 +19,28 @@ Welcome to **huggingOs**, a minimal but fully functional custom operating system
 - ✅ **Global Descriptor Table** (GDT) setup
 - ✅ **Extensible architecture** for future features
 
+## 🚀 Instant Run with WSL (Windows)
+
+The fastest way to run huggingOs on Windows is using WSL (Windows Subsystem for Linux).
+
+### One Command to Rule Them All
+Open your terminal in the project directory and run:
+
+```bash
+wsl make qemu
+```
+
+This single command will:
+1.  Compile the kernel (using system GCC or cross-compiler if available).
+2.  Create the bootable ISO.
+3.  Launch QEMU to run the OS immediately.
+
+*Note: You may need to install QEMU and build tools first if it's not installed:*
+```bash
+wsl sudo apt update
+wsl sudo apt install build-essential nasm grub-pc-bin grub-common qemu-system-x86 xorriso
+```
+
 ## System Requirements
 
 ### Build Requirements

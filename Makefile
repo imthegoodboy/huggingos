@@ -8,9 +8,15 @@ ISO_DIR = iso
 
 # Tools
 ASM = nasm
-CC = i686-elf-gcc
-LD = i686-elf-ld
-OBJCOPY = i686-elf-objcopy
+# Try to use cross-compiler, fallback to system gcc with -m32
+ifneq ($(shell which i686-elf-gcc 2>/dev/null),)
+	CC = i686-elf-gcc
+	LD = i686-elf-ld
+else
+	CC = gcc
+	LD = ld
+	OBJCOPY = objcopy
+endif
 GRUB_MKRESCUE = grub-mkrescue
 
 # Flags
@@ -76,6 +82,10 @@ run: $(ISO)
 	@echo "Starting VirtualBox..."
 	@echo "Note: Make sure VirtualBox is installed and configured."
 	@echo "You can run the ISO manually in VirtualBox or use: VBoxManage startvm huggingOs"
+
+qemu: $(ISO)
+	@echo "Starting QEMU..."
+	qemu-system-i386 -cdrom $(ISO)
 
 # Help target
 help:

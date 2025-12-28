@@ -1,4 +1,4 @@
-section .multiboot_header
+section .multiboot
 align 4
 header_start:
     dd 0x1BADB002                ; multiboot magic number

@@ -204,7 +204,7 @@ static void cmd_calc(const char* args)
     // Display result
     char result_str[32];
     itoa(result, result_str, 10);
-    terminal_write("Result: ");
+    terminal_writestring("Result: ");
     terminal_writeln(result_str);
 }
 
@@ -296,10 +296,10 @@ static void cmd_timer(const char* args)
         return;
     }
     
-    terminal_write("Timer set for ");
+    terminal_writestring("Timer set for ");
     char sec_str[32];
     itoa(seconds, sec_str, 10);
-    terminal_write(sec_str);
+    terminal_writestring(sec_str);
     terminal_writeln(" seconds");
     terminal_writeln("Counting down...");
     
@@ -307,8 +307,8 @@ static void cmd_timer(const char* args)
     for (int i = seconds; i > 0; i--) {
         char num_str[32];
         itoa(i, num_str, 10);
-        terminal_write(num_str);
-        terminal_write("... ");
+        terminal_writestring(num_str);
+        terminal_writestring("... ");
         
         // Simple delay loop (not accurate, but demonstrates the feature)
         volatile int delay = 0;
@@ -379,7 +379,7 @@ static void shell_execute_command(const char* command)
     } else if (strcmp(cmd, "timer") == 0) {
         cmd_timer(args);
     } else {
-        terminal_write("Unknown command: ");
+        terminal_writestring("Unknown command: ");
         terminal_writeln(cmd);
         terminal_writeln("Type 'help' for a list of commands.");
     }

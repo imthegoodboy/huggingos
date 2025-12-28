@@ -1,6 +1,6 @@
 #include "kernel.h"
 #include "interrupts.h"
-#include "../lib/lib.h"
+#include "lib/lib.h"
 
 extern void kernel_panic(const char* message);
 
