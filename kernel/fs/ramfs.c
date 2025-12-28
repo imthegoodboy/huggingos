@@ -171,10 +171,13 @@ bool ramfs_write_file(uint32_t file_id, const uint8_t* data, uint32_t size)
     // Allocate or reallocate buffer
     if (file->capacity < size) {
         if (file->data) {
-            // Reallocate (simple version - just allocate new)
-            file->data = (uint8_t*)kmalloc(size + 1024);
-        } else {
-            file->data = (uint8_t*)kmalloc(size + 1024);
+            // Free old memory before allocating new
+            kfree(file->data);
+        }
+        // Allocate new buffer with extra space
+        file->data = (uint8_t*)kmalloc(size + 1024);
+        if (!file->data) {
+            return false; // Allocation failed
         }
         file->capacity = size + 1024;
     }

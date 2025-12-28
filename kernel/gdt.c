@@ -33,3 +33,6 @@ void gdt_init()
 }
 
 
+
+
+

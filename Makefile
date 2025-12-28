@@ -85,7 +85,7 @@ run: $(ISO)
 
 qemu: $(ISO)
 	@echo "Starting QEMU..."
-	qemu-system-i386 -cdrom $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -m 128M -vga std
 
 # Help target
 help:
