@@ -107,6 +107,7 @@ static void shell_update_prompt(void)
     const char* user = shell_getenv("USER");
     if (!user) user = "root";
     
+    // Create a colorful, modern prompt (store as plain text, colors applied when printing)
     strcpy(shell_prompt, user);
     strcat(shell_prompt, "@huggingOS:");
     strcat(shell_prompt, path);
@@ -123,7 +124,7 @@ void shell_process_input(char c)
             memset(shell_input, 0, SHELL_MAX_INPUT);
         }
         shell_update_prompt();
-        terminal_writestring(shell_prompt);
+        shell_print_prompt();
     } else if (c == '\b' || c == 127) {
         if (shell_input_pos > 0) {
             shell_input_pos--;
@@ -139,11 +140,14 @@ void shell_process_input(char c)
 static void cmd_help(void)
 {
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("huggingOS v1.0.0 - Production Ready Edition");
-    terminal_writeln("================================================");
+    terminal_writeln("╔════════════════════════════════════════════════════════════╗");
+    terminal_writeln("║  huggingOS v1.0.0 - Production Ready Edition            ║");
+    terminal_writeln("╚════════════════════════════════════════════════════════════╝");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("");
-    terminal_writeln("  System Commands:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] System Commands:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    help      - Show this help message");
     terminal_writeln("    clear     - Clear the screen");
     terminal_writeln("    info      - Show system information");
@@ -154,7 +158,9 @@ static void cmd_help(void)
     terminal_writeln("    uname     - Show system information");
     terminal_writeln("    exit      - Exit shell");
     terminal_writeln("");
-    terminal_writeln("  Date & Time:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] Date & Time:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    date      - Show date and time");
     terminal_writeln("    clock     - Show current time");
     terminal_writeln("    calendar  - Show calendar");
@@ -162,7 +168,9 @@ static void cmd_help(void)
     terminal_writeln("    uptime    - Show system uptime");
     terminal_writeln("    sleep     - Sleep for N seconds");
     terminal_writeln("");
-    terminal_writeln("  File System:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] File System:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    ls        - List directory contents");
     terminal_writeln("    mkdir     - Create directory");
     terminal_writeln("    cd        - Change directory");
@@ -176,14 +184,18 @@ static void cmd_help(void)
     terminal_writeln("    df        - Show filesystem usage");
     terminal_writeln("    du        - Show directory usage");
     terminal_writeln("");
-    terminal_writeln("  Text Processing:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] Text Processing:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    grep      - Search text in files");
     terminal_writeln("    wc        - Word count");
     terminal_writeln("    head      - Show first N lines");
     terminal_writeln("    tail      - Show last N lines");
     terminal_writeln("    sort      - Sort file lines");
     terminal_writeln("");
-    terminal_writeln("  Utilities:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] Utilities:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    echo      - Echo text back (use > for file)");
     terminal_writeln("    calc      - Simple calculator");
     terminal_writeln("    color     - Change terminal color");
@@ -202,13 +214,19 @@ static void cmd_help(void)
     terminal_writeln("    dirname   - Get directory from path");
     terminal_writeln("    which     - Find command location");
     terminal_writeln("");
-    terminal_writeln("  Fun Commands:");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  [*] Fun Commands:");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    moti      - Show motivational quote");
     terminal_writeln("    joke      - Tell a random joke");
     terminal_writeln("    fortune   - Show fortune cookie");
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("Type 'help <command>' for detailed usage (coming soon)");
+    terminal_writeln("════════════════════════════════════════════════════════════");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("  >> Tip: Type 'help <command>' for detailed usage");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("════════════════════════════════════════════════════════════");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
 }
 
@@ -224,27 +242,65 @@ static void cmd_info(void)
     uint32_t uptime_seconds = pit_get_seconds();
     uint32_t uptime_hours = uptime_seconds / 3600;
     uint32_t uptime_minutes = (uptime_seconds % 3600) / 60;
+    uint32_t uptime_days = uptime_hours / 24;
+    uptime_hours = uptime_hours % 24;
     
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("=== huggingOs System Information ===");
+    terminal_writeln("╔════════════════════════════════════════════════════════════╗");
+    terminal_writeln("║         huggingOS System Information                     ║");
+    terminal_writeln("╚════════════════════════════════════════════════════════════╝");
+    terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  OS Name:        ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("OS Name: huggingOs");
-    terminal_writeln("Version: 1.0.0");
-    terminal_writeln("Architecture: x86 (32-bit)");
-    terminal_writeln("Kernel: Monolithic");
-    terminal_writeln("Graphics: VGA Text Mode");
-    terminal_writeln("Features: Terminal, Shell, Keyboard, RTC, PIT Timer");
+    terminal_writeln("huggingOS");
     
-    terminal_writestring("Uptime: ");
-    char hour_str[16], minute_str[16];
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Version:        ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("1.0.0 (Production Ready)");
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Architecture:   ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("x86 (32-bit)");
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Kernel:         ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("Monolithic");
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Graphics:       ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("VGA Text Mode");
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Features:       ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("Terminal, Shell, Keyboard, RTC, PIT Timer");
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Uptime:         ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    char hour_str[16], minute_str[16], day_str[16];
+    itoa(uptime_days, day_str, 10);
     itoa(uptime_hours, hour_str, 10);
     itoa(uptime_minutes, minute_str, 10);
+    if (uptime_days > 0) {
+        terminal_writestring(day_str);
+        terminal_writestring("d ");
+    }
     terminal_writestring(hour_str);
     terminal_writestring("h ");
     terminal_writestring(minute_str);
     terminal_writeln("m");
     
-    terminal_writeln("Status: Operational");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring("  Status:         ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OPERATIONAL]");
+    
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
 }
@@ -383,14 +439,24 @@ static void cmd_calc(const char* args)
 static void cmd_banner(void)
 {
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("  _   _                   _         ___  ____  ");
-    terminal_writeln(" | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___| ");
-    terminal_writeln(" | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\ ");
-    terminal_writeln(" |  _  | |_| | | | | |_| | || (_) | |_| |___) |");
-    terminal_writeln(" |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/ ");
-    terminal_writeln("        |___/                                   ");
+    terminal_writeln("");
+    terminal_writeln("  ╔═══════════════════════════════════════════════════════╗");
+    terminal_writeln("  ║                                                       ║");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  ║     _   _                   _         ___  ____       ║");
+    terminal_writeln("  ║    | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___|      ║");
+    terminal_writeln("  ║    | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\      ║");
+    terminal_writeln("  ║    |  _  | |_| | | | | |_| | || (_) | |_| |___) |    ║");
+    terminal_writeln("  ║    |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/     ║");
+    terminal_writeln("  ║            |___/                                       ║");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("  ║                                                       ║");
+    terminal_writeln("  ╚═══════════════════════════════════════════════════════╝");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("");
     terminal_writeln("            A Minimal Custom Operating System");
+    terminal_writeln("              Version 1.0.0 - Production Ready");
+    terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
 }
 
@@ -2042,7 +2108,30 @@ static void shell_execute_command(const char* command)
 
 void shell_print_prompt(void)
 {
-    terminal_writestring(shell_prompt);
+    // Print prompt with colors
+    const char* user = shell_getenv("USER");
+    if (!user) user = "root";
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writestring(user);
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writestring("@");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writestring("huggingOS");
+    terminal_setcolor(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    terminal_writestring(":");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    
+    extern void ramfs_get_full_path(uint32_t entry_id, char* path, uint32_t max_len);
+    extern uint32_t ramfs_get_current_dir(void);
+    char path[128];
+    uint32_t current = ramfs_get_current_dir();
+    ramfs_get_full_path(current, path, 128);
+    terminal_writestring(path);
+    
+    terminal_setcolor(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    terminal_writestring("$ ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
 }
 
 bool shell_should_exit(void)

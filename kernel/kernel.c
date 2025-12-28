@@ -62,35 +62,50 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize terminal (wrapper layer)
     terminal_initialize();
     
-    // Print ASCII art banner with colors
+    // Print enhanced ASCII art banner with colors
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writestring("\n");
-    terminal_writeln("  _   _                   _         ___  ____  ");
-    terminal_writeln(" | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___| ");
-    terminal_writeln(" | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\ ");
-    terminal_writeln(" |  _  | |_| | | | | |_| | || (_) | |_| |___) |");
-    terminal_writeln(" |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/ ");
-    terminal_writeln("        |___/                                   ");
-    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writestring("\n\n");
+    terminal_writeln("  ╔═══════════════════════════════════════════════════════╗");
+    terminal_writeln("  ║                                                       ║");
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("  ║     _   _                   _         ___  ____       ║");
+    terminal_writeln("  ║    | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___|      ║");
+    terminal_writeln("  ║    | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\      ║");
+    terminal_writeln("  ║    |  _  | |_| | | | | |_| | || (_) | |_| |___) |    ║");
+    terminal_writeln("  ║    |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/     ║");
+    terminal_writeln("  ║            |___/                                       ║");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("  ║                                                       ║");
+    terminal_writeln("  ╚═══════════════════════════════════════════════════════╝");
     terminal_writeln("");
-    terminal_writeln("        Version 1.0.0 - Enhanced Edition");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("        ═══ Version 1.0.0 - Production Ready ═══");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writeln("     A Minimal Custom Operating System");
+    terminal_writeln("     ✨ A Modern Minimal Custom Operating System ✨");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("================================================");
+    terminal_writeln("════════════════════════════════════════════════════════════");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writeln("");
-    terminal_writeln("Initializing system components...");
+    terminal_writeln("  >> Initializing system components...");
+    terminal_writeln("");
     
     // Initialize GDT
-    terminal_writestring("  - Setting up GDT... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("1/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Setting up GDT...              ");
     gdt_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize IDT and interrupts
-    terminal_writestring("  - Setting up IDT... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("2/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Setting up IDT...               ");
     idt_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
@@ -101,21 +116,33 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     if (mb_info && (mb_info->flags & 0x01)) {
         mem_size = (mb_info->mem_upper + 1024) * 1024; // Convert to bytes
     }
-    terminal_writestring("  - Initializing memory... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("3/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing memory...          ");
     memory_init(mem_size);
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize keyboard
-    terminal_writestring("  - Initializing keyboard... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("4/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing keyboard...        ");
     keyboard_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize PIT (timer)
-    terminal_writestring("  - Initializing timer... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("5/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing timer...         ");
     extern void pit_init(void);
     pit_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
@@ -123,20 +150,32 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize RTC (clock)
-    terminal_writestring("  - Initializing RTC... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("6/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing RTC...             ");
     rtc_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // VGA already initialized at boot, just confirm
-    terminal_writestring("  - Graphics initialized... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("7/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Graphics initialized...         ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize file system
-    terminal_writestring("  - Initializing file system... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("8/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing file system...     ");
     extern void ramfs_init(void);
     ramfs_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
@@ -144,17 +183,26 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     // Initialize shell
-    terminal_writestring("  - Starting shell... ");
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("9/9");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Starting shell...               ");
     shell_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
     terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("════════════════════════════════════════════════════════════");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("================================================");
-    terminal_writeln("System ready! Type 'help' for available commands.");
-    terminal_writeln("================================================");
+    terminal_writeln("  [OK] System ready! All components initialized successfully.");
+    terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("  >> Tip: Type 'help' to see all available commands");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("════════════════════════════════════════════════════════════");
     terminal_writeln("");
     
     // Enable interrupts
