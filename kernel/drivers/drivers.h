@@ -47,6 +47,35 @@ char keyboard_get_char(void);
 bool keyboard_is_key_pressed(void);
 keyboard_state_t* keyboard_get_state(void);
 
+// RTC (Real-Time Clock)
+typedef struct {
+    uint8_t second;
+    uint8_t minute;
+    uint8_t hour;
+    uint8_t day;
+    uint8_t month;
+    uint8_t year;
+    bool initialized;
+} rtc_time_t;
+
+void rtc_init(void);
+void rtc_get_time(rtc_time_t* time);
+uint16_t rtc_get_full_year(void);
+uint8_t rtc_get_month(void);
+uint8_t rtc_get_day(void);
+uint8_t rtc_get_hour(void);
+uint8_t rtc_get_minute(void);
+uint8_t rtc_get_second(void);
+
+// PIT (Programmable Interval Timer)
+void pit_init(void);
+void pit_handler(void);
+uint32_t pit_get_ticks(void);
+uint32_t pit_get_milliseconds(void);
+uint32_t pit_get_seconds(void);
+void pit_delay_ms(uint32_t milliseconds);
+bool pit_is_initialized(void);
+
 #endif
 
 

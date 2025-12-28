@@ -160,10 +160,15 @@ void isr_handler(registers_t regs)
 
 void irq_handler(registers_t regs)
 {
-    // Handle keyboard interrupt
+    // Handle interrupts
     if (regs.int_no >= 32) {
         unsigned char irq = regs.int_no - 32;
-        if (irq == 1) {
+        
+        if (irq == 0) {
+            // Timer interrupt (PIT)
+            extern void pit_handler(void);
+            pit_handler();
+        } else if (irq == 1) {
             // Keyboard interrupt
             unsigned char scancode = inb(0x60);
             extern void keyboard_handler(uint8_t);

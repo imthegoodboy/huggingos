@@ -6,56 +6,25 @@
 // Forward declarations
 extern void vga_putchar(char c);
 extern void vga_clear(void);
-
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-
-static size_t terminal_row = 0;
-static size_t terminal_column = 0;
-static uint8_t terminal_color = 0;
-static size_t terminal_buffer_size = 0;
+extern void vga_setcolor(uint8_t color);
 
 void terminal_initialize(void)
 {
-    terminal_row = 0;
-    terminal_column = 0;
-    terminal_color = VGA_COLOR_LIGHT_GREEN | (VGA_COLOR_BLACK << 4);
-    vga_init();
-    terminal_buffer_size = 0;
+    // VGA should be initialized before terminal
+    // This is just a wrapper, VGA handles all the state
 }
 
 void terminal_setcolor(uint8_t fg, uint8_t bg)
 {
-    // Combine foreground and background colors
-    terminal_color = fg | (bg << 4);
+    // Combine foreground and background colors and sync with VGA
+    uint8_t color = fg | (bg << 4);
+    vga_setcolor(color);
 }
 
 void terminal_putchar(char c)
 {
+    // Just pass through to VGA - it handles all cursor positioning
     vga_putchar(c);
-    
-    if (c == '\n') {
-        terminal_row++;
-        terminal_column = 0;
-        if (terminal_row >= VGA_HEIGHT) {
-            terminal_row = VGA_HEIGHT - 1;
-            vga_clear();
-        }
-    } else if (c == '\b') {
-        if (terminal_column > 0) {
-            terminal_column--;
-        }
-    } else {
-        terminal_column++;
-        if (terminal_column >= VGA_WIDTH) {
-            terminal_column = 0;
-            terminal_row++;
-            if (terminal_row >= VGA_HEIGHT) {
-                terminal_row = VGA_HEIGHT - 1;
-                vga_clear();
-            }
-        }
-    }
 }
 
 void terminal_write(const char* data, size_t size)
@@ -82,9 +51,8 @@ void terminal_writeln(const char* data)
 
 void terminal_clear(void)
 {
+    // VGA handles cursor reset in vga_clear()
     vga_clear();
-    terminal_row = 0;
-    terminal_column = 0;
 }
 
 void terminal_scroll(void)
@@ -115,23 +83,28 @@ void terminal_update(void)
 
 uint8_t terminal_getcolor(void)
 {
-    return terminal_color;
+    // Return default color - VGA manages its own color state
+    return VGA_COLOR_LIGHT_GREEN | (VGA_COLOR_BLACK << 4);
 }
 
 void terminal_set_cursor(size_t x, size_t y)
 {
-    terminal_column = x;
-    terminal_row = y;
+    // VGA manages cursor internally, this is a placeholder
+    // In a full implementation, we'd need to expose VGA cursor functions
+    (void)x;
+    (void)y;
 }
 
 size_t terminal_get_row(void)
 {
-    return terminal_row;
+    // VGA manages row internally
+    return 0;
 }
 
 size_t terminal_get_column(void)
 {
-    return terminal_column;
+    // VGA manages column internally
+    return 0;
 }
 
 

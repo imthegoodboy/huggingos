@@ -66,12 +66,10 @@ void keyboard_handler(uint8_t scancode)
                      scancode_to_ascii[scancode];
             
             if (c != 0) {
+                // Store character for main loop to process
                 keyboard_state.last_char = c;
                 keyboard_state.key_pressed = true;
-                
-                // Send to terminal
-                extern void terminal_handle_input(char);
-                terminal_handle_input(c);
+                // Don't print here - let shell_process_input handle it
             }
         }
     }

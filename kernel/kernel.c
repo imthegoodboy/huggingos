@@ -56,20 +56,28 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     
     mb_info = mbi;
     
-    // Initialize terminal with colorful theme
-    terminal_initialize();
-    terminal_setcolor(VGA_COLOR_CYAN, VGA_COLOR_BLACK);
+    // Initialize VGA first (this clears the screen)
+    vga_init();
     
-    // Print welcome banner with colors
-    terminal_writestring("\n");
+    // Initialize terminal (wrapper layer)
+    terminal_initialize();
+    
+    // Print ASCII art banner with colors
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("========================================");
+    terminal_writestring("\n");
+    terminal_writeln("  _   _                   _         ___  ____  ");
+    terminal_writeln(" | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___| ");
+    terminal_writeln(" | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\ ");
+    terminal_writeln(" |  _  | |_| | | | | |_| | || (_) | |_| |___) |");
+    terminal_writeln(" |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/ ");
+    terminal_writeln("        |___/                                   ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("     Welcome to huggingOs v1.0.0");
+    terminal_writeln("");
+    terminal_writeln("        Version 1.0.0 - Enhanced Edition");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
     terminal_writeln("     A Minimal Custom Operating System");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("========================================");
+    terminal_writeln("================================================");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writeln("");
     terminal_writeln("Initializing system components...");
@@ -106,9 +114,24 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     
-    // Initialize graphics (VGA for now)
-    terminal_writestring("  - Initializing graphics... ");
-    vga_init();
+    // Initialize PIT (timer)
+    terminal_writestring("  - Initializing timer... ");
+    extern void pit_init(void);
+    pit_init();
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OK]");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    
+    // Initialize RTC (clock)
+    terminal_writestring("  - Initializing RTC... ");
+    extern void rtc_init(void);
+    rtc_init();
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OK]");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    
+    // VGA already initialized at boot, just confirm
+    terminal_writestring("  - Graphics initialized... ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
@@ -122,7 +145,9 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("System ready!");
+    terminal_writeln("================================================");
+    terminal_writeln("System ready! Type 'help' for available commands.");
+    terminal_writeln("================================================");
     terminal_writeln("");
     
     // Enable interrupts
