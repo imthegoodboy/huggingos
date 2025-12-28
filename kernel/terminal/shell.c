@@ -2,25 +2,115 @@
 #include "../kernel.h"
 #include "../lib/lib.h"
 #include "../drivers/drivers.h"
+#include "../fs/fs.h"
 
 #define SHELL_MAX_INPUT 256
 #define SHELL_MAX_ARGS 16
 #define SHELL_HISTORY_SIZE 20
+#define MAX_ENV_VARS 32
+#define MAX_ALIASES 16
+#define MAX_ENV_NAME 64
+#define MAX_ENV_VALUE 128
 
 static char shell_input[SHELL_MAX_INPUT];
 static size_t shell_input_pos = 0;
-static char shell_prompt[] = "huggingOS> ";
+static char shell_prompt[128];
 static char shell_history[SHELL_HISTORY_SIZE][SHELL_MAX_INPUT];
 static int shell_history_count = 0;
 
+// Environment variables
+typedef struct {
+    char name[MAX_ENV_NAME];
+    char value[MAX_ENV_VALUE];
+} env_var_t;
+static env_var_t env_vars[MAX_ENV_VARS];
+static int env_count = 0;
+
+// Aliases
+typedef struct {
+    char name[32];
+    char command[128];
+} alias_t;
+static alias_t aliases[MAX_ALIASES];
+static int alias_count = 0;
+
+static int shell_exit_code = 0;
+static bool shell_exit_flag = false;
+
 static void shell_execute_command(const char* command);
+static void shell_update_prompt(void);
+static void shell_setenv(const char* name, const char* value);
 
 void shell_init(void)
 {
     shell_input_pos = 0;
     shell_history_count = 0;
+    env_count = 0;
+    alias_count = 0;
+    shell_exit_code = 0;
+    shell_exit_flag = false;
     memset(shell_input, 0, SHELL_MAX_INPUT);
     memset(shell_history, 0, sizeof(shell_history));
+    memset(env_vars, 0, sizeof(env_vars));
+    memset(aliases, 0, sizeof(aliases));
+    
+    // Set default environment variables
+    shell_setenv("USER", "root");
+    shell_setenv("HOME", "/");
+    shell_setenv("SHELL", "/bin/sh");
+    shell_setenv("PATH", "/bin:/usr/bin");
+    shell_setenv("PWD", "/");
+    
+    shell_update_prompt();
+}
+
+static void shell_setenv(const char* name, const char* value)
+{
+    // Check if exists
+    for (int i = 0; i < env_count; i++) {
+        if (strcmp(env_vars[i].name, name) == 0) {
+            strncpy(env_vars[i].value, value, MAX_ENV_VALUE - 1);
+            env_vars[i].value[MAX_ENV_VALUE - 1] = '\0';
+            return;
+        }
+    }
+    
+    // Add new
+    if (env_count < MAX_ENV_VARS) {
+        strncpy(env_vars[env_count].name, name, MAX_ENV_NAME - 1);
+        env_vars[env_count].name[MAX_ENV_NAME - 1] = '\0';
+        strncpy(env_vars[env_count].value, value, MAX_ENV_VALUE - 1);
+        env_vars[env_count].value[MAX_ENV_VALUE - 1] = '\0';
+        env_count++;
+    }
+}
+
+static const char* shell_getenv(const char* name)
+{
+    for (int i = 0; i < env_count; i++) {
+        if (strcmp(env_vars[i].name, name) == 0) {
+            return env_vars[i].value;
+        }
+    }
+    return NULL;
+}
+
+static void shell_update_prompt(void)
+{
+    extern void ramfs_get_full_path(uint32_t entry_id, char* path, uint32_t max_len);
+    extern uint32_t ramfs_get_current_dir(void);
+    
+    char path[128];
+    uint32_t current = ramfs_get_current_dir();
+    ramfs_get_full_path(current, path, 128);
+    
+    const char* user = shell_getenv("USER");
+    if (!user) user = "root";
+    
+    strcpy(shell_prompt, user);
+    strcat(shell_prompt, "@huggingOS:");
+    strcat(shell_prompt, path);
+    strcat(shell_prompt, "$ ");
 }
 
 void shell_process_input(char c)
@@ -32,6 +122,7 @@ void shell_process_input(char c)
             shell_input_pos = 0;
             memset(shell_input, 0, SHELL_MAX_INPUT);
         }
+        shell_update_prompt();
         terminal_writestring(shell_prompt);
     } else if (c == '\b' || c == 127) {
         if (shell_input_pos > 0) {
@@ -48,7 +139,8 @@ void shell_process_input(char c)
 static void cmd_help(void)
 {
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("huggingOS - Available Commands:");
+    terminal_writeln("huggingOS v1.0.0 - Production Ready Edition");
+    terminal_writeln("================================================");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("");
     terminal_writeln("  System Commands:");
@@ -59,7 +151,8 @@ static void cmd_help(void)
     terminal_writeln("    reboot    - Reboot the system");
     terminal_writeln("    shutdown  - Shutdown the system");
     terminal_writeln("    whoami    - Show current user");
-    terminal_writeln("    pwd       - Print working directory");
+    terminal_writeln("    uname     - Show system information");
+    terminal_writeln("    exit      - Exit shell");
     terminal_writeln("");
     terminal_writeln("  Date & Time:");
     terminal_writeln("    date      - Show date and time");
@@ -67,17 +160,56 @@ static void cmd_help(void)
     terminal_writeln("    calendar  - Show calendar");
     terminal_writeln("    timer     - Start a timer (seconds)");
     terminal_writeln("    uptime    - Show system uptime");
+    terminal_writeln("    sleep     - Sleep for N seconds");
+    terminal_writeln("");
+    terminal_writeln("  File System:");
+    terminal_writeln("    ls        - List directory contents");
+    terminal_writeln("    mkdir     - Create directory");
+    terminal_writeln("    cd        - Change directory");
+    terminal_writeln("    pwd       - Print working directory");
+    terminal_writeln("    cat       - Display file contents");
+    terminal_writeln("    touch     - Create empty file");
+    terminal_writeln("    rm        - Remove file or directory");
+    terminal_writeln("    mv        - Move/rename file");
+    terminal_writeln("    cp        - Copy file");
+    terminal_writeln("    find      - Find files");
+    terminal_writeln("    df        - Show filesystem usage");
+    terminal_writeln("    du        - Show directory usage");
+    terminal_writeln("");
+    terminal_writeln("  Text Processing:");
+    terminal_writeln("    grep      - Search text in files");
+    terminal_writeln("    wc        - Word count");
+    terminal_writeln("    head      - Show first N lines");
+    terminal_writeln("    tail      - Show last N lines");
+    terminal_writeln("    sort      - Sort file lines");
     terminal_writeln("");
     terminal_writeln("  Utilities:");
-    terminal_writeln("    echo      - Echo text back");
+    terminal_writeln("    echo      - Echo text back (use > for file)");
     terminal_writeln("    calc      - Simple calculator");
     terminal_writeln("    color     - Change terminal color");
     terminal_writeln("    banner    - Show ASCII art banner");
     terminal_writeln("    about     - About huggingOS");
     terminal_writeln("    history   - Show command history");
     terminal_writeln("    mem       - Show memory information");
+    terminal_writeln("    env       - Show environment variables");
+    terminal_writeln("    export    - Set environment variable");
+    terminal_writeln("    alias     - Create command alias");
+    terminal_writeln("    unalias   - Remove command alias");
+    terminal_writeln("    test      - Test condition");
+    terminal_writeln("    true      - Return success");
+    terminal_writeln("    false     - Return failure");
+    terminal_writeln("    basename  - Get filename from path");
+    terminal_writeln("    dirname   - Get directory from path");
+    terminal_writeln("    which     - Find command location");
+    terminal_writeln("");
+    terminal_writeln("  Fun Commands:");
+    terminal_writeln("    moti      - Show motivational quote");
+    terminal_writeln("    joke      - Tell a random joke");
+    terminal_writeln("    fortune   - Show fortune cookie");
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("Type 'help <command>' for detailed usage (coming soon)");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
 }
 
 static void cmd_clear(void)
@@ -606,8 +738,406 @@ static void cmd_whoami(void)
 
 static void cmd_pwd(void)
 {
-    terminal_writeln("/");
-    terminal_writeln("Note: File system not yet implemented");
+    extern void ramfs_get_full_path(uint32_t entry_id, char* path, uint32_t max_len);
+    extern uint32_t ramfs_get_current_dir(void);
+    
+    char path[256];
+    uint32_t current = ramfs_get_current_dir();
+    ramfs_get_full_path(current, path, 256);
+    terminal_writeln(path);
+}
+
+// Essential File System Commands
+static void cmd_ls(const char* args)
+{
+    uint32_t dir_id = ramfs_get_current_dir();
+    if (args && strlen(args) > 0) {
+        uint32_t target = ramfs_find_path(args);
+        if (target != 256 && ramfs_entry_is_directory(target)) {
+            dir_id = target;
+        } else {
+            terminal_writeln("Directory not found");
+            return;
+        }
+    }
+    
+    uint32_t entries[16];
+    uint32_t count = ramfs_list_directory(dir_id, entries, 16);
+    
+    if (count == 0) {
+        terminal_writeln("Directory is empty");
+        return;
+    }
+    
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t entry_id = entries[i];
+        if (ramfs_entry_is_directory(entry_id)) {
+            terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+            terminal_writestring(ramfs_entry_get_name(entry_id));
+            terminal_writeln("/");
+        } else {
+            terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            terminal_writestring(ramfs_entry_get_name(entry_id));
+            char size_str[32];
+            itoa(ramfs_entry_get_size(entry_id), size_str, 10);
+            terminal_writestring(" (");
+            terminal_writestring(size_str);
+            terminal_writeln(" bytes)");
+        }
+    }
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
+static void cmd_mkdir(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: mkdir <directory_name>");
+        return;
+    }
+    
+    uint32_t dir_id = ramfs_create_directory(args);
+    if (dir_id == 256) {
+        terminal_writeln("Error: Could not create directory");
+    } else {
+        terminal_writestring("Directory created: ");
+        terminal_writeln(args);
+    }
+}
+
+static void cmd_cd(const char* args)
+{
+    if (!args || strlen(args) == 0 || strcmp(args, "~") == 0) {
+        ramfs_change_directory(0); // Go to root
+        shell_setenv("PWD", "/");
+        shell_update_prompt();
+        return;
+    }
+    
+    if (strcmp(args, "..") == 0) {
+        uint32_t current = ramfs_get_current_dir();
+        uint32_t parent = ramfs_entry_get_parent(current);
+        if (parent != current && parent != 256) {
+            ramfs_change_directory(parent);
+            char path[128];
+            ramfs_get_full_path(parent, path, 128);
+            shell_setenv("PWD", path);
+            shell_update_prompt();
+        }
+        return;
+    }
+    
+    uint32_t dir_id = ramfs_find_path(args);
+    if (dir_id == 256) {
+        terminal_writeln("Directory not found");
+    } else {
+        if (!ramfs_entry_is_directory(dir_id)) {
+            terminal_writeln("Not a directory");
+        } else {
+            ramfs_change_directory(dir_id);
+            // Update PWD environment variable
+            char path[128];
+            ramfs_get_full_path(dir_id, path, 128);
+            shell_setenv("PWD", path);
+            shell_update_prompt();
+        }
+    }
+}
+
+static void cmd_cat(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: cat <filename>");
+        return;
+    }
+    
+    uint32_t file_id = ramfs_find_path(args);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot cat a directory");
+        return;
+    }
+    
+    if (ramfs_entry_get_size(file_id) == 0) {
+        terminal_writeln("File is empty");
+        return;
+    }
+    
+    uint8_t buffer[1024];
+    uint32_t read = ramfs_read_file(file_id, buffer, 1024);
+    if (read > 0) {
+        for (uint32_t i = 0; i < read && buffer[i] != '\0'; i++) {
+            terminal_writechar(buffer[i]);
+        }
+        terminal_writeln("");
+    }
+}
+
+static void cmd_touch(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: touch <filename>");
+        return;
+    }
+    
+    uint32_t file_id = ramfs_create_file(args);
+    if (file_id == 256) {
+        terminal_writeln("Error: Could not create file");
+    } else {
+        terminal_writestring("File created: ");
+        terminal_writeln(args);
+    }
+}
+
+static void cmd_rm(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: rm <filename_or_directory>");
+        return;
+    }
+    
+    uint32_t entry_id = ramfs_find_path(args);
+    if (entry_id == 256) {
+        terminal_writeln("File or directory not found");
+        return;
+    }
+    
+    if (ramfs_delete_entry(entry_id)) {
+        terminal_writestring("Deleted: ");
+        terminal_writeln(args);
+    } else {
+        terminal_writeln("Error: Could not delete");
+    }
+}
+
+static void cmd_mv(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: mv <source> <destination>");
+        return;
+    }
+    
+    // Parse source and destination
+    char src[256], dst[256];
+    int i = 0, j = 0;
+    
+    // Get source
+    while (args[i] && args[i] != ' ' && j < 255) {
+        src[j++] = args[i++];
+    }
+    src[j] = '\0';
+    
+    // Skip spaces
+    while (args[i] == ' ') i++;
+    
+    // Get destination
+    j = 0;
+    while (args[i] && j < 255) {
+        dst[j++] = args[i++];
+    }
+    dst[j] = '\0';
+    
+    if (strlen(dst) == 0) {
+        terminal_writeln("Usage: mv <source> <destination>");
+        return;
+    }
+    
+    uint32_t src_id = ramfs_find_path(src);
+    if (src_id == 256) {
+        terminal_writeln("Source not found");
+        return;
+    }
+    
+    if (src_id != 256) {
+        // Simple rename - just change the name
+        ramfs_entry_set_name(src_id, dst);
+        terminal_writestring("Renamed: ");
+        terminal_writestring(src);
+        terminal_writestring(" -> ");
+        terminal_writeln(dst);
+    }
+}
+
+static void cmd_cp(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: cp <source> <destination>");
+        return;
+    }
+    
+    // Parse arguments (simplified)
+    char src[256], dst[256];
+    int i = 0, j = 0;
+    while (args[i] && args[i] != ' ' && j < 255) {
+        src[j++] = args[i++];
+    }
+    src[j] = '\0';
+    while (args[i] == ' ') i++;
+    j = 0;
+    while (args[i] && j < 255) {
+        dst[j++] = args[i++];
+    }
+    dst[j] = '\0';
+    
+    if (strlen(dst) == 0) {
+        terminal_writeln("Usage: cp <source> <destination>");
+        return;
+    }
+    
+    uint32_t src_id = ramfs_find_path(src);
+    if (src_id == 256) {
+        terminal_writeln("Source not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(src_id)) {
+        terminal_writeln("Cannot copy directory (use mkdir)");
+        return;
+    }
+    
+    uint32_t dst_id = ramfs_create_file(dst);
+    if (dst_id == 256) {
+        terminal_writeln("Could not create destination file");
+        return;
+    }
+    
+    uint32_t src_size = ramfs_entry_get_size(src_id);
+    uint8_t* src_data = ramfs_entry_get_data(src_id);
+    if (src_size > 0 && src_data) {
+        ramfs_write_file(dst_id, src_data, src_size);
+    }
+    
+    terminal_writestring("Copied: ");
+    terminal_writestring(src);
+    terminal_writestring(" -> ");
+    terminal_writeln(dst);
+}
+
+// Enhanced echo with file redirection
+static void cmd_echo_file(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: echo \"text\" > filename");
+        return;
+    }
+    
+    // Look for >
+    char* redirect = strchr(args, '>');
+    if (!redirect) {
+        // No redirection, just echo
+        cmd_echo(args);
+        return;
+    }
+    
+    // Parse text and filename
+    *redirect = '\0';
+    redirect++;
+    while (*redirect == ' ') redirect++;
+    
+    // Remove quotes from text if present
+    char text_buffer[256];
+    strcpy(text_buffer, args);
+    char* text = text_buffer;
+    if (text[0] == '"' && text[strlen(text)-1] == '"') {
+        text[strlen(text)-1] = '\0';
+        text++;
+    }
+    
+    uint32_t file_id = ramfs_create_file(redirect);
+    if (file_id == 256) {
+        terminal_writeln("Error: Could not create file");
+        return;
+    }
+    
+    ramfs_write_file(file_id, (uint8_t*)text, strlen(text));
+    terminal_writestring("Written to: ");
+    terminal_writeln(redirect);
+}
+
+// Fun Commands
+static void cmd_moti(void)
+{
+    const char* quotes[] = {
+        "The only way to do great work is to love what you do. - Steve Jobs",
+        "Innovation distinguishes between a leader and a follower. - Steve Jobs",
+        "Life is what happens to you while you're busy making other plans. - John Lennon",
+        "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt",
+        "It is during our darkest moments that we must focus to see the light. - Aristotle",
+        "Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
+        "The only impossible journey is the one you never begin. - Tony Robbins",
+        "In the middle of difficulty lies opportunity. - Albert Einstein",
+        "Believe you can and you're halfway there. - Theodore Roosevelt",
+        "It does not matter how slowly you go as long as you do not stop. - Confucius"
+    };
+    
+    // Simple "random" selection using current time
+    uint8_t second = rtc_get_second();
+    uint32_t index = second % 10;
+    
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("=== Daily Motivation ===");
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("");
+    terminal_writeln(quotes[index]);
+    terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
+static void cmd_joke(void)
+{
+    const char* jokes[] = {
+        "Why don't programmers like nature? It has too many bugs!",
+        "How do you comfort a JavaScript bug? You console it!",
+        "Why do Java developers wear glasses? Because they can't C#!",
+        "A SQL query walks into a bar, walks up to two tables and asks: 'Can I join you?'",
+        "Why did the developer go broke? Because he used up all his cache!",
+        "What's a programmer's favorite hangout place? Foo Bar!",
+        "Why do Python programmers prefer dark mode? Because light attracts bugs!",
+        "How many programmers does it take to change a light bulb? None, that's a hardware problem!",
+        "Why did the programmer quit his job? He didn't get arrays!",
+        "What do you call a programmer from Finland? Nerdic!"
+    };
+    
+    uint8_t second = rtc_get_second();
+    uint32_t index = second % 10;
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    terminal_writeln("=== Random Joke ===");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("");
+    terminal_writeln(jokes[index]);
+    terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
+static void cmd_fortune(void)
+{
+    const char* fortunes[] = {
+        "A journey of a thousand miles begins with a single step.",
+        "Today is a good day to learn something new.",
+        "Your hard work will pay off soon.",
+        "Opportunity knocks but once.",
+        "The best time to plant a tree was 20 years ago. The second best time is now.",
+        "You are capable of amazing things.",
+        "Success is the sum of small efforts repeated day in and day out.",
+        "The only way to do great work is to love what you do.",
+        "Your limitation—it's only your imagination.",
+        "Great things never come from comfort zones."
+    };
+    
+    uint8_t minute = rtc_get_minute();
+    uint32_t index = minute % 10;
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("=== Fortune Cookie ===");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln("");
+    terminal_writeln(fortunes[index]);
+    terminal_writeln("");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
 }
 
 static void cmd_mem(void)
@@ -643,6 +1173,698 @@ static void cmd_mem(void)
     
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+}
+
+// Production Commands
+static void cmd_grep(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: grep <pattern> <file>");
+        return;
+    }
+    
+    char pattern[128], filename[128];
+    int i = 0, j = 0;
+    
+    // Parse pattern
+    while (args[i] && args[i] != ' ' && j < 127) {
+        pattern[j++] = args[i++];
+    }
+    pattern[j] = '\0';
+    
+    // Skip spaces
+    while (args[i] == ' ') i++;
+    
+    // Parse filename
+    j = 0;
+    while (args[i] && j < 127) {
+        filename[j++] = args[i++];
+    }
+    filename[j] = '\0';
+    
+    if (strlen(filename) == 0) {
+        terminal_writeln("Usage: grep <pattern> <file>");
+        return;
+    }
+    
+    uint32_t file_id = ramfs_find_path(filename);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot grep a directory");
+        return;
+    }
+    
+    if (ramfs_entry_get_size(file_id) == 0) {
+        return; // Empty file
+    }
+    
+    uint8_t buffer[2048];
+    uint32_t read = ramfs_read_file(file_id, buffer, 2048);
+    if (read > 0) {
+        buffer[read] = '\0';
+        char* line_start = (char*)buffer;
+        char* line_end;
+        int line_num = 1;
+        
+        while ((line_end = strchr(line_start, '\n')) != NULL || (line_start < (char*)buffer + read)) {
+            if (line_end) {
+                *line_end = '\0';
+            }
+            
+            if (strstr(line_start, pattern) != NULL) {
+                char num_str[16];
+                itoa(line_num, num_str, 10);
+                terminal_writestring(filename);
+                terminal_writestring(":");
+                terminal_writestring(num_str);
+                terminal_writestring(":");
+                terminal_writeln(line_start);
+            }
+            
+            if (line_end) {
+                line_start = line_end + 1;
+            } else {
+                break;
+            }
+            line_num++;
+        }
+    }
+}
+
+static void cmd_find(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: find <directory> -name <pattern>");
+        terminal_writeln("       find <name> (searches current directory)");
+        return;
+    }
+    
+    char pattern[128] = {0};
+    
+    // Simple find: just search for name in current directory
+    if (strstr(args, "-name") == NULL) {
+        // Simple search
+        strncpy(pattern, args, 127);
+        pattern[127] = '\0';
+    } else {
+        // Parse -name pattern
+        char* name_pos = strstr(args, "-name");
+        if (name_pos) {
+            name_pos += 5; // Skip "-name"
+            while (*name_pos == ' ') name_pos++;
+            strncpy(pattern, name_pos, 127);
+            pattern[127] = '\0';
+        }
+    }
+    
+    uint32_t dir_id = ramfs_get_current_dir();
+    uint32_t entries[16];
+    uint32_t count = ramfs_list_directory(dir_id, entries, 16);
+    
+    bool found = false;
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t entry_id = entries[i];
+        const char* entry_name = ramfs_entry_get_name(entry_id);
+        if (entry_name && strstr(entry_name, pattern) != NULL) {
+            char path[256];
+            ramfs_get_full_path(entries[i], path, 256);
+            terminal_writeln(path);
+            found = true;
+        }
+    }
+    
+    if (!found) {
+        terminal_writeln("No matches found");
+    }
+}
+
+static void cmd_wc(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: wc <file>");
+        return;
+    }
+    
+    uint32_t file_id = ramfs_find_path(args);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot count a directory");
+        return;
+    }
+    
+    uint8_t buffer[2048];
+    uint32_t read = ramfs_read_file(file_id, buffer, 2048);
+    
+    int lines = 0, words = 0, chars = read;
+    bool in_word = false;
+    
+    for (uint32_t i = 0; i < read; i++) {
+        if (buffer[i] == '\n') lines++;
+        if (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n') {
+            if (in_word) {
+                words++;
+                in_word = false;
+            }
+        } else {
+            in_word = true;
+        }
+    }
+    if (in_word) words++;
+    
+    char lines_str[32], words_str[32], chars_str[32];
+    itoa(lines, lines_str, 10);
+    itoa(words, words_str, 10);
+    itoa(chars, chars_str, 10);
+    
+    terminal_writestring(lines_str);
+    terminal_writestring(" ");
+    terminal_writestring(words_str);
+    terminal_writestring(" ");
+    terminal_writestring(chars_str);
+    terminal_writestring(" ");
+    terminal_writeln(args);
+}
+
+static void cmd_head(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: head <file> [lines]");
+        return;
+    }
+    
+    int num_lines = 10;
+    char filename[128];
+    
+    // Parse arguments
+    char args_copy[256];
+    strcpy(args_copy, args);
+    char* token = strtok(args_copy, " ");
+    strcpy(filename, token);
+    
+    token = strtok(NULL, " ");
+    if (token) {
+        num_lines = atoi(token);
+        if (num_lines <= 0) num_lines = 10;
+    }
+    
+    uint32_t file_id = ramfs_find_path(filename);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot head a directory");
+        return;
+    }
+    
+    uint8_t buffer[2048];
+    uint32_t read = ramfs_read_file(file_id, buffer, 2048);
+    if (read > 0) {
+        buffer[read] = '\0';
+        int lines = 0;
+        for (uint32_t i = 0; i < read && lines < num_lines; i++) {
+            terminal_writechar(buffer[i]);
+            if (buffer[i] == '\n') lines++;
+        }
+    }
+}
+
+static void cmd_tail(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: tail <file> [lines]");
+        return;
+    }
+    
+    int num_lines = 10;
+    char filename[128];
+    
+    char args_copy[256];
+    strcpy(args_copy, args);
+    char* token = strtok(args_copy, " ");
+    strcpy(filename, token);
+    
+    token = strtok(NULL, " ");
+    if (token) {
+        num_lines = atoi(token);
+        if (num_lines <= 0) num_lines = 10;
+    }
+    
+    uint32_t file_id = ramfs_find_path(filename);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot tail a directory");
+        return;
+    }
+    
+    uint8_t buffer[2048];
+    uint32_t read = ramfs_read_file(file_id, buffer, 2048);
+    if (read > 0) {
+        buffer[read] = '\0';
+        
+        // Count lines
+        int total_lines = 0;
+        for (uint32_t i = 0; i < read; i++) {
+            if (buffer[i] == '\n') total_lines++;
+        }
+        
+        // Find start position
+        int lines_to_skip = total_lines - num_lines;
+        if (lines_to_skip < 0) lines_to_skip = 0;
+        
+        int current_line = 0;
+        uint32_t start_pos = 0;
+        for (uint32_t i = 0; i < read; i++) {
+            if (buffer[i] == '\n') {
+                current_line++;
+                if (current_line > lines_to_skip) {
+                    start_pos = i + 1;
+                    break;
+                }
+            }
+        }
+        
+        // Print from start_pos
+        for (uint32_t i = start_pos; i < read; i++) {
+            terminal_writechar(buffer[i]);
+        }
+    }
+}
+
+static void cmd_sort(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: sort <file>");
+        return;
+    }
+    
+    uint32_t file_id = ramfs_find_path(args);
+    if (file_id == 256) {
+        terminal_writeln("File not found");
+        return;
+    }
+    
+    if (ramfs_entry_is_directory(file_id)) {
+        terminal_writeln("Cannot sort a directory");
+        return;
+    }
+    
+    uint8_t buffer[2048];
+    uint32_t read = ramfs_read_file(file_id, buffer, 2048);
+    if (read > 0) {
+        buffer[read] = '\0';
+        
+        // Simple bubble sort of lines
+        char* lines[256];
+        int line_count = 0;
+        char* line_start = (char*)buffer;
+        
+        lines[line_count++] = line_start;
+        for (uint32_t i = 0; i < read; i++) {
+            if (buffer[i] == '\n') {
+                buffer[i] = '\0';
+                if (i + 1 < read) {
+                    lines[line_count++] = (char*)buffer + i + 1;
+                }
+            }
+        }
+        
+        // Sort lines
+        for (int i = 0; i < line_count - 1; i++) {
+            for (int j = 0; j < line_count - i - 1; j++) {
+                if (strcmp(lines[j], lines[j + 1]) > 0) {
+                    char* temp = lines[j];
+                    lines[j] = lines[j + 1];
+                    lines[j + 1] = temp;
+                }
+            }
+        }
+        
+        // Print sorted lines
+        for (int i = 0; i < line_count; i++) {
+            terminal_writeln(lines[i]);
+        }
+    }
+}
+
+static void cmd_uname(const char* args)
+{
+    bool show_all = false;
+    if (args && strstr(args, "-a") != NULL) {
+        show_all = true;
+    }
+    
+    if (show_all || !args || strlen(args) == 0) {
+        terminal_writestring("huggingOS ");
+    }
+    if (show_all || (args && strstr(args, "-n") != NULL)) {
+        terminal_writeln("huggingOS");
+    }
+    if (show_all || (args && strstr(args, "-r") != NULL)) {
+        terminal_writeln("1.0.0");
+    }
+    if (show_all || (args && strstr(args, "-m") != NULL)) {
+        terminal_writeln("i686");
+    }
+    if (show_all) {
+        terminal_writeln("huggingOS huggingOS 1.0.0 i686");
+    }
+}
+
+static void cmd_sleep(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: sleep <seconds>");
+        return;
+    }
+    
+    int seconds = atoi(args);
+    if (seconds <= 0) {
+        terminal_writeln("Please provide a positive number of seconds");
+        return;
+    }
+    
+    uint32_t start_ticks = pit_get_milliseconds();
+    uint32_t target_ticks = start_ticks + (seconds * 1000);
+    
+    while (pit_get_milliseconds() < target_ticks) {
+        asm volatile("pause");
+    }
+}
+
+static void cmd_exit(const char* args)
+{
+    int exit_code = 0;
+    if (args && strlen(args) > 0) {
+        exit_code = atoi(args);
+    }
+    shell_exit_code = exit_code;
+    shell_exit_flag = true;
+    terminal_writeln("Exiting shell...");
+}
+
+static void cmd_env(void)
+{
+    for (int i = 0; i < env_count; i++) {
+        terminal_writestring(env_vars[i].name);
+        terminal_writestring("=");
+        terminal_writeln(env_vars[i].value);
+    }
+}
+
+static void cmd_export(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: export <VAR>=<value>");
+        return;
+    }
+    
+    char* eq_pos = strchr(args, '=');
+    if (!eq_pos) {
+        terminal_writeln("Usage: export <VAR>=<value>");
+        return;
+    }
+    
+    char name[64];
+    int name_len = eq_pos - args;
+    if (name_len >= 64) name_len = 63;
+    strncpy(name, args, name_len);
+    name[name_len] = '\0';
+    
+    const char* value = eq_pos + 1;
+    shell_setenv(name, value);
+    
+    terminal_writestring("Exported: ");
+    terminal_writestring(name);
+    terminal_writestring("=");
+    terminal_writeln(value);
+}
+
+static void cmd_alias(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        // List all aliases
+        if (alias_count == 0) {
+            terminal_writeln("No aliases defined");
+        } else {
+            for (int i = 0; i < alias_count; i++) {
+                terminal_writestring(aliases[i].name);
+                terminal_writestring("='");
+                terminal_writestring(aliases[i].command);
+                terminal_writeln("'");
+            }
+        }
+        return;
+    }
+    
+    char* eq_pos = strchr(args, '=');
+    if (!eq_pos) {
+        terminal_writeln("Usage: alias <name>='<command>'");
+        return;
+    }
+    
+    char name[32];
+    int name_len = eq_pos - args;
+    if (name_len >= 32) name_len = 31;
+    strncpy(name, args, name_len);
+    name[name_len] = '\0';
+    
+    // Skip = and quotes
+    const char* cmd_start = eq_pos + 1;
+    if (*cmd_start == '\'' || *cmd_start == '"') cmd_start++;
+    
+    char command[128];
+    strncpy(command, cmd_start, 127);
+    command[127] = '\0';
+    
+    // Remove trailing quote
+    int cmd_len = strlen(command);
+    if (cmd_len > 0 && (command[cmd_len - 1] == '\'' || command[cmd_len - 1] == '"')) {
+        command[cmd_len - 1] = '\0';
+    }
+    
+    // Check if alias exists
+    for (int i = 0; i < alias_count; i++) {
+        if (strcmp(aliases[i].name, name) == 0) {
+            strncpy(aliases[i].command, command, 127);
+            aliases[i].command[127] = '\0';
+            return;
+        }
+    }
+    
+    // Add new alias
+    if (alias_count < MAX_ALIASES) {
+        strncpy(aliases[alias_count].name, name, 31);
+        aliases[alias_count].name[31] = '\0';
+        strncpy(aliases[alias_count].command, command, 127);
+        aliases[alias_count].command[127] = '\0';
+        alias_count++;
+    }
+}
+
+static void cmd_unalias(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: unalias <alias_name>");
+        return;
+    }
+    
+    for (int i = 0; i < alias_count; i++) {
+        if (strcmp(aliases[i].name, args) == 0) {
+            // Shift remaining aliases
+            for (int j = i; j < alias_count - 1; j++) {
+                strcpy(aliases[j].name, aliases[j + 1].name);
+                strcpy(aliases[j].command, aliases[j + 1].command);
+            }
+            alias_count--;
+            terminal_writestring("Removed alias: ");
+            terminal_writeln(args);
+            return;
+        }
+    }
+    
+    terminal_writestring("Alias not found: ");
+    terminal_writeln(args);
+}
+
+static void cmd_df(void)
+{
+    extern uint32_t get_total_memory(void);
+    extern uint32_t get_free_memory(void);
+    
+    uint32_t total = get_total_memory();
+    uint32_t free = get_free_memory();
+    uint32_t used = total - free;
+    
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("Filesystem      Size      Used      Avail     Use%");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    
+    char total_str[32], used_str[32], free_str[32];
+    itoa(total / (1024 * 1024), total_str, 10);
+    itoa(used / (1024 * 1024), used_str, 10);
+    itoa(free / (1024 * 1024), free_str, 10);
+    
+    int use_percent = (used * 100) / total;
+    char percent_str[16];
+    itoa(use_percent, percent_str, 10);
+    
+    terminal_writestring("ramfs           ");
+    terminal_writestring(total_str);
+    terminal_writestring("M       ");
+    terminal_writestring(used_str);
+    terminal_writestring("M       ");
+    terminal_writestring(free_str);
+    terminal_writestring("M       ");
+    terminal_writestring(percent_str);
+    terminal_writeln("%");
+}
+
+static void cmd_du(const char* args)
+{
+    uint32_t dir_id = ramfs_get_current_dir();
+    if (args && strlen(args) > 0) {
+        uint32_t target = ramfs_find_path(args);
+        if (target != 256 && ramfs_entry_is_directory(target)) {
+            dir_id = target;
+        }
+    }
+    
+    // Calculate directory size (simplified)
+    uint32_t entries[16];
+    uint32_t count = ramfs_list_directory(dir_id, entries, 16);
+    
+    uint32_t total_size = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t entry_id = entries[i];
+        total_size += ramfs_entry_get_size(entry_id);
+    }
+    
+    char size_str[32];
+    itoa(total_size / 1024, size_str, 10);
+    
+    char path[256];
+    ramfs_get_full_path(dir_id, path, 256);
+    
+    terminal_writestring(size_str);
+    terminal_writestring("K    ");
+    terminal_writeln(path);
+}
+
+static void cmd_test(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        shell_exit_code = 1;
+        return;
+    }
+    
+    // Simple test: check if file exists
+    uint32_t file_id = ramfs_find_path(args);
+    if (file_id != 256) {
+        shell_exit_code = 0;
+    } else {
+        shell_exit_code = 1;
+    }
+}
+
+static void cmd_true(void)
+{
+    shell_exit_code = 0;
+}
+
+static void cmd_false(void)
+{
+    shell_exit_code = 1;
+}
+
+static void cmd_basename(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: basename <path>");
+        return;
+    }
+    
+    char* last_slash = strrchr(args, '/');
+    if (last_slash) {
+        terminal_writeln(last_slash + 1);
+    } else {
+        terminal_writeln(args);
+    }
+}
+
+static void cmd_dirname(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: dirname <path>");
+        return;
+    }
+    
+    char path_copy[256];
+    strcpy(path_copy, args);
+    char* last_slash = strrchr(path_copy, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+        if (strlen(path_copy) == 0) {
+            terminal_writeln("/");
+        } else {
+            terminal_writeln(path_copy);
+        }
+    } else {
+        terminal_writeln(".");
+    }
+}
+
+static void cmd_which(const char* args)
+{
+    if (!args || strlen(args) == 0) {
+        terminal_writeln("Usage: which <command>");
+        return;
+    }
+    
+    // Check if it's a builtin
+    const char* builtins[] = {
+        "help", "clear", "info", "version", "echo", "reboot", "color", "calc",
+        "banner", "about", "clock", "calendar", "date", "timer", "uptime",
+        "history", "shutdown", "whoami", "pwd", "mem", "ls", "mkdir", "cd",
+        "cat", "touch", "rm", "mv", "cp", "moti", "joke", "fortune", "grep",
+        "find", "wc", "head", "tail", "sort", "uname", "sleep", "exit", "env",
+        "export", "alias", "unalias", "df", "du", "test", "true", "false",
+        "basename", "dirname", "which", NULL
+    };
+    
+    for (int i = 0; builtins[i]; i++) {
+        if (strcmp(builtins[i], args) == 0) {
+            terminal_writestring(args);
+            terminal_writeln(": shell builtin");
+            return;
+        }
+    }
+    
+    terminal_writestring(args);
+    terminal_writeln(": not found");
+}
+
+static const char* shell_resolve_alias(const char* cmd)
+{
+    for (int i = 0; i < alias_count; i++) {
+        if (strcmp(aliases[i].name, cmd) == 0) {
+            return aliases[i].command;
+        }
+    }
+    return NULL;
 }
 
 static void shell_execute_command(const char* command)
@@ -686,6 +1908,20 @@ static void shell_execute_command(const char* command)
         strcpy(args, &command[i]);
     }
     
+    // Check for alias
+    const char* alias_cmd = shell_resolve_alias(cmd);
+    if (alias_cmd) {
+        // Execute alias command
+        char full_cmd[256];
+        strcpy(full_cmd, alias_cmd);
+        if (strlen(args) > 0) {
+            strcat(full_cmd, " ");
+            strcat(full_cmd, args);
+        }
+        shell_execute_command(full_cmd);
+        return;
+    }
+    
     // Execute command
     if (strcmp(cmd, "help") == 0) {
         cmd_help();
@@ -727,15 +1963,95 @@ static void shell_execute_command(const char* command)
         cmd_pwd();
     } else if (strcmp(cmd, "mem") == 0 || strcmp(cmd, "memory") == 0) {
         cmd_mem();
+    } else if (strcmp(cmd, "ls") == 0) {
+        cmd_ls(args);
+    } else if (strcmp(cmd, "mkdir") == 0) {
+        cmd_mkdir(args);
+    } else if (strcmp(cmd, "cd") == 0) {
+        cmd_cd(args);
+        shell_update_prompt();
+    } else if (strcmp(cmd, "cat") == 0) {
+        cmd_cat(args);
+    } else if (strcmp(cmd, "touch") == 0) {
+        cmd_touch(args);
+    } else if (strcmp(cmd, "rm") == 0) {
+        cmd_rm(args);
+    } else if (strcmp(cmd, "mv") == 0) {
+        cmd_mv(args);
+    } else if (strcmp(cmd, "cp") == 0) {
+        cmd_cp(args);
+    } else if (strcmp(cmd, "moti") == 0 || strcmp(cmd, "motivation") == 0) {
+        cmd_moti();
+    } else if (strcmp(cmd, "joke") == 0) {
+        cmd_joke();
+    } else if (strcmp(cmd, "fortune") == 0) {
+        cmd_fortune();
+    } else if (strcmp(cmd, "grep") == 0) {
+        cmd_grep(args);
+    } else if (strcmp(cmd, "find") == 0) {
+        cmd_find(args);
+    } else if (strcmp(cmd, "wc") == 0) {
+        cmd_wc(args);
+    } else if (strcmp(cmd, "head") == 0) {
+        cmd_head(args);
+    } else if (strcmp(cmd, "tail") == 0) {
+        cmd_tail(args);
+    } else if (strcmp(cmd, "sort") == 0) {
+        cmd_sort(args);
+    } else if (strcmp(cmd, "uname") == 0) {
+        cmd_uname(args);
+    } else if (strcmp(cmd, "sleep") == 0) {
+        cmd_sleep(args);
+    } else if (strcmp(cmd, "exit") == 0) {
+        cmd_exit(args);
+    } else if (strcmp(cmd, "env") == 0) {
+        cmd_env();
+    } else if (strcmp(cmd, "export") == 0) {
+        cmd_export(args);
+    } else if (strcmp(cmd, "alias") == 0) {
+        cmd_alias(args);
+    } else if (strcmp(cmd, "unalias") == 0) {
+        cmd_unalias(args);
+    } else if (strcmp(cmd, "df") == 0) {
+        cmd_df();
+    } else if (strcmp(cmd, "du") == 0) {
+        cmd_du(args);
+    } else if (strcmp(cmd, "test") == 0 || strcmp(cmd, "[") == 0) {
+        cmd_test(args);
+    } else if (strcmp(cmd, "true") == 0) {
+        cmd_true();
+    } else if (strcmp(cmd, "false") == 0) {
+        cmd_false();
+    } else if (strcmp(cmd, "basename") == 0) {
+        cmd_basename(args);
+    } else if (strcmp(cmd, "dirname") == 0) {
+        cmd_dirname(args);
+    } else if (strcmp(cmd, "which") == 0) {
+        cmd_which(args);
     } else {
-        terminal_writestring("Unknown command: ");
-        terminal_writeln(cmd);
-        terminal_writeln("Type 'help' for a list of commands.");
+        // Check if echo has file redirection
+        if (strcmp(cmd, "echo") == 0 && strchr(args, '>') != NULL) {
+            cmd_echo_file(args);
+        } else {
+            terminal_writestring("Unknown command: ");
+            terminal_writeln(cmd);
+            terminal_writeln("Type 'help' for a list of commands.");
+        }
     }
 }
 
 void shell_print_prompt(void)
 {
     terminal_writestring(shell_prompt);
+}
+
+bool shell_should_exit(void)
+{
+    return shell_exit_flag;
+}
+
+int shell_get_exit_code(void)
+{
+    return shell_exit_code;
 }
 

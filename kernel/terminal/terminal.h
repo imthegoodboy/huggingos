@@ -36,6 +36,8 @@ size_t terminal_get_column(void);
 void shell_init(void);
 void shell_process_input(char c);
 void shell_print_prompt(void);
+bool shell_should_exit(void);
+int shell_get_exit_code(void);
 
 #endif
 

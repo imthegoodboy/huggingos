@@ -124,7 +124,6 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     
     // Initialize RTC (clock)
     terminal_writestring("  - Initializing RTC... ");
-    extern void rtc_init(void);
     rtc_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
@@ -132,6 +131,14 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     
     // VGA already initialized at boot, just confirm
     terminal_writestring("  - Graphics initialized... ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OK]");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    
+    // Initialize file system
+    terminal_writestring("  - Initializing file system... ");
+    extern void ramfs_init(void);
+    ramfs_init();
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
@@ -163,6 +170,20 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
         char c = keyboard_get_char();
         if (c != 0) {
             shell_process_input(c);
+            
+            // Check if shell requested exit
+            if (shell_should_exit()) {
+                terminal_writeln("");
+                terminal_writeln("Shell exited with code: ");
+                char code_str[16];
+                itoa(shell_get_exit_code(), code_str, 10);
+                terminal_writeln(code_str);
+                terminal_writeln("");
+                terminal_writeln("Restarting shell...");
+                terminal_writeln("");
+                shell_init();
+                shell_print_prompt();
+            }
         }
         
         // Small delay to prevent CPU spinning
