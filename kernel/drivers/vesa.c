@@ -110,3 +110,4 @@ void vesa_clear(uint32_t color)
     }
 }
 
+

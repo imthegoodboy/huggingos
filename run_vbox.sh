@@ -62,3 +62,4 @@ echo "VM created and configured!"
 echo "Starting VM..."
 VBoxManage startvm "$VM_NAME"
 
+
