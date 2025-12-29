@@ -38,6 +38,8 @@ void shell_process_input(char c);
 void shell_print_prompt(void);
 bool shell_should_exit(void);
 int shell_get_exit_code(void);
+void shell_setenv(const char* name, const char* value);
+const char* shell_getenv(const char* name);
 
 #endif
 

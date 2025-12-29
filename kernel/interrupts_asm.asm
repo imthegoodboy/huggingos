@@ -106,6 +106,7 @@ IRQ  15,    47
 
 extern irq_handler
 
+
 irq_common_stub:
     pusha
     mov ax, ds

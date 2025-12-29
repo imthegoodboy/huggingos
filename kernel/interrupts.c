@@ -68,6 +68,7 @@ extern void irq12();
 extern void irq13();
 extern void irq14();
 extern void irq15();
+extern void syscall_handler_asm();
 
 void idt_init()
 {
@@ -111,6 +112,7 @@ void idt_init()
     idt_set_gate(31, (unsigned)isr31, 0x08, 0x8E);
 
     // Set up IRQ handlers (32-47)
+    // Note: System calls (int 0x80) are handled generically via isr_handler
     idt_set_gate(32, (unsigned)irq0, 0x08, 0x8E);
     idt_set_gate(33, (unsigned)irq1, 0x08, 0x8E);
     idt_set_gate(34, (unsigned)irq2, 0x08, 0x8E);
@@ -143,10 +145,23 @@ void idt_init()
     idt_flush();
 }
 
+// Global to store syscall return value
+int syscall_retval = 0;
+
 void isr_handler(registers_t regs)
 {
+    // Handle system calls (interrupt 0x80 = 128)
+    if (regs.int_no == 128) {
+        extern void syscall_handler(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+        extern int syscall_get_return(void);
+        syscall_handler(regs.eax, regs.ebx, regs.ecx, regs.edx, regs.esi);
+        syscall_retval = syscall_get_return();
+        // Return value stored in syscall_retval
+        return;
+    }
+    
     // Handle exceptions
-    if (regs.int_no < 32) {
+    if (regs.int_no < 32 || regs.int_no == 128) {
         // For now, just ignore most exceptions
         // In a full OS, you'd handle them properly
         if (regs.int_no == 14) {

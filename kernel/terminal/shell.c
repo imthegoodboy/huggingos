@@ -3,6 +3,7 @@
 #include "../lib/lib.h"
 #include "../drivers/drivers.h"
 #include "../fs/fs.h"
+#include "../sys/logging.h"
 
 #define SHELL_MAX_INPUT 256
 #define SHELL_MAX_ARGS 16
@@ -39,7 +40,7 @@ static bool shell_exit_flag = false;
 
 static void shell_execute_command(const char* command);
 static void shell_update_prompt(void);
-static void shell_setenv(const char* name, const char* value);
+void shell_setenv(const char* name, const char* value);
 
 void shell_init(void)
 {
@@ -64,7 +65,7 @@ void shell_init(void)
     shell_update_prompt();
 }
 
-static void shell_setenv(const char* name, const char* value)
+void shell_setenv(const char* name, const char* value)
 {
     // Check if exists
     for (int i = 0; i < env_count; i++) {
@@ -85,7 +86,7 @@ static void shell_setenv(const char* name, const char* value)
     }
 }
 
-static const char* shell_getenv(const char* name)
+const char* shell_getenv(const char* name)
 {
     for (int i = 0; i < env_count; i++) {
         if (strcmp(env_vars[i].name, name) == 0) {
@@ -1893,6 +1894,20 @@ static void cmd_dirname(const char* args)
     }
 }
 
+static void cmd_dmesg(const char* args)
+{
+    extern void log_print_all(void);
+    extern void log_clear(void);
+    
+    if (args && (strcmp(args, "-c") == 0 || strcmp(args, "--clear") == 0)) {
+        log_clear();
+        terminal_writeln("System log cleared");
+        return;
+    }
+    
+    log_print_all();
+}
+
 static void cmd_which(const char* args)
 {
     if (!args || strlen(args) == 0) {
@@ -2094,6 +2109,8 @@ static void shell_execute_command(const char* command)
         cmd_dirname(args);
     } else if (strcmp(cmd, "which") == 0) {
         cmd_which(args);
+    } else if (strcmp(cmd, "dmesg") == 0 || strcmp(cmd, "log") == 0) {
+        cmd_dmesg(args);
     } else {
         // Check if echo has file redirection
         if (strcmp(cmd, "echo") == 0 && strchr(args, '>') != NULL) {

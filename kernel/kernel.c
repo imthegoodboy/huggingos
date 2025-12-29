@@ -5,6 +5,8 @@
 #include "drivers/drivers.h"
 #include "terminal/terminal.h"
 #include "lib/lib.h"
+#include "syscalls/syscalls.h"
+#include "sys/logging.h"
 
 // Multiboot information structure
 typedef struct {
@@ -103,10 +105,33 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize IDT and interrupts
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("2/9");
+    terminal_writestring("2/10");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Setting up IDT...               ");
     idt_init();
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OK]");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    
+    // Initialize system calls
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("3/11");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing system calls...    ");
+    syscalls_init();
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln("[OK]");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    
+    // Initialize logging
+    terminal_writestring("  [");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writestring("4/11");
+    terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    terminal_writestring("] Initializing logging...          ");
+    log_init();
+    log_info("kernel", "System logging initialized");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
@@ -118,7 +143,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     }
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("3/9");
+    terminal_writestring("5/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Initializing memory...          ");
     memory_init(mem_size);
@@ -129,7 +154,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize keyboard
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("4/9");
+    terminal_writestring("6/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Initializing keyboard...        ");
     keyboard_init();
@@ -140,7 +165,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize PIT (timer)
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("5/9");
+    terminal_writestring("7/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Initializing timer...         ");
     extern void pit_init(void);
@@ -152,7 +177,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize RTC (clock)
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("6/9");
+    terminal_writestring("8/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Initializing RTC...             ");
     rtc_init();
@@ -163,7 +188,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // VGA already initialized at boot, just confirm
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("7/9");
+    terminal_writestring("9/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Graphics initialized...         ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
@@ -173,7 +198,7 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize file system
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("8/9");
+    terminal_writestring("10/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Initializing file system...     ");
     extern void ramfs_init(void);
@@ -185,10 +210,10 @@ void kernel_main_multiboot(uint32_t magic, multiboot_info_t* mbi)
     // Initialize shell
     terminal_writestring("  [");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writestring("9/9");
+    terminal_writestring("11/11");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     terminal_writestring("] Starting shell...               ");
-    shell_init();
+    log_info("kernel", "Shell initialized");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("[OK]");
     terminal_setcolor(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
