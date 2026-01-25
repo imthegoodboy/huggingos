@@ -73,7 +73,7 @@ To build huggingOs, you need the following tools installed:
 
 ## Building huggingOs
 
-### Step 1: Install Build Tools
+### Step 1: Install Build Toolss
 
 #### On Ubuntu/Debian:
 ```bash
