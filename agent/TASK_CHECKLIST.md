@@ -52,3 +52,10 @@ For all changes:
 - [ ] No hardcoded secrets or user-specific paths.
 - [ ] Remaining limitations are stated honestly.
 - [ ] PR references the issue it advances or closes.
+
+## Knowledge Capture Gate
+
+- [ ] If this task revealed a future-useful gotcha, note, or warning, add or
+  update a file in `agent/notes/`.
+- [ ] If a note was added, update `agent/notes/INDEX.md`.
+- [ ] If no note was needed, say so in the PR or final summary.
