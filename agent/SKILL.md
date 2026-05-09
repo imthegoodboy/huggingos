@@ -23,6 +23,8 @@ Before changing code, read only what is needed:
 - `README.md` for the current user-facing status.
 - `UPDATE.md` for recent completed work.
 - `agent/TASK_CHECKLIST.md` for the no-drift task checklist.
+- `agent/COMMANDS.md` for common build, QEMU, GitHub, and hygiene commands.
+- `agent/notes/INDEX.md` for durable lessons from previous agents.
 - The active GitHub issue, if one exists.
 - The specific kernel modules touched by the task.
 
@@ -38,6 +40,7 @@ Before changing code, read only what is needed:
 - Prefer small, reviewable PRs tied to GitHub issues.
 - Add tests or `selftest` coverage for risky kernel behavior.
 - Update docs when behavior or limitations change.
+- Capture future-useful gotchas in `agent/notes/` before finishing.
 - Preserve user changes in the working tree; never revert unrelated work.
 
 ## Phase Workflow
@@ -81,6 +84,31 @@ rg -n "[^\x00-\x7F]" kernel README.md UPDATE.md PLAN.md agent
 ```
 
 If a validation step cannot run, say exactly why in the PR and final summary.
+
+## Knowledge Capture Rule
+
+If you discover something that would help or protect a future agent, write it
+down before finishing the task.
+
+Use `agent/notes/TEMPLATE.md` for new notes. Update
+`agent/notes/INDEX.md` so the note is discoverable.
+
+Capture:
+
+- Kernel or driver traps.
+- Build, QEMU, or CI pitfalls.
+- Architecture decisions that are too small for an ADR but important to know.
+- Safety rules discovered from bugs.
+- Patterns future agents should reuse.
+
+Do not capture:
+
+- Noisy command logs.
+- Temporary guesses.
+- Personal progress summaries.
+- Information already clear in `PLAN.md` or source comments.
+
+Keep notes short, factual, sourced, and actionable.
 
 ## Kernel Engineering Rules
 
@@ -157,6 +185,7 @@ Use draft PRs for incomplete work. Use ready PRs only when validation is done.
 - Keep `PLAN.md` as the source of truth for the roadmap.
 - Keep `README.md` accurate for users who want to build and run the OS.
 - Keep `UPDATE.md` as completed release notes, not future promises.
+- Keep `agent/notes/INDEX.md` updated when adding durable agent notes.
 - Update docs in the same PR as behavior changes.
 - Use `docs/adr/0000-template.md` for decisions that affect architecture,
   security, process/user boundaries, storage, networking, graphics, AI runtime,

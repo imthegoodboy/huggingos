@@ -27,7 +27,8 @@ isolation. The current focus is a stable kernel base that can be extended safely
 
 For the full AI-native OS roadmap, see [PLAN.md](PLAN.md). Future AI builders
 should follow [agent/SKILL.md](agent/SKILL.md) and
-[agent/TASK_CHECKLIST.md](agent/TASK_CHECKLIST.md).
+[agent/TASK_CHECKLIST.md](agent/TASK_CHECKLIST.md). Durable gotchas and build
+lessons live in [agent/notes/INDEX.md](agent/notes/INDEX.md).
 
 ## Quick Start
 

@@ -428,8 +428,12 @@ Use GitHub for execution:
 These files keep AI builders focused and repeatable:
 
 - [agent/SKILL.md](agent/SKILL.md): repo-local build rules for AI agents.
+- [agent/COMMANDS.md](agent/COMMANDS.md): common build, QEMU, GitHub, and
+  hygiene commands.
 - [agent/TASK_CHECKLIST.md](agent/TASK_CHECKLIST.md): no-drift checklist for
   each task.
+- [agent/notes/INDEX.md](agent/notes/INDEX.md): durable notes and warnings from
+  previous agents.
 - [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md): PR gate
   for validation and no-fake behavior.
 - [.github/ISSUE_TEMPLATE/phase_task.yml](.github/ISSUE_TEMPLATE/phase_task.yml):
@@ -439,6 +443,9 @@ These files keep AI builders focused and repeatable:
 
 Agents should treat this kit as guardrails, not as a substitute for reading the
 actual source code.
+
+Future-useful discoveries should be captured in `agent/notes/` using
+`agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
 ## Immediate Sprint: Phase 1
 
