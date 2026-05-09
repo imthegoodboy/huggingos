@@ -18,6 +18,10 @@ userspace services. Those do not belong directly in a fragile early kernel. The
 right path is to build the OS capability layer first, then connect AI runtimes
 through controlled system services.
 
+AI-native does not mean "put an LLM in the kernel." The kernel should provide
+isolation, devices, files, networking, timers, graphics, and safe syscalls. AI
+logic should run in userspace services that call explicit OS capabilities.
+
 ## Product Principles
 
 - Every phase must leave the OS bootable in QEMU.
@@ -29,6 +33,12 @@ through controlled system services.
 - The shell remains the first control plane until a GUI and app model exist.
 - Prefer deterministic local behavior first; add cloud AI only after the secure
   runtime and secret model exist.
+- Build the smallest real vertical slice; do not add labels, banners, or command
+  names that imply missing behavior is complete.
+- Probe or configure hardware and resources instead of assuming fixed addresses,
+  host paths, API keys, or emulator-only values.
+- Major architecture decisions need a short ADR-style note in docs before the
+  implementation becomes large.
 
 ## Definition Of Done For Every Phase
 
@@ -38,6 +48,43 @@ through controlled system services.
 - README or docs describe the new behavior and limitations.
 - GitHub issues for the phase are closed or explicitly carried forward.
 - No new known crash path is accepted without an issue and mitigation plan.
+- No secret, token, local machine path, or fake provider is hardcoded.
+- The feature has a failure path that reports what went wrong.
+
+## Non-Hardcoded Implementation Policy
+
+Hardcoding is allowed only for architectural constants that are part of the
+platform contract, such as the VGA text memory address or x86 interrupt vector
+numbers. Anything environment-specific must be discovered, configured, or passed
+through a documented interface.
+
+Do not hardcode:
+
+- API keys, provider names as the only possible provider, tokens, or secrets.
+- User-specific paths, drive letters, usernames, or host machine assumptions.
+- Fake framebuffer addresses, fake network responses, fake files, or fake memory.
+- Test outputs that claim success without executing the feature.
+- AI plans that bypass permission, audit, or verification layers.
+
+Every temporary stub must:
+
+- Fail safely.
+- State that it is not implemented.
+- Avoid modifying state.
+- Have a GitHub issue or roadmap entry for the real implementation.
+
+## Architecture Records
+
+Create short design notes under `docs/adr/` when a phase chooses a direction
+that will be hard to reverse. Examples:
+
+- Boot protocol and bootloader assumptions.
+- Memory model and paging strategy.
+- Executable format and syscall ABI.
+- Filesystem and block-device strategy.
+- Networking stack boundary.
+- AI runtime provider and secret-storage model.
+- Capability permission model.
 
 ## Phase 0: Baseline Hardening
 
@@ -75,6 +122,7 @@ Core features:
   length limits, and clear failures.
 - Documentation for the syscall ABI and current kernel memory model.
 - CI workflow that builds the kernel and ISO on every PR.
+- First ADRs for memory model, syscall ABI, and test strategy.
 
 Acceptance criteria:
 
@@ -82,6 +130,7 @@ Acceptance criteria:
 - `selftest` covers heap, RAMFS, and shell behavior.
 - CI rejects build failures.
 - The OS stays interactive after common bad inputs.
+- No repo script depends on a user-specific local path.
 
 GitHub issue plan:
 
@@ -114,7 +163,9 @@ Core features:
 - Kernel/user privilege boundary.
 - Page directory setup for kernel and user memory.
 - ELF loader or simpler first user program format.
+- File descriptors for stdin, stdout, stderr, and filesystem objects.
 - Syscalls for process lifecycle, file I/O, time, memory, and logging.
+- `exec`, `wait`, `exit`, and process error reporting.
 - Init process and userspace shell migration path.
 
 Acceptance criteria:
@@ -132,6 +183,8 @@ Core features:
 - VFS layer over RAMFS and disk-backed filesystems.
 - Initrd support for bundled user programs and config.
 - ATA PIO or virtio block driver, depending on emulator target.
+- Partition and disk image discovery for the supported boot target.
+- Block cache with explicit flush behavior.
 - FAT12/FAT16 first, then consider FAT32.
 - File permissions metadata, timestamps, and basic stat calls.
 - Safe write path with flush and corruption checks.
@@ -142,7 +195,35 @@ Acceptance criteria:
 - OS can write a test file and read it after reboot in the chosen disk format.
 - RAMFS and disk filesystem share the same VFS command surface.
 
-## Phase 4: Graphics, Mouse, And Windowing
+## Phase 4: Device Model, Networking, And Secure Config
+
+Goal: add normal OS device discovery, real network foundations, and a safe way
+to store configuration before any cloud AI work.
+
+Core features:
+
+- Device manager for discovered hardware and drivers.
+- PCI discovery if the emulator/device target needs it.
+- Network driver target selection, such as e1000, rtl8139, or virtio-net.
+- Ethernet, ARP, IPv4, ICMP, UDP, and TCP roadmap with incremental delivery.
+- DNS resolver and basic HTTP client in userspace after sockets exist.
+- TLS strategy documented before sending secrets over the network.
+- Secure configuration store for user settings.
+- Secret storage design that keeps API keys out of source, docs, and kernel
+  images.
+- Optional host bridge for development only, clearly marked and permissioned.
+
+Acceptance criteria:
+
+- OS can discover at least one supported emulated device without hardcoded host
+  assumptions.
+- OS can perform a real network smoke test for the implemented protocol level,
+  such as ARP/ICMP before TCP exists.
+- Secrets are loaded from a documented runtime store, never from hardcoded source
+  constants.
+- Networking failures report actionable errors instead of pretending success.
+
+## Phase 5: Graphics, Mouse, And Windowing
 
 Goal: move from text-mode shell to a real graphical desktop base.
 
@@ -161,7 +242,7 @@ Acceptance criteria:
 - Mouse and keyboard control at least two windows.
 - Text-mode fallback remains available for recovery.
 
-## Phase 5: OS Capability And Automation API
+## Phase 6: OS Capability And Automation API
 
 Goal: expose safe, auditable OS actions that an AI can call.
 
@@ -181,7 +262,7 @@ Acceptance criteria:
 - Destructive actions require confirmation.
 - Audit logs show what happened, when, and why.
 
-## Phase 6: Local AI Runtime Bridge
+## Phase 7: Local AI Runtime Bridge
 
 Goal: connect AI planning to OS capabilities without putting model logic inside
 the kernel.
@@ -195,6 +276,7 @@ Core features:
 - Prompt/action schema that maps user goals to capability calls.
 - Planner, executor, verifier loop.
 - Failure recovery: retry, ask user, or stop safely.
+- Offline mode that still works without cloud providers.
 
 Acceptance criteria:
 
@@ -202,8 +284,9 @@ Acceptance criteria:
 - Plan steps execute only through capability APIs.
 - The verifier checks observable results before reporting success.
 - API keys are never hardcoded into the repo or kernel image.
+- Provider failure does not break local OS control.
 
-## Phase 7: Screen Understanding And Context Engine
+## Phase 8: Screen Understanding And Context Engine
 
 Goal: let the OS understand visible state and active work.
 
@@ -222,7 +305,7 @@ Acceptance criteria:
 - Native apps expose machine-readable UI metadata.
 - Screen capture and OCR are permissioned and logged.
 
-## Phase 8: Memory System
+## Phase 9: Memory System
 
 Goal: make the OS remember useful context without becoming unsafe or creepy.
 
@@ -241,7 +324,7 @@ Acceptance criteria:
 - User can inspect and delete remembered facts.
 - Memory collection is documented and permissioned.
 
-## Phase 9: Multi-Agent Orchestration
+## Phase 10: Multi-Agent Orchestration
 
 Goal: split intelligence into focused agents coordinated by an orchestrator.
 
@@ -268,7 +351,7 @@ Acceptance criteria:
 - Agents cannot call capabilities outside their permission scope.
 - User can inspect what each agent did.
 
-## Phase 10: AI Desktop Overlay And Workspace Modes
+## Phase 11: AI Desktop Overlay And Workspace Modes
 
 Goal: make the AI feel like part of the OS, not a separate app.
 
@@ -287,7 +370,7 @@ Acceptance criteria:
 - Mode changes are visible, reversible, and logged.
 - Overlay can inspect context and call approved capabilities.
 
-## Phase 11: Predictive And Self-Healing OS
+## Phase 12: Predictive And Self-Healing OS
 
 Goal: move from reactive commands to useful proactive help.
 
@@ -305,7 +388,7 @@ Acceptance criteria:
 - OS can detect a simulated app failure and recommend a recovery action.
 - Proactive actions are never destructive without confirmation.
 
-## Phase 12: Plugin SDK And Ecosystem
+## Phase 13: Plugin SDK And Ecosystem
 
 Goal: let new apps and agents integrate cleanly.
 
@@ -334,9 +417,28 @@ Use GitHub for execution:
   - `phase:1`, `phase:2`, etc.
   - `type:epic`, `type:feature`, `type:test`, `type:docs`, `type:security`.
   - `area:kernel`, `area:shell`, `area:fs`, `area:drivers`, `area:ai`,
-    `area:gui`, `area:automation`, `area:infra`.
+    `area:gui`, `area:automation`, `area:infra`, `area:net`,
+    `area:security`.
 - PRs should mention the issue they close.
 - Each phase ends with a release note in `UPDATE.md`.
+- Future agents should follow [agent/SKILL.md](agent/SKILL.md).
+
+## Agent Working Kit
+
+These files keep AI builders focused and repeatable:
+
+- [agent/SKILL.md](agent/SKILL.md): repo-local build rules for AI agents.
+- [agent/TASK_CHECKLIST.md](agent/TASK_CHECKLIST.md): no-drift checklist for
+  each task.
+- [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md): PR gate
+  for validation and no-fake behavior.
+- [.github/ISSUE_TEMPLATE/phase_task.yml](.github/ISSUE_TEMPLATE/phase_task.yml):
+  issue template for phase tasks.
+- [docs/adr/0000-template.md](docs/adr/0000-template.md): architecture decision
+  template.
+
+Agents should treat this kit as guardrails, not as a substitute for reading the
+actual source code.
 
 ## Immediate Sprint: Phase 1
 
@@ -358,3 +460,5 @@ features have something real to stand on.
 - No fake browser automation until a browser/app model exists.
 - No "persistent memory" until storage and retention controls exist.
 - No "full OS control" until actions pass through permissioned capability APIs.
+- No hardcoded host paths, local usernames, API keys, fake device addresses, or
+  success messages that hide missing implementation.

@@ -1,0 +1,53 @@
+name: Phase task
+description: Track a focused implementation task from PLAN.md
+title: "[Phase N] "
+labels: ["type:feature"]
+body:
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      description: Which PLAN.md phase does this belong to?
+      placeholder: "Phase 1: Reliable Kernel And Shell Foundation"
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What real behavior should exist after this issue is complete?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What files, modules, or behavior are in scope?
+      placeholder: |
+        - Kernel module:
+        - Shell command:
+        - Docs:
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What proves this works?
+      placeholder: |
+        - make clean all iso passes
+        - QEMU boots
+        - selftest covers the behavior
+    validations:
+      required: true
+  - type: textarea
+    id: no_fake
+    attributes:
+      label: No-fake implementation check
+      description: List any hardcoding, stubs, or unsupported behavior and how it will be avoided.
+      placeholder: |
+        - No hardcoded paths or secrets
+        - Unsupported hardware fails safely
+        - No fake success output
+    validations:
+      required: true
