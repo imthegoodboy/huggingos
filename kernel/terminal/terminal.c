@@ -7,6 +7,9 @@
 extern void vga_putchar(char c);
 extern void vga_clear(void);
 extern void vga_setcolor(uint8_t color);
+extern void vga_set_cursor(size_t x, size_t y);
+extern size_t vga_get_row(void);
+extern size_t vga_get_column(void);
 
 void terminal_initialize(void)
 {
@@ -89,22 +92,17 @@ uint8_t terminal_getcolor(void)
 
 void terminal_set_cursor(size_t x, size_t y)
 {
-    // VGA manages cursor internally, this is a placeholder
-    // In a full implementation, we'd need to expose VGA cursor functions
-    (void)x;
-    (void)y;
+    vga_set_cursor(x, y);
 }
 
 size_t terminal_get_row(void)
 {
-    // VGA manages row internally
-    return 0;
+    return vga_get_row();
 }
 
 size_t terminal_get_column(void)
 {
-    // VGA manages column internally
-    return 0;
+    return vga_get_column();
 }
 
 

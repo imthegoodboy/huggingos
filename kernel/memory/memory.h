@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 #define PAGE_SIZE 4096
-#define KHEAP_START 0xC0000000
+#define KHEAP_START 0x200000
 #define KHEAP_INITIAL_SIZE 0x100000
 #define HEAP_INDEX_SIZE 0x20000
 #define HEAP_MAGIC 0x123890AB
@@ -38,6 +38,7 @@ typedef struct {
 } page_directory_t;
 
 void memory_init(uint32_t mem_size);
+void heap_init(uint32_t mem_size);
 void* kmalloc(size_t size);
 void kfree(void* ptr);
 void* krealloc(void* ptr, size_t size);

@@ -1,58 +1,37 @@
 #!/bin/bash
 
-# huggingOs Build Script
+set -euo pipefail
 
-set -e
+cd "$(dirname "$0")"
 
 echo "=========================================="
-echo "  huggingOs Build Script"
+echo "  huggingOS Build Script"
 echo "=========================================="
 echo ""
-
-# Check for required tools
-echo "Checking for required tools..."
 
 check_tool() {
-    if ! command -v $1 &> /dev/null; then
-        echo "ERROR: $1 not found!"
-        echo "Please install $1"
-        exit 1
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "ERROR: $1 not found"
+        return 1
     fi
-    echo "  ✓ $1 found"
+    echo "  [OK] $1 found"
 }
 
-check_tool "i686-elf-gcc"
-check_tool "nasm"
-check_tool "grub-mkrescue"
+echo "Checking required tools..."
+check_tool nasm
+check_tool grub-mkrescue
+
+if command -v i686-elf-gcc >/dev/null 2>&1; then
+    echo "  [OK] i686-elf-gcc found"
+else
+    check_tool gcc
+    echo "  [OK] using gcc -m32 fallback from Makefile"
+fi
 
 echo ""
-echo "Building kernel..."
-make clean
-make all
+echo "Building kernel and ISO..."
+make clean all iso
 
 echo ""
-echo "Creating ISO..."
-make iso
-
-echo ""
-echo "=========================================="
-echo "  Build Complete!"
-echo "=========================================="
-echo ""
-echo "ISO created: huggingOs.iso"
-echo ""
-echo "To test in VirtualBox:"
-echo "  1. Open VirtualBox"
-echo "  2. Create a new VM (Type: Other, Version: Other/Unknown)"
-echo "  3. Set memory to 64MB or more"
-echo "  4. Create a virtual hard disk (any size, won't be used)"
-echo "  5. Go to Settings > Storage"
-echo "  6. Add optical drive and select huggingOs.iso"
-echo "  7. Start the VM"
-echo ""
-
-
-
-
-
-
+echo "Build complete: huggingOs.iso"
+echo "Run with: make qemu"

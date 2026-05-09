@@ -6,6 +6,8 @@
 #define MAX_DIRS 64
 #define MAX_FILENAME 64
 #define MAX_PATH 256
+#define MAX_CHILDREN 64
+#define RAMFS_NOT_FOUND MAX_FILES
 
 // File system entry structure (full definition)
 typedef struct ramfs_entry {
@@ -16,13 +18,15 @@ typedef struct ramfs_entry {
     bool is_directory;
     uint32_t parent_dir;
     uint32_t num_children;
-    uint32_t children[16]; // Max 16 entries per directory
+    uint32_t children[MAX_CHILDREN];
 } ramfs_entry_t;
 
 static ramfs_entry_t filesystem[MAX_FILES];
 static uint32_t num_entries = 0;
 static uint32_t current_dir = 0;
 static bool fs_initialized = false;
+
+uint32_t ramfs_find_path(const char* path);
 
 void ramfs_init(void)
 {
@@ -47,6 +51,10 @@ void ramfs_init(void)
 
 static uint32_t ramfs_find_entry_in_dir(uint32_t dir_id, const char* name)
 {
+    if (dir_id >= MAX_FILES || !filesystem[dir_id].is_directory || !name) {
+        return RAMFS_NOT_FOUND;
+    }
+
     ramfs_entry_t* dir = &filesystem[dir_id];
     
     for (uint32_t i = 0; i < dir->num_children; i++) {
@@ -56,7 +64,7 @@ static uint32_t ramfs_find_entry_in_dir(uint32_t dir_id, const char* name)
         }
     }
     
-    return MAX_FILES; // Not found
+    return RAMFS_NOT_FOUND;
 }
 
 static uint32_t ramfs_get_free_entry(void)
@@ -66,80 +74,146 @@ static uint32_t ramfs_get_free_entry(void)
             return i;
         }
     }
-    return MAX_FILES; // No free entry
+    return RAMFS_NOT_FOUND;
 }
 
-uint32_t ramfs_create_file(const char* path)
+static bool ramfs_valid_name(const char* name)
+{
+    if (!name || strlen(name) == 0 || strlen(name) >= MAX_FILENAME) {
+        return false;
+    }
+
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return false;
+    }
+
+    return strchr(name, '/') == NULL;
+}
+
+static bool ramfs_add_child(uint32_t parent_dir, uint32_t child_id)
+{
+    if (parent_dir >= MAX_FILES || child_id >= MAX_FILES) {
+        return false;
+    }
+
+    ramfs_entry_t* parent = &filesystem[parent_dir];
+    if (!parent->is_directory || parent->num_children >= MAX_CHILDREN) {
+        return false;
+    }
+
+    parent->children[parent->num_children++] = child_id;
+    return true;
+}
+
+static bool ramfs_split_parent(const char* path, uint32_t* parent_out, char* name_out)
+{
+    if (!path || !parent_out || !name_out) {
+        return false;
+    }
+
+    char path_copy[MAX_PATH];
+    strncpy(path_copy, path, MAX_PATH - 1);
+    path_copy[MAX_PATH - 1] = '\0';
+
+    uint32_t len = strlen(path_copy);
+    while (len > 1 && path_copy[len - 1] == '/') {
+        path_copy[len - 1] = '\0';
+        len--;
+    }
+
+    if (len == 0 || strcmp(path_copy, "/") == 0) {
+        return false;
+    }
+
+    char* last_slash = strrchr(path_copy, '/');
+    uint32_t parent = current_dir;
+    const char* name = path_copy;
+
+    if (last_slash) {
+        name = last_slash + 1;
+        if (last_slash == path_copy) {
+            parent = 0;
+        } else {
+            *last_slash = '\0';
+            parent = ramfs_find_path(path_copy);
+        }
+    }
+
+    if (parent == RAMFS_NOT_FOUND || !filesystem[parent].is_directory || !ramfs_valid_name(name)) {
+        return false;
+    }
+
+    *parent_out = parent;
+    strncpy(name_out, name, MAX_FILENAME - 1);
+    name_out[MAX_FILENAME - 1] = '\0';
+    return true;
+}
+
+static uint32_t ramfs_create_entry(const char* path, bool is_directory)
 {
     if (!fs_initialized) ramfs_init();
-    
-    // Simple implementation: handle only current directory files for now
-    char path_copy[MAX_PATH];
-    strcpy(path_copy, path);
-    
-    // Remove leading slashes
-    while (*path_copy == '/') {
-        memmove(path_copy, path_copy + 1, strlen(path_copy));
+
+    uint32_t parent_dir;
+    char name[MAX_FILENAME];
+
+    if (!ramfs_split_parent(path, &parent_dir, name)) {
+        return RAMFS_NOT_FOUND;
     }
-    
-    // Simple: create in current directory
-    uint32_t parent_dir = current_dir;
-    const char* filename = path_copy;
-    
-    // Handle empty filename
-    if (strlen(filename) == 0) {
-        return MAX_FILES;
+
+    uint32_t existing = ramfs_find_entry_in_dir(parent_dir, name);
+    if (existing != RAMFS_NOT_FOUND) {
+        if (filesystem[existing].is_directory == is_directory) {
+            return existing;
+        }
+        return RAMFS_NOT_FOUND;
     }
-    
-    // Check if file already exists
-    uint32_t existing = ramfs_find_entry_in_dir(parent_dir, filename);
-    if (existing != MAX_FILES) {
-        return existing; // File exists, return it
-    }
-    
-    // Create new file
+
     uint32_t new_id = ramfs_get_free_entry();
-    if (new_id == MAX_FILES) return MAX_FILES;
-    
-    ramfs_entry_t* new_file = &filesystem[new_id];
-    memset(new_file->name, 0, MAX_FILENAME);
-    strncpy(new_file->name, filename, MAX_FILENAME - 1);
-    new_file->data = NULL;
-    new_file->size = 0;
-    new_file->capacity = 0;
-    new_file->is_directory = false;
-    new_file->parent_dir = parent_dir;
-    new_file->num_children = 0;
-    
-    // Add to parent directory
-    ramfs_entry_t* parent = &filesystem[parent_dir];
-    if (parent->num_children < 16) {
-        parent->children[parent->num_children++] = new_id;
+    if (new_id == RAMFS_NOT_FOUND) {
+        return RAMFS_NOT_FOUND;
     }
-    
+
+    ramfs_entry_t* entry = &filesystem[new_id];
+    memset(entry, 0, sizeof(ramfs_entry_t));
+    strncpy(entry->name, name, MAX_FILENAME - 1);
+    entry->name[MAX_FILENAME - 1] = '\0';
+    entry->data = NULL;
+    entry->size = 0;
+    entry->capacity = 0;
+    entry->is_directory = is_directory;
+    entry->parent_dir = parent_dir;
+    entry->num_children = 0;
+
+    if (!ramfs_add_child(parent_dir, new_id)) {
+        memset(entry, 0, sizeof(ramfs_entry_t));
+        return RAMFS_NOT_FOUND;
+    }
+
     num_entries++;
     return new_id;
 }
 
+uint32_t ramfs_create_file(const char* path)
+{
+    return ramfs_create_entry(path, false);
+}
+
 uint32_t ramfs_create_directory(const char* path)
 {
-    if (!fs_initialized) ramfs_init();
-    
-    // Similar to create_file but mark as directory
-    uint32_t dir_id = ramfs_create_file(path);
-    if (dir_id != MAX_FILES) {
-        filesystem[dir_id].is_directory = true;
-        filesystem[dir_id].num_children = 0;
-    }
-    return dir_id;
+    return ramfs_create_entry(path, true);
 }
 
 uint32_t ramfs_find_path(const char* path)
 {
     if (!fs_initialized) ramfs_init();
+
+    if (!path || path[0] == '\0') {
+        return current_dir;
+    }
     
     char path_copy[MAX_PATH];
-    strcpy(path_copy, path);
+    strncpy(path_copy, path, MAX_PATH - 1);
+    path_copy[MAX_PATH - 1] = '\0';
     
     uint32_t dir = current_dir;
     
@@ -153,10 +227,24 @@ uint32_t ramfs_find_path(const char* path)
     char* token = strtok(path_copy + (path_copy[0] == '/' ? 1 : 0), "/");
     
     while (token) {
+        if (strcmp(token, ".") == 0) {
+            token = strtok(NULL, "/");
+            continue;
+        }
+
+        if (strcmp(token, "..") == 0) {
+            dir = filesystem[dir].parent_dir;
+            token = strtok(NULL, "/");
+            continue;
+        }
+
         uint32_t next = ramfs_find_entry_in_dir(dir, token);
-        if (next == MAX_FILES) return MAX_FILES;
+        if (next == RAMFS_NOT_FOUND) return RAMFS_NOT_FOUND;
         dir = next;
         token = strtok(NULL, "/");
+        if (token && !filesystem[dir].is_directory) {
+            return RAMFS_NOT_FOUND;
+        }
     }
     
     return dir;
@@ -164,32 +252,73 @@ uint32_t ramfs_find_path(const char* path)
 
 bool ramfs_write_file(uint32_t file_id, const uint8_t* data, uint32_t size)
 {
-    if (file_id >= MAX_FILES || filesystem[file_id].is_directory) return false;
+    if (file_id >= MAX_FILES || filesystem[file_id].name[0] == '\0' || filesystem[file_id].is_directory) return false;
     
     ramfs_entry_t* file = &filesystem[file_id];
+
+    if (size == 0) {
+        file->size = 0;
+        return true;
+    }
+
+    if (!data) {
+        return false;
+    }
     
     // Allocate or reallocate buffer
     if (file->capacity < size) {
-        if (file->data) {
-            // Free old memory before allocating new
-            kfree(file->data);
-        }
-        // Allocate new buffer with extra space
-        file->data = (uint8_t*)kmalloc(size + 1024);
-        if (!file->data) {
+        uint8_t* new_data = (uint8_t*)kmalloc(size + 1);
+        if (!new_data) {
             return false; // Allocation failed
         }
-        file->capacity = size + 1024;
+
+        if (file->data) {
+            kfree(file->data);
+        }
+
+        file->data = new_data;
+        file->capacity = size + 1;
     }
     
     memcpy(file->data, data, size);
+    file->data[size] = '\0';
     file->size = size;
+    return true;
+}
+
+bool ramfs_append_file(uint32_t file_id, const uint8_t* data, uint32_t size)
+{
+    if (file_id >= MAX_FILES || filesystem[file_id].name[0] == '\0' || filesystem[file_id].is_directory) return false;
+    if (size == 0) return true;
+    if (!data) return false;
+
+    ramfs_entry_t* file = &filesystem[file_id];
+    uint32_t new_size = file->size + size;
+
+    if (file->capacity < new_size + 1) {
+        uint8_t* new_data = (uint8_t*)kmalloc(new_size + 1);
+        if (!new_data) {
+            return false;
+        }
+
+        if (file->data && file->size > 0) {
+            memcpy(new_data, file->data, file->size);
+            kfree(file->data);
+        }
+
+        file->data = new_data;
+        file->capacity = new_size + 1;
+    }
+
+    memcpy(file->data + file->size, data, size);
+    file->size = new_size;
+    file->data[file->size] = '\0';
     return true;
 }
 
 uint32_t ramfs_read_file(uint32_t file_id, uint8_t* buffer, uint32_t max_size)
 {
-    if (file_id >= MAX_FILES || filesystem[file_id].is_directory) return 0;
+    if (file_id >= MAX_FILES || !buffer || filesystem[file_id].name[0] == '\0' || filesystem[file_id].is_directory) return 0;
     
     ramfs_entry_t* file = &filesystem[file_id];
     uint32_t to_read = (max_size < file->size) ? max_size : file->size;
@@ -203,14 +332,14 @@ uint32_t ramfs_read_file(uint32_t file_id, uint8_t* buffer, uint32_t max_size)
 
 bool ramfs_delete_entry(uint32_t entry_id)
 {
-    if (entry_id == 0 || entry_id >= MAX_FILES) return false; // Can't delete root
+    if (entry_id == 0 || entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return false; // Can't delete root
     
     ramfs_entry_t* entry = &filesystem[entry_id];
     
     // Delete all children if it's a directory
     if (entry->is_directory) {
-        for (uint32_t i = 0; i < entry->num_children; i++) {
-            ramfs_delete_entry(entry->children[i]);
+        while (entry->num_children > 0) {
+            ramfs_delete_entry(entry->children[0]);
         }
     }
     
@@ -248,7 +377,7 @@ bool ramfs_delete_entry(uint32_t entry_id)
 
 bool ramfs_change_directory(uint32_t dir_id)
 {
-    if (dir_id >= MAX_FILES || !filesystem[dir_id].is_directory) return false;
+    if (dir_id >= MAX_FILES || filesystem[dir_id].name[0] == '\0' || !filesystem[dir_id].is_directory) return false;
     current_dir = dir_id;
     return true;
 }
@@ -260,13 +389,13 @@ uint32_t ramfs_get_current_dir(void)
 
 ramfs_entry_t* ramfs_get_entry(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return NULL;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return NULL;
     return &filesystem[entry_id];
 }
 
 uint32_t ramfs_list_directory(uint32_t dir_id, uint32_t* buffer, uint32_t max_count)
 {
-    if (dir_id >= MAX_FILES || !filesystem[dir_id].is_directory) return 0;
+    if (dir_id >= MAX_FILES || !buffer || !filesystem[dir_id].is_directory) return 0;
     
     ramfs_entry_t* dir = &filesystem[dir_id];
     uint32_t count = (dir->num_children < max_count) ? dir->num_children : max_count;
@@ -280,8 +409,19 @@ uint32_t ramfs_list_directory(uint32_t dir_id, uint32_t* buffer, uint32_t max_co
 
 void ramfs_get_full_path(uint32_t entry_id, char* path, uint32_t max_len)
 {
+    if (!path || max_len == 0) {
+        return;
+    }
+
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') {
+        strncpy(path, "/", max_len - 1);
+        path[max_len - 1] = '\0';
+        return;
+    }
+
     if (entry_id == 0) {
-        strcpy(path, "/");
+        strncpy(path, "/", max_len - 1);
+        path[max_len - 1] = '\0';
         return;
     }
     
@@ -310,37 +450,40 @@ void ramfs_get_full_path(uint32_t entry_id, char* path, uint32_t max_len)
 
 bool ramfs_entry_is_directory(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return false;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return false;
     return filesystem[entry_id].is_directory;
 }
 
 uint32_t ramfs_entry_get_size(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return 0;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return 0;
     return filesystem[entry_id].size;
 }
 
 uint32_t ramfs_entry_get_parent(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return MAX_FILES;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return RAMFS_NOT_FOUND;
     return filesystem[entry_id].parent_dir;
 }
 
 const char* ramfs_entry_get_name(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return NULL;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return NULL;
     return filesystem[entry_id].name;
 }
 
 uint8_t* ramfs_entry_get_data(uint32_t entry_id)
 {
-    if (entry_id >= MAX_FILES) return NULL;
+    if (entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0') return NULL;
     return filesystem[entry_id].data;
 }
 
 bool ramfs_entry_set_name(uint32_t entry_id, const char* name)
 {
-    if (entry_id >= MAX_FILES) return false;
+    if (entry_id == 0 || entry_id >= MAX_FILES || filesystem[entry_id].name[0] == '\0' || !ramfs_valid_name(name)) return false;
+    uint32_t parent = filesystem[entry_id].parent_dir;
+    uint32_t existing = ramfs_find_entry_in_dir(parent, name);
+    if (existing != RAMFS_NOT_FOUND && existing != entry_id) return false;
     strncpy(filesystem[entry_id].name, name, MAX_FILENAME - 1);
     filesystem[entry_id].name[MAX_FILENAME - 1] = '\0';
     return true;

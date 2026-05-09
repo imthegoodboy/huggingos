@@ -4,40 +4,15 @@
 
 vesa_info_t vesa_info = {0};
 
-// Simple 8x8 font bitmap (simplified)
-static const unsigned char font_8x8[128][8] = {
-    // Basic ASCII characters
-    [32] = {0,0,0,0,0,0,0,0}, // space
-    [33] = {0x18,0x3C,0x3C,0x18,0x18,0,0x18,0}, // !
-    // ... simplified font (would include full ASCII in real implementation)
-};
-
-static uint32_t rgb(uint8_t r, uint8_t g, uint8_t b)
-{
-    return (r << 16) | (g << 8) | b;
-}
-
 bool vesa_init(void)
 {
-    // In a real implementation, we'd use VESA BIOS Extensions
-    // For now, use a simulated framebuffer at a fixed address
-    // In VirtualBox/QEMU, we can use the multiboot framebuffer info
-    
-    // Default resolution for compatibility
-    vesa_info.width = 1024;
-    vesa_info.height = 768;
-    vesa_info.pitch = 1024 * 4; // 32-bit color
-    vesa_info.bpp = 32;
-    
-    // Try to use multiboot framebuffer if available
-    // For now, use a simulated framebuffer
-    vesa_info.framebuffer = (uint32_t*)0xFD000000; // Simulated address
-    
-    // Initialize with background color
-    vesa_clear(COLOR_BG_DARK);
-    
-    vesa_info.initialized = true;
-    return true;
+    vesa_info.width = 0;
+    vesa_info.height = 0;
+    vesa_info.pitch = 0;
+    vesa_info.bpp = 0;
+    vesa_info.framebuffer = NULL;
+    vesa_info.initialized = false;
+    return false;
 }
 
 vesa_info_t* vesa_get_info(void)
@@ -68,8 +43,6 @@ void vesa_fill_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uin
 
 void vesa_draw_char(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg)
 {
-    // Simplified character drawing
-    // In a full implementation, we'd use a proper font bitmap
     uint8_t char_val = (uint8_t)c;
     
     // Draw background

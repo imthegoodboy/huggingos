@@ -10,6 +10,7 @@ uint32_t ramfs_create_file(const char* path);
 uint32_t ramfs_create_directory(const char* path);
 uint32_t ramfs_find_path(const char* path);
 bool ramfs_write_file(uint32_t file_id, const uint8_t* data, uint32_t size);
+bool ramfs_append_file(uint32_t file_id, const uint8_t* data, uint32_t size);
 uint32_t ramfs_read_file(uint32_t file_id, uint8_t* buffer, uint32_t max_size);
 bool ramfs_delete_entry(uint32_t entry_id);
 bool ramfs_change_directory(uint32_t dir_id);

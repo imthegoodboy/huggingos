@@ -8,9 +8,7 @@
 static bool syscalls_initialized = false;
 static int syscall_return_value = 0;
 
-// Basic process ID tracking (simplified)
 static uint32_t current_pid = 1;
-static uint32_t next_pid = 2;
 
 void syscalls_init(void)
 {
@@ -97,6 +95,7 @@ int sys_setenv(const char* name, const char* value)
 
 void syscall_handler(uint32_t syscall_num, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4)
 {
+    UNUSED(arg4);
     int result = -1;
     
     switch (syscall_num) {
