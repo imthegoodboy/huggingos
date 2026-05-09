@@ -55,6 +55,13 @@ ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
 
+global isr128
+isr128:
+    cli
+    push dword 0
+    push dword 128
+    jmp isr_common_stub
+
 extern isr_handler
 
 isr_common_stub:
@@ -127,5 +134,7 @@ irq_common_stub:
     popa
     add esp, 8
     iret
+
+section .note.GNU-stack noalloc noexec nowrite progbits
 
 

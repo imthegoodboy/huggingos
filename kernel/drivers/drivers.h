@@ -31,6 +31,9 @@ void vga_putchar(char c);
 void vga_write(const char* data, size_t size);
 void vga_writestring(const char* data);
 void vga_clear(void);
+void vga_set_cursor(size_t x, size_t y);
+size_t vga_get_row(void);
+size_t vga_get_column(void);
 
 // Keyboard
 typedef struct {

@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "interrupts.h"
 #include "lib/lib.h"
+#include "terminal/terminal.h"
 
 extern void kernel_panic(const char* message);
 
@@ -51,6 +52,7 @@ extern void isr28();
 extern void isr29();
 extern void isr30();
 extern void isr31();
+extern void isr128();
 
 extern void irq0();
 extern void irq1();
@@ -112,7 +114,6 @@ void idt_init()
     idt_set_gate(31, (unsigned)isr31, 0x08, 0x8E);
 
     // Set up IRQ handlers (32-47)
-    // Note: System calls (int 0x80) are handled generically via isr_handler
     idt_set_gate(32, (unsigned)irq0, 0x08, 0x8E);
     idt_set_gate(33, (unsigned)irq1, 0x08, 0x8E);
     idt_set_gate(34, (unsigned)irq2, 0x08, 0x8E);
@@ -129,6 +130,7 @@ void idt_init()
     idt_set_gate(45, (unsigned)irq13, 0x08, 0x8E);
     idt_set_gate(46, (unsigned)irq14, 0x08, 0x8E);
     idt_set_gate(47, (unsigned)irq15, 0x08, 0x8E);
+    idt_set_gate(128, (unsigned)isr128, 0x08, 0x8E);
 
     // Remap PIC
     outb(0x20, 0x11);
@@ -160,16 +162,13 @@ void isr_handler(registers_t regs)
         return;
     }
     
-    // Handle exceptions
-    if (regs.int_no < 32 || regs.int_no == 128) {
-        // For now, just ignore most exceptions
-        // In a full OS, you'd handle them properly
-        if (regs.int_no == 14) {
-            // Page fault - can happen during initialization
-            // Ignore for now
-            return;
-        }
-        // Other exceptions - ignore for minimal OS
+    if (regs.int_no < 32) {
+        char number[16];
+        terminal_setcolor(VGA_COLOR_WHITE, VGA_COLOR_RED);
+        terminal_writestring("CPU exception ");
+        itoa((int)regs.int_no, number, 10);
+        terminal_writeln(number);
+        kernel_panic("Unhandled CPU exception");
     }
 }
 

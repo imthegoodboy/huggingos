@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run
+.PHONY: all clean iso run qemu help
 
 all: $(KERNEL_BIN)
 
@@ -94,13 +94,14 @@ help:
 	@echo "Targets:"
 	@echo "  all     - Build the kernel binary"
 	@echo "  iso     - Build the kernel and create bootable ISO"
+	@echo "  qemu    - Build the ISO and run it in QEMU"
 	@echo "  clean   - Remove build artifacts"
 	@echo "  run     - Build ISO and provide instructions to run"
 	@echo "  help    - Show this help message"
 	@echo ""
 	@echo "Requirements:"
-	@echo "  - i686-elf-gcc cross-compiler"
+	@echo "  - i686-elf-gcc cross-compiler or gcc with -m32 support"
 	@echo "  - NASM assembler"
-	@echo "  - grub-mkrescue"
-	@echo "  - VirtualBox (for testing)"
+	@echo "  - grub-mkrescue and xorriso"
+	@echo "  - QEMU or VirtualBox (for testing)"
 

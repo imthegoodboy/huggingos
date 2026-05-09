@@ -8,6 +8,34 @@ extern void outb(unsigned short port, unsigned char data);
 
 keyboard_state_t keyboard_state = {0};
 
+#define KEYBOARD_BUFFER_SIZE 128
+
+static char keyboard_buffer[KEYBOARD_BUFFER_SIZE];
+static uint8_t keyboard_head = 0;
+static uint8_t keyboard_tail = 0;
+
+static bool keyboard_buffer_is_empty(void)
+{
+    return keyboard_head == keyboard_tail;
+}
+
+static bool keyboard_buffer_is_full(void)
+{
+    return (uint8_t)(keyboard_head + 1) % KEYBOARD_BUFFER_SIZE == keyboard_tail;
+}
+
+static void keyboard_enqueue(char c)
+{
+    if (keyboard_buffer_is_full()) {
+        return;
+    }
+
+    keyboard_buffer[keyboard_head] = c;
+    keyboard_head = (uint8_t)((keyboard_head + 1) % KEYBOARD_BUFFER_SIZE);
+    keyboard_state.last_char = c;
+    keyboard_state.key_pressed = true;
+}
+
 // US QWERTY keyboard scancode to ASCII mapping (set 1)
 static const char scancode_to_ascii[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
@@ -34,6 +62,8 @@ void keyboard_init(void)
     keyboard_state.alt = false;
     keyboard_state.last_char = 0;
     keyboard_state.key_pressed = false;
+    keyboard_head = 0;
+    keyboard_tail = 0;
     
     // Enable keyboard interrupt (IRQ1)
     outb(0x21, inb(0x21) & 0xFD);
@@ -66,10 +96,7 @@ void keyboard_handler(uint8_t scancode)
                      scancode_to_ascii[scancode];
             
             if (c != 0) {
-                // Store character for main loop to process
-                keyboard_state.last_char = c;
-                keyboard_state.key_pressed = true;
-                // Don't print here - let shell_process_input handle it
+                keyboard_enqueue(c);
             }
         }
     }
@@ -77,10 +104,16 @@ void keyboard_handler(uint8_t scancode)
 
 char keyboard_get_char(void)
 {
-    if (keyboard_state.key_pressed) {
-        keyboard_state.key_pressed = false;
-        return keyboard_state.last_char;
+    if (!keyboard_buffer_is_empty()) {
+        char c = keyboard_buffer[keyboard_tail];
+        keyboard_tail = (uint8_t)((keyboard_tail + 1) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.key_pressed = !keyboard_buffer_is_empty();
+        keyboard_state.last_char = keyboard_state.key_pressed ? keyboard_buffer[keyboard_tail] : 0;
+        return c;
     }
+
+    keyboard_state.key_pressed = false;
+    keyboard_state.last_char = 0;
     return 0;
 }
 

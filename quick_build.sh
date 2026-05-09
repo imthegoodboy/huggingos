@@ -1,60 +1,28 @@
 #!/bin/bash
-# Quick build script - checks tools and builds the OS
 
-cd /mnt/c/Users/parth/Desktop/myos 2>/dev/null || cd "$(dirname "$0")"
+set -euo pipefail
 
-echo "=== huggingOs Quick Build ==="
+cd "$(dirname "$0")"
+
+echo "=== huggingOS Quick Build ==="
 echo ""
 
-# Check for NASM
-if ! command -v nasm &> /dev/null; then
-    echo "Installing NASM..."
-    sudo apt-get update && sudo apt-get install -y nasm
-fi
-
-# Check for GRUB
-if ! command -v grub-mkrescue &> /dev/null; then
-    echo "Installing GRUB..."
-    sudo apt-get update && sudo apt-get install -y grub-pc-bin grub-common xorriso
-fi
-
-# Check for cross-compiler
-if ! command -v i686-elf-gcc &> /dev/null; then
-    echo ""
-    echo "ERROR: i686-elf-gcc not found!"
-    echo ""
-    echo "You need to install the cross-compiler. Run:"
-    echo "  ./INSTALL_TOOLS.sh"
-    echo ""
-    echo "Or install manually:"
-    echo "  wget https://raw.githubusercontent.com/lordmilko/i686-elf-tools/master/i686-elf-tools.sh"
-    echo "  chmod +x i686-elf-tools.sh"
-    echo "  sudo ./i686-elf-tools.sh"
+if ! command -v nasm >/dev/null 2>&1 ||
+   ! command -v grub-mkrescue >/dev/null 2>&1 ||
+   ! command -v xorriso >/dev/null 2>&1; then
+    echo "Missing build tools. On Debian/Ubuntu/WSL run:"
+    echo "  sudo apt update"
+    echo "  sudo apt install -y build-essential gcc-multilib nasm grub-pc-bin grub-common xorriso"
     exit 1
 fi
 
-# Build
-echo "Building..."
-make clean
-make all && make iso
-
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "SUCCESS! ISO created: huggingOs.iso"
-    echo ""
-    echo "To run:"
-    echo "  1. Open VirtualBox"
-    echo "  2. Create VM (32-bit, Other/Unknown)"
-    echo "  3. Attach huggingOs.iso"
-    echo "  4. Start!"
-else
-    echo ""
-    echo "Build failed! Check errors above."
+if ! command -v i686-elf-gcc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
+    echo "Missing compiler. Install i686-elf-gcc or gcc with 32-bit support."
     exit 1
 fi
 
+make clean all iso
 
-
-
-
-
+echo ""
+echo "SUCCESS: huggingOs.iso created"
+echo "Run with: make qemu"

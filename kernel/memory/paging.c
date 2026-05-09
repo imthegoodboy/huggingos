@@ -7,8 +7,8 @@ uint32_t mem_size = 0x4000000; // 64MB default
 
 void paging_init()
 {
-    // Simplified paging initialization
-    // In a full implementation, we'd set up page tables
+    // Paging is intentionally disabled for this flat 32-bit kernel.
+    // The heap uses physical addresses below the reported memory limit.
     current_directory = 0;
 }
 
@@ -28,6 +28,7 @@ void memory_init(uint32_t size)
 {
     mem_size = size;
     paging_init();
+    heap_init(size);
 }
 
 uint32_t get_total_memory(void)
@@ -37,7 +38,11 @@ uint32_t get_total_memory(void)
 
 uint32_t get_free_memory(void)
 {
-    // Simplified - return most of memory as free
-    return mem_size - 0x100000;
+    extern uint32_t heap_get_used(void);
+    uint32_t reserved = 0x100000 + heap_get_used();
+    if (reserved >= mem_size) {
+        return 0;
+    }
+    return mem_size - reserved;
 }
 

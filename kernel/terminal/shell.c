@@ -119,6 +119,7 @@ void shell_process_input(char c)
 {
     if (c == '\n' || c == '\r') {
         shell_input[shell_input_pos] = '\0';
+        terminal_newline();
         if (shell_input_pos > 0) {
             shell_execute_command(shell_input);
             shell_input_pos = 0;
@@ -141,15 +142,16 @@ void shell_process_input(char c)
 static void cmd_help(void)
 {
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("╔════════════════════════════════════════════════════════════╗");
-    terminal_writeln("║  huggingOS v1.0.0 - Production Ready Edition            ║");
-    terminal_writeln("╚════════════════════════════════════════════════════════════╝");
+    terminal_writeln("+------------------------------------------------------------+");
+    terminal_writeln("| huggingOS 2.0 command center                              |");
+    terminal_writeln("+------------------------------------------------------------+");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writeln("  [*] System Commands:");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    help      - Show this help message");
+    terminal_writeln("    selftest  - Run built-in kernel/RAMFS checks");
     terminal_writeln("    clear     - Clear the screen");
     terminal_writeln("    info      - Show system information");
     terminal_writeln("    version   - Show OS version");
@@ -198,6 +200,7 @@ static void cmd_help(void)
     terminal_writeln("  [*] Utilities:");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("    echo      - Echo text back (use > for file)");
+    terminal_writeln("    assist    - Smart command suggestions and quick actions");
     terminal_writeln("    calc      - Simple calculator");
     terminal_writeln("    color     - Change terminal color");
     terminal_writeln("    banner    - Show ASCII art banner");
@@ -223,18 +226,17 @@ static void cmd_help(void)
     terminal_writeln("    fortune   - Show fortune cookie");
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("════════════════════════════════════════════════════════════");
+    terminal_writeln("------------------------------------------------------------");
     terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    terminal_writeln("  >> Tip: Type 'help <command>' for detailed usage");
+    terminal_writeln("  Tip: try 'assist run list files' or 'assist memory'.");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("════════════════════════════════════════════════════════════");
+    terminal_writeln("------------------------------------------------------------");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
 }
 
 static void cmd_clear(void)
 {
     terminal_clear();
-    terminal_writestring(shell_prompt);
 }
 
 static void cmd_info(void)
@@ -247,9 +249,9 @@ static void cmd_info(void)
     uptime_hours = uptime_hours % 24;
     
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("╔════════════════════════════════════════════════════════════╗");
-    terminal_writeln("║         huggingOS System Information                     ║");
-    terminal_writeln("╚════════════════════════════════════════════════════════════╝");
+    terminal_writeln("+------------------------------------------------------------+");
+    terminal_writeln("| huggingOS system information                              |");
+    terminal_writeln("+------------------------------------------------------------+");
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writestring("  OS Name:        ");
@@ -259,7 +261,7 @@ static void cmd_info(void)
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writestring("  Version:        ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("1.0.0 (Production Ready)");
+    terminal_writeln("2.0.0");
     
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writestring("  Architecture:   ");
@@ -279,7 +281,7 @@ static void cmd_info(void)
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writestring("  Features:       ");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    terminal_writeln("Terminal, Shell, Keyboard, RTC, PIT Timer");
+    terminal_writeln("Shell, RAMFS, keyboard buffer, RTC, PIT, logs");
     
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     terminal_writestring("  Uptime:         ");
@@ -308,8 +310,8 @@ static void cmd_info(void)
 
 static void cmd_version(void)
 {
-    terminal_writeln("huggingOs v1.0.0");
-    terminal_writeln("Built with love and dedication");
+    terminal_writeln("huggingOS v2.0.0");
+    terminal_writeln("Smart shell + RAMFS production pass");
 }
 
 static void cmd_echo(const char* args)
@@ -377,7 +379,6 @@ static void cmd_calc(const char* args)
     int result = 0;
     
     // Simple parsing: "5 + 3" format
-    int parsed = 0;
     int i = 0;
     while (args[i] == ' ') i++; // Skip spaces
     
@@ -385,7 +386,6 @@ static void cmd_calc(const char* args)
     while (args[i] >= '0' && args[i] <= '9') {
         num1 = num1 * 10 + (args[i] - '0');
         i++;
-        parsed = 1;
     }
     
     while (args[i] == ' ') i++; // Skip spaces
@@ -441,22 +441,21 @@ static void cmd_banner(void)
 {
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     terminal_writeln("");
-    terminal_writeln("  ╔═══════════════════════════════════════════════════════╗");
-    terminal_writeln("  ║                                                       ║");
+    terminal_writeln("  +----------------------------------------------------+");
+    terminal_writeln("  |                                                    |");
     terminal_setcolor(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
-    terminal_writeln("  ║     _   _                   _         ___  ____       ║");
-    terminal_writeln("  ║    | | | |_   _ _ __  _   _| |_ ___  / _ \\/ ___|      ║");
-    terminal_writeln("  ║    | |_| | | | | '_ \\| | | | __/ _ \\| | | \\___ \\      ║");
-    terminal_writeln("  ║    |  _  | |_| | | | | |_| | || (_) | |_| |___) |    ║");
-    terminal_writeln("  ║    |_| |_|\\__, |_| |_|\\__,_|\\__\\___/ \\___/|____/     ║");
-    terminal_writeln("  ║            |___/                                       ║");
+    terminal_writeln("  |        _   _                   _        ___  ____  |");
+    terminal_writeln("  |       | | | |_   _  __ _  __ _(_)_ __  / _ \\/ ___| |");
+    terminal_writeln("  |       | |_| | | | |/ _` |/ _` | | '_ \\| | | \\___ \\ |");
+    terminal_writeln("  |       |  _  | |_| | (_| | (_| | | | | | |_| |___) ||");
+    terminal_writeln("  |       |_| |_|\\__,_|\\__, |\\__, |_|_| |_|\\___/|____/ |");
+    terminal_writeln("  |                    |___/ |___/                      |");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    terminal_writeln("  ║                                                       ║");
-    terminal_writeln("  ╚═══════════════════════════════════════════════════════╝");
+    terminal_writeln("  |                                                    |");
+    terminal_writeln("  +----------------------------------------------------+");
     terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
     terminal_writeln("");
-    terminal_writeln("            A Minimal Custom Operating System");
-    terminal_writeln("              Version 1.0.0 - Production Ready");
+    terminal_writeln("            Smart shell kernel - version 2.0.0");
     terminal_writeln("");
     terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
 }
@@ -828,8 +827,8 @@ static void cmd_ls(const char* args)
         }
     }
     
-    uint32_t entries[16];
-    uint32_t count = ramfs_list_directory(dir_id, entries, 16);
+    uint32_t entries[64];
+    uint32_t count = ramfs_list_directory(dir_id, entries, 64);
     
     if (count == 0) {
         terminal_writeln("Directory is empty");
@@ -1020,7 +1019,10 @@ static void cmd_mv(const char* args)
     
     if (src_id != 256) {
         // Simple rename - just change the name
-        ramfs_entry_set_name(src_id, dst);
+        if (!ramfs_entry_set_name(src_id, dst)) {
+            terminal_writeln("Error: invalid destination name or already exists");
+            return;
+        }
         terminal_writestring("Renamed: ");
         terminal_writestring(src);
         terminal_writestring(" -> ");
@@ -1100,18 +1102,42 @@ static void cmd_echo_file(const char* args)
     }
     
     // Parse text and filename
+    bool append = false;
     *redirect = '\0';
     redirect++;
+    if (*redirect == '>') {
+        append = true;
+        redirect++;
+    }
     while (*redirect == ' ') redirect++;
+
+    if (strlen(redirect) == 0) {
+        terminal_writeln("Error: missing filename");
+        return;
+    }
     
     // Remove quotes from text if present
     char text_buffer[256];
     strcpy(text_buffer, args);
+    int text_len = strlen(text_buffer);
+    while (text_len > 0 && text_buffer[text_len - 1] == ' ') {
+        text_buffer[text_len - 1] = '\0';
+        text_len--;
+    }
+
     char* text = text_buffer;
-    if (text[0] == '"' && text[strlen(text)-1] == '"') {
+    if (strlen(text) >= 2 && text[0] == '"' && text[strlen(text)-1] == '"') {
+        text[strlen(text)-1] = '\0';
+        text++;
+    } else if (strlen(text) >= 2 && text[0] == '\'' && text[strlen(text)-1] == '\'') {
         text[strlen(text)-1] = '\0';
         text++;
     }
+
+    char output[300];
+    strncpy(output, text, sizeof(output) - 2);
+    output[sizeof(output) - 2] = '\0';
+    strcat(output, "\n");
     
     uint32_t file_id = ramfs_create_file(redirect);
     if (file_id == 256) {
@@ -1119,8 +1145,16 @@ static void cmd_echo_file(const char* args)
         return;
     }
     
-    ramfs_write_file(file_id, (uint8_t*)text, strlen(text));
-    terminal_writestring("Written to: ");
+    bool ok = append ?
+        ramfs_append_file(file_id, (uint8_t*)output, strlen(output)) :
+        ramfs_write_file(file_id, (uint8_t*)output, strlen(output));
+
+    if (!ok) {
+        terminal_writeln("Error: write failed");
+        return;
+    }
+
+    terminal_writestring(append ? "Appended to: " : "Written to: ");
     terminal_writeln(redirect);
 }
 
@@ -1191,7 +1225,7 @@ static void cmd_fortune(void)
         "You are capable of amazing things.",
         "Success is the sum of small efforts repeated day in and day out.",
         "The only way to do great work is to love what you do.",
-        "Your limitation—it's only your imagination.",
+        "Your limitation - it's only your imagination.",
         "Great things never come from comfort zones."
     };
     
@@ -1349,8 +1383,8 @@ static void cmd_find(const char* args)
     }
     
     uint32_t dir_id = ramfs_get_current_dir();
-    uint32_t entries[16];
-    uint32_t count = ramfs_list_directory(dir_id, entries, 16);
+    uint32_t entries[64];
+    uint32_t count = ramfs_list_directory(dir_id, entries, 64);
     
     bool found = false;
     for (uint32_t i = 0; i < count; i++) {
@@ -1917,13 +1951,13 @@ static void cmd_which(const char* args)
     
     // Check if it's a builtin
     const char* builtins[] = {
-        "help", "clear", "info", "version", "echo", "reboot", "color", "calc",
+        "help", "selftest", "clear", "info", "version", "echo", "reboot", "color", "calc",
         "banner", "about", "clock", "calendar", "date", "timer", "uptime",
         "history", "shutdown", "whoami", "pwd", "mem", "ls", "mkdir", "cd",
         "cat", "touch", "rm", "mv", "cp", "moti", "joke", "fortune", "grep",
         "find", "wc", "head", "tail", "sort", "uname", "sleep", "exit", "env",
         "export", "alias", "unalias", "df", "du", "test", "true", "false",
-        "basename", "dirname", "which", NULL
+        "basename", "dirname", "which", "assist", "ai", "dmesg", "log", NULL
     };
     
     for (int i = 0; builtins[i]; i++) {
@@ -1936,6 +1970,208 @@ static void cmd_which(const char* args)
     
     terminal_writestring(args);
     terminal_writeln(": not found");
+}
+
+static void selftest_line(const char* name, bool pass)
+{
+    terminal_setcolor(pass ? VGA_COLOR_LIGHT_GREEN : VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+    terminal_writestring(pass ? "[PASS] " : "[FAIL] ");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    terminal_writeln(name);
+}
+
+static void cmd_selftest(void)
+{
+    bool all_passed = true;
+    uint8_t buffer[128];
+
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writeln("huggingOS selftest");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+
+    uint32_t dir_id = ramfs_create_directory("/tests");
+    bool dir_ok = dir_id != 256 && ramfs_entry_is_directory(dir_id);
+    selftest_line("create absolute directory", dir_ok);
+    all_passed = all_passed && dir_ok;
+
+    uint32_t file_id = ramfs_create_file("/tests/notes.txt");
+    bool file_ok = file_id != 256 && !ramfs_entry_is_directory(file_id);
+    selftest_line("create nested file", file_ok);
+    all_passed = all_passed && file_ok;
+
+    bool write_ok = false;
+    bool append_ok = false;
+    bool read_ok = false;
+    if (file_ok) {
+        write_ok = ramfs_write_file(file_id, (uint8_t*)"alpha\n", 6);
+        append_ok = ramfs_append_file(file_id, (uint8_t*)"beta\n", 5);
+        uint32_t read = ramfs_read_file(file_id, buffer, sizeof(buffer) - 1);
+        buffer[read] = '\0';
+        read_ok = read == 11 && strcmp((char*)buffer, "alpha\nbeta\n") == 0;
+    }
+    selftest_line("write file through heap", write_ok);
+    selftest_line("append file through heap", append_ok);
+    selftest_line("read file contents", read_ok);
+    all_passed = all_passed && write_ok && append_ok && read_ok;
+
+    uint32_t found_id = ramfs_find_path("/tests/notes.txt");
+    bool path_ok = found_id == file_id;
+    selftest_line("resolve nested absolute path", path_ok);
+    all_passed = all_passed && path_ok;
+
+    bool delete_ok = false;
+    if (dir_ok) {
+        delete_ok = ramfs_delete_entry(dir_id) && ramfs_find_path("/tests") == 256;
+    }
+    selftest_line("delete directory tree", delete_ok);
+    all_passed = all_passed && delete_ok;
+
+    terminal_setcolor(all_passed ? VGA_COLOR_LIGHT_GREEN : VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+    terminal_writeln(all_passed ? "Selftest complete: all checks passed." : "Selftest complete: failures detected.");
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+}
+
+static char lower_char(char c)
+{
+    if (c >= 'A' && c <= 'Z') {
+        return c + 32;
+    }
+    return c;
+}
+
+static bool contains_ci(const char* haystack, const char* needle)
+{
+    if (!haystack || !needle || !*needle) {
+        return false;
+    }
+
+    for (uint32_t i = 0; haystack[i]; i++) {
+        uint32_t j = 0;
+        while (needle[j] && haystack[i + j] &&
+               lower_char(haystack[i + j]) == lower_char(needle[j])) {
+            j++;
+        }
+        if (!needle[j]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void copy_last_word(const char* text, char* out, uint32_t out_size)
+{
+    if (!text || !out || out_size == 0) {
+        return;
+    }
+
+    out[0] = '\0';
+    int end = (int)strlen(text) - 1;
+    while (end >= 0 && text[end] == ' ') {
+        end--;
+    }
+
+    int start = end;
+    while (start >= 0 && text[start] != ' ') {
+        start--;
+    }
+    start++;
+
+    uint32_t pos = 0;
+    while (start <= end && pos < out_size - 1) {
+        out[pos++] = text[start++];
+    }
+    out[pos] = '\0';
+}
+
+static bool assist_build_command(const char* request, char* command, uint32_t command_size)
+{
+    char target[64];
+
+    if (!request || strlen(request) == 0 || !command || command_size == 0) {
+        return false;
+    }
+
+    command[0] = '\0';
+
+    if (contains_ci(request, "list") || contains_ci(request, "files")) {
+        strcpy(command, "ls");
+    } else if (contains_ci(request, "memory") || contains_ci(request, "ram")) {
+        strcpy(command, "mem");
+    } else if (contains_ci(request, "time") || contains_ci(request, "date") || contains_ci(request, "clock")) {
+        strcpy(command, "date");
+    } else if (contains_ci(request, "log") || contains_ci(request, "boot")) {
+        strcpy(command, "dmesg");
+    } else if (contains_ci(request, "where") || contains_ci(request, "pwd")) {
+        strcpy(command, "pwd");
+    } else if (contains_ci(request, "clear")) {
+        strcpy(command, "clear");
+    } else if (contains_ci(request, "help")) {
+        strcpy(command, "help");
+    } else if ((contains_ci(request, "make") || contains_ci(request, "create")) &&
+               (contains_ci(request, "folder") || contains_ci(request, "directory") || contains_ci(request, "dir"))) {
+        copy_last_word(request, target, sizeof(target));
+        strcpy(command, "mkdir ");
+        strcat(command, target);
+    } else if ((contains_ci(request, "make") || contains_ci(request, "create")) &&
+               contains_ci(request, "file")) {
+        copy_last_word(request, target, sizeof(target));
+        strcpy(command, "touch ");
+        strcat(command, target);
+    } else if (contains_ci(request, "show") || contains_ci(request, "read") || contains_ci(request, "open")) {
+        copy_last_word(request, target, sizeof(target));
+        strcpy(command, "cat ");
+        strcat(command, target);
+    } else if (contains_ci(request, "find") || contains_ci(request, "search")) {
+        copy_last_word(request, target, sizeof(target));
+        strcpy(command, "find ");
+        strcat(command, target);
+    } else {
+        return false;
+    }
+
+    return strlen(command) > 0 && strlen(command) < command_size;
+}
+
+static void cmd_assist(const char* args)
+{
+    bool run = false;
+    const char* request = args;
+    char command[128];
+
+    if (!args || strlen(args) == 0) {
+        terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+        terminal_writeln("Smart Assist");
+        terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        terminal_writeln("  assist <goal>      - suggest the best built-in command");
+        terminal_writeln("  assist run <goal>  - run the suggested command");
+        terminal_writeln("  Examples:");
+        terminal_writeln("    assist list files");
+        terminal_writeln("    assist run memory status");
+        terminal_writeln("    assist create file notes.txt");
+        return;
+    }
+
+    if (strncmp(args, "run ", 4) == 0) {
+        run = true;
+        request = args + 4;
+    }
+
+    if (!assist_build_command(request, command, sizeof(command))) {
+        terminal_writeln("I could not map that goal yet.");
+        terminal_writeln("Try: files, memory, time, logs, clear, help, create file, create directory.");
+        return;
+    }
+
+    terminal_setcolor(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    terminal_writestring("Suggested command: ");
+    terminal_setcolor(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    terminal_writeln(command);
+    terminal_setcolor(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+
+    if (run) {
+        terminal_writeln("Running:");
+        shell_execute_command(command);
+    }
 }
 
 static const char* shell_resolve_alias(const char* cmd)
@@ -2004,8 +2240,12 @@ static void shell_execute_command(const char* command)
     }
     
     // Execute command
-    if (strcmp(cmd, "help") == 0) {
+    if (strcmp(cmd, "echo") == 0 && strchr(args, '>') != NULL) {
+        cmd_echo_file(args);
+    } else if (strcmp(cmd, "help") == 0) {
         cmd_help();
+    } else if (strcmp(cmd, "selftest") == 0) {
+        cmd_selftest();
     } else if (strcmp(cmd, "clear") == 0 || strcmp(cmd, "cls") == 0) {
         cmd_clear();
     } else if (strcmp(cmd, "info") == 0) {
@@ -2109,17 +2349,14 @@ static void shell_execute_command(const char* command)
         cmd_dirname(args);
     } else if (strcmp(cmd, "which") == 0) {
         cmd_which(args);
+    } else if (strcmp(cmd, "assist") == 0 || strcmp(cmd, "ai") == 0) {
+        cmd_assist(args);
     } else if (strcmp(cmd, "dmesg") == 0 || strcmp(cmd, "log") == 0) {
         cmd_dmesg(args);
     } else {
-        // Check if echo has file redirection
-        if (strcmp(cmd, "echo") == 0 && strchr(args, '>') != NULL) {
-            cmd_echo_file(args);
-        } else {
-            terminal_writestring("Unknown command: ");
-            terminal_writeln(cmd);
-            terminal_writeln("Type 'help' for a list of commands.");
-        }
+        terminal_writestring("Unknown command: ");
+        terminal_writeln(cmd);
+        terminal_writeln("Type 'help' for a list of commands.");
     }
 }
 
