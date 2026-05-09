@@ -25,6 +25,8 @@ isolation. The current focus is a stable kernel base that can be extended safely
 - Built-in `selftest` command for kernel/RAMFS/heap smoke checks.
 - Built-in `assist` / `ai` command for smart command suggestions and quick actions.
 
+For the full AI-native OS roadmap, see [PLAN.md](PLAN.md).
+
 ## Quick Start
 
 On Windows, the easiest path is WSL with QEMU:
