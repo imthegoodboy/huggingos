@@ -1,0 +1,29 @@
+[product]
+name = "huggingOS"
+version = "0.1.0-phase1"
+track = "product"
+phase = "Product Phase 1"
+base_strategy = "Ubuntu LTS hosted prototype"
+
+[runtime]
+app_id = "huggingos"
+config_env = "HUGGINGOS_CONFIG_FILE"
+state_dir_env = "HUGGINGOS_STATE_DIR"
+
+[features]
+cloud_ai_enabled = false
+browser_control_enabled = false
+desktop_overlay_enabled = false
+memory_index_enabled = false
+
+[policy]
+audit_log_name = "audit.log"
+confirmation_required_for = [
+  "delete",
+  "overwrite",
+  "shell",
+  "network",
+  "browser",
+  "secret",
+  "system",
+]
