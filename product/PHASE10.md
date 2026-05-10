@@ -61,5 +61,6 @@ make product-agent-plugin-install
   [PHASE11.md](PHASE11.md) for local manifest packages.
 - Signed plugin package archives.
 - Plugin update channels.
-- Desktop overlay approval UI.
+- Desktop approval data contract. Completed in [PHASE12.md](PHASE12.md);
+  rendered overlay UI remains later.
 - Sandboxed plugin-provided code execution.

@@ -40,6 +40,7 @@ cargo run -- run timeline.explain --json
 cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
 cargo run -- run plugins.package.validate --param source=../plugins/hello-assistant --json
 cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
+cargo run -- run plugins.approval.surface --param source=../plugins/hello-assistant --json
 cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
 cargo run -- run plugins.catalog --json
 cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
@@ -169,6 +170,22 @@ Signed local package trust is enforced:
 The current signed package format is `huggingos.plugin.package.v1` with
 `ed25519-canonical-json-sha256-v1`. Plugin code execution remains disabled.
 
+## Phase 12 Plugin Approval Surface
+
+Plugin trust decisions are now renderable by future desktop UI code:
+
+- `plugins.approval.surface` returns a `huggingos.plugin.approval.v1` payload.
+- The payload includes identity, verified trust state, permissions, sandbox
+  posture, update metadata, rollback records, warnings, blocked reasons, and
+  available confirmed actions.
+- Local AI rules map plugin approval prompts to this read-only capability.
+- The plugin agent can inspect approval surfaces without installing,
+  disabling, removing, or running plugin code.
+
+This is a JSON control surface, not a rendered desktop overlay. Overlay
+rendering, automatic rollback, plugin auto-update, and plugin code execution
+remain disabled.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -183,4 +200,5 @@ The current signed package format is `huggingos.plugin.package.v1` with
 - Predictive and self-healing features are suggestion-first and read-only.
 - Plugins are manifest-only and read-only until sandboxed code execution exists.
 - Plugin install requires verified local package signatures.
+- Plugin approval surfaces are read-only and do not perform lifecycle actions.
 - Capabilities fail closed when audit logging is unavailable.

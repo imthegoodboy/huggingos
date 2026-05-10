@@ -202,6 +202,20 @@ Completed the first cryptographically verified plugin package slice:
 - Added tamper rejection and rollback manifest coverage to Rust tests.
 - Kept arbitrary plugin code execution disabled until sandboxing exists.
 
+## Product Phase 12 Plugin Approval Surface
+
+Completed the first desktop-ready plugin approval contract slice:
+
+- Added `plugins.approval.surface` for source manifests and installed plugins.
+- Returned a stable `huggingos.plugin.approval.v1` payload with trust,
+  permissions, sandbox, update, rollback, warnings, blocked reasons, and
+  confirmed next actions.
+- Added local planner support for plugin approval prompts.
+- Added plugin-agent allowlist support for approval-surface inspection.
+- Added Make, CI smoke, docs, ADR, and Rust coverage for the new surface.
+- Kept desktop overlay rendering, plugin code execution, auto-update, and
+  automatic rollback execution disabled.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

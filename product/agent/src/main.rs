@@ -35,7 +35,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 11".to_string(),
+            phase: "Product Phase 12".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -1409,6 +1409,8 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps.push(step);
     } else if let Some(step) = plan_timeline_intent(registry, prompt, &lowered) {
         steps.push(step);
+    } else if let Some(step) = plan_plugin_approval_intent(registry, prompt, &lowered) {
+        steps.push(step);
     } else if let Some(step) = plan_plugin_catalog_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_plugin_workflow_intent(registry, prompt, &lowered) {
@@ -1439,6 +1441,35 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps,
         warnings,
     }
+}
+
+fn plan_plugin_approval_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("plugin approval")
+        || lowered.contains("plugin trust")
+        || lowered.contains("review plugin")
+        || lowered.contains("approve plugin"))
+    {
+        return None;
+    }
+    let params = plugin_reference_params(
+        prompt,
+        &[
+            "plugin approval ",
+            "plugin trust ",
+            "review plugin ",
+            "approve plugin ",
+        ],
+    )?;
+    Some(plan_step(
+        registry,
+        "plugins.approval.surface",
+        params,
+        "Build a plugin approval surface without changing plugin state.".to_string(),
+    ))
 }
 
 fn plan_plugin_catalog_intent(
@@ -1478,6 +1509,21 @@ fn plan_plugin_workflow_intent(
         params,
         "Plan a plugin-provided workflow without executing it.".to_string(),
     ))
+}
+
+fn plugin_reference_params(prompt: &str, markers: &[&str]) -> Option<Map<String, Value>> {
+    let reference = extract_path_after(prompt, markers)?;
+    let mut params = Map::new();
+    if reference.contains('/')
+        || reference.contains('\\')
+        || reference.ends_with(".json")
+        || reference.starts_with('.')
+    {
+        params.insert("source".to_string(), json!(reference));
+    } else {
+        params.insert("plugin_id".to_string(), json!(safe_plugin_id(&reference)));
+    }
+    Some(params)
 }
 
 fn plan_repeated_workflow_intent(
@@ -3162,6 +3208,173 @@ fn review_plugin_permissions(config: &Config, request: &ActionRequest) -> Result
     }))
 }
 
+fn plugin_approval_surface(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let source = request.params.get("source").and_then(Value::as_str);
+    let plugin_id = request.params.get("plugin_id").and_then(Value::as_str);
+    let (manifest, origin, installed_enabled) = if let Some(source) = source {
+        let manifest = read_plugin_manifest_from_source(source)?;
+        validate_plugin_manifest(&manifest)?;
+        (
+            manifest,
+            json!({
+                "kind": "source_manifest",
+                "source": source,
+                "installed": false,
+            }),
+            false,
+        )
+    } else if let Some(plugin_id) = plugin_id {
+        let plugin_id = safe_plugin_id(plugin_id);
+        let manifest = read_installed_plugin(config, &plugin_id)?;
+        let enabled = !plugin_disabled_path(config, &plugin_id).exists();
+        (
+            manifest,
+            json!({
+                "kind": "installed_plugin",
+                "plugin_id": plugin_id,
+                "installed": true,
+            }),
+            enabled,
+        )
+    } else {
+        return Err("plugins.approval.surface requires source or plugin_id".to_string());
+    };
+
+    let trust_state = plugin_trust_state(&manifest);
+    let trust_verified = trust_state
+        .get("verified")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let source_already_installed =
+        source.is_some() && plugin_install_dir(config, &manifest.id).exists();
+    let sandbox = plugin_sandbox_summary(&manifest);
+    let update = plugin_update_summary(&manifest);
+    let mut blocked_reasons = vec![];
+    let mut warnings = vec![
+        "Plugin code execution remains disabled; approval only enables declarative metadata."
+            .to_string(),
+        "Rollback manifests are recovery records; automatic rollback execution is not available yet."
+            .to_string(),
+    ];
+
+    if !trust_verified {
+        blocked_reasons.push("Package signature is not verified.".to_string());
+    }
+    if sandbox
+        .get("code_execution")
+        .and_then(Value::as_str)
+        .unwrap_or("disabled")
+        != "disabled"
+    {
+        blocked_reasons
+            .push("Plugin requests code execution before sandbox support exists.".to_string());
+    }
+    if sandbox
+        .get("network")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        blocked_reasons
+            .push("Plugin requests network access before sandbox support exists.".to_string());
+    }
+    if update
+        .get("auto_update")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        blocked_reasons
+            .push("Plugin requests auto-update before update approvals exist.".to_string());
+    }
+    if manifest.capabilities.is_empty() {
+        warnings.push(
+            "Plugin declares no direct capabilities; only workflows or agents are visible."
+                .to_string(),
+        );
+    }
+    if source_already_installed {
+        warnings.push(
+            "A plugin with this id is already installed; install approval will replace it."
+                .to_string(),
+        );
+    }
+
+    let can_install = source.is_some() && blocked_reasons.is_empty();
+    let mut actions = vec![];
+    if let Some(source) = source {
+        actions.push(json!({
+            "label": if source_already_installed { "Replace plugin" } else { "Install plugin" },
+            "capability": "plugins.install",
+            "params": { "source": source, "force": source_already_installed },
+            "requires_confirmation": true,
+            "enabled": can_install,
+            "blocked_reasons": blocked_reasons,
+        }));
+    }
+    if plugin_id.is_some() {
+        actions.push(json!({
+            "label": "Disable plugin",
+            "capability": "plugins.disable",
+            "params": { "plugin_id": manifest.id },
+            "requires_confirmation": true,
+            "enabled": installed_enabled,
+        }));
+        actions.push(json!({
+            "label": "Remove plugin",
+            "capability": "plugins.remove",
+            "params": { "plugin_id": manifest.id },
+            "requires_confirmation": true,
+            "enabled": true,
+        }));
+    }
+
+    let recommended = if blocked_reasons.is_empty() {
+        "approve_with_confirmation"
+    } else {
+        "block"
+    };
+
+    Ok(json!({
+        "surface_schema_version": "huggingos.plugin.approval.v1",
+        "generated_at": utc_now(),
+        "mode": if source.is_some() { "pre_install" } else { "installed_plugin" },
+        "origin": origin,
+        "desktop_overlay": {
+            "enabled": config.features.get("desktop_overlay_enabled").copied().unwrap_or(false),
+            "contract_ready": true,
+            "renderer": "json_control_surface",
+        },
+        "plugin": plugin_manifest_summary(&manifest, installed_enabled),
+        "decision": {
+            "recommended": recommended,
+            "requires_confirmation": true,
+            "can_install": can_install,
+            "can_disable": plugin_id.is_some() && installed_enabled,
+            "can_remove": plugin_id.is_some(),
+            "blocked_reasons": blocked_reasons,
+            "warnings": warnings,
+        },
+        "sections": {
+            "identity": {
+                "id": manifest.id,
+                "name": manifest.name,
+                "version": manifest.version,
+                "description": manifest.description,
+            },
+            "trust": trust_state,
+            "permissions": plugin_permission_summary(&manifest),
+            "approval": plugin_approval_summary(&manifest),
+            "sandbox": sandbox,
+            "update": update,
+            "rollback": plugin_rollback_surface_summary(config, &manifest.id),
+        },
+        "actions": actions,
+        "limitations": [
+            "This surface does not install, disable, remove, auto-update, or execute plugin code.",
+            "A desktop renderer can use this payload, but desktop overlay rendering is still a later integration step."
+        ],
+    }))
+}
+
 fn install_plugin(config: &Config, request: &ActionRequest) -> Result<Value, String> {
     let source = string_param(request, "source")?;
     let force = request
@@ -3743,6 +3956,62 @@ fn plugin_approval_summary(manifest: &PluginManifest) -> Value {
     })
 }
 
+fn plugin_update_summary(manifest: &PluginManifest) -> Value {
+    match &manifest.update {
+        Some(update) => json!({
+            "present": true,
+            "channel": update.channel,
+            "source": update.source,
+            "auto_update": update.auto_update,
+            "auto_update_allowed": false,
+            "manual_update_approval_required": true,
+        }),
+        None => json!({
+            "present": false,
+            "auto_update": false,
+            "auto_update_allowed": false,
+            "manual_update_approval_required": true,
+        }),
+    }
+}
+
+fn plugin_rollback_surface_summary(config: &Config, plugin_id: &str) -> Value {
+    let dir = plugin_rollback_dir(config).join(plugin_id);
+    let mut records = vec![];
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension() != Some(OsStr::new("json")) {
+                continue;
+            }
+            if let Ok(Some(record)) = read_json_file(&path) {
+                records.push(json!({
+                    "path": path,
+                    "schema_version": record.get("schema_version"),
+                    "created_at": record.get("created_at"),
+                    "action": record.get("action"),
+                }));
+            }
+        }
+    }
+    records.sort_by_key(|record| {
+        record
+            .get("created_at")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    });
+    records.reverse();
+    records.truncate(5);
+    let recent_record_count = records.len();
+    json!({
+        "automatic_rollback": false,
+        "record_dir": dir,
+        "recent_record_count": recent_record_count,
+        "recent_records": records,
+    })
+}
+
 fn plugin_sandbox_summary(manifest: &PluginManifest) -> Value {
     match &manifest.sandbox {
         Some(sandbox) => json!(sandbox),
@@ -4077,10 +4346,11 @@ fn agent_catalog() -> Vec<AgentDefinition> {
         AgentDefinition {
             id: "plugin.agent".to_string(),
             name: "Plugin Agent".to_string(),
-            description: "Inspects installed plugins and plans plugin-provided workflows."
+            description: "Inspects installed plugins, approval surfaces, and plugin workflows."
                 .to_string(),
             allowed_capabilities: vec![
                 "plugins.catalog".to_string(),
+                "plugins.approval.surface".to_string(),
                 "plugins.workflow.plan".to_string(),
                 "plugins.capability.run".to_string(),
             ],
@@ -5045,6 +5315,7 @@ fn build_registry() -> BTreeMap<String, Capability> {
         plugins_validate_capability(),
         plugins_package_validate_capability(),
         plugins_permission_review_capability(),
+        plugins_approval_surface_capability(),
         plugins_install_capability(),
         plugins_disable_capability(),
         plugins_remove_capability(),
@@ -6160,6 +6431,38 @@ fn plugins_permission_review_capability() -> Capability {
     }
 }
 
+fn plugins_approval_surface_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.approval.surface".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description:
+                "Build a desktop-ready plugin approval surface without changing plugin state."
+                    .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string(), "plugins:trust".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("source".to_string(), "string".to_string()),
+                    ("plugin_id".to_string(), "string".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| plugin_approval_surface(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("surface_schema_version") == Some(&json!("huggingos.plugin.approval.v1"))
+                && data.get("decision").is_some()
+                && data.get("actions").is_some(),
+            message: "Plugin approval surface returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn plugins_install_capability() -> Capability {
     Capability {
         metadata: CapabilityMetadata {
@@ -6662,11 +6965,11 @@ fn validate_capability_request(
             }
             Ok(())
         }
-        "plugins.permission.review" => {
+        "plugins.permission.review" | "plugins.approval.surface" => {
             let source = params.get("source").and_then(Value::as_str);
             let plugin_id = params.get("plugin_id").and_then(Value::as_str);
             if source.is_none() && plugin_id.is_none() {
-                return Err("plugins.permission.review requires source or plugin_id".to_string());
+                return Err(format!("{capability_name} requires source or plugin_id"));
             }
             if let Some(source) = source {
                 if is_sensitive_path(&json!(source)) {
@@ -7983,6 +8286,35 @@ Categories=Utility;Development;
             json!(false)
         );
 
+        let mut approval_params = Map::new();
+        approval_params.insert("source".to_string(), json!(source));
+        let approval_surface = execute_capability(
+            &config,
+            &registry,
+            request("plugins.approval.surface", approval_params),
+        );
+        assert_eq!(approval_surface.status, ActionStatus::Succeeded);
+        assert_eq!(
+            approval_surface.data["surface_schema_version"],
+            json!("huggingos.plugin.approval.v1")
+        );
+        assert_eq!(
+            approval_surface.data["decision"]["recommended"],
+            json!("approve_with_confirmation")
+        );
+        assert_eq!(
+            approval_surface.data["decision"]["can_install"],
+            json!(true)
+        );
+        assert_eq!(
+            approval_surface.data["sections"]["trust"]["state"],
+            json!("signature_verified")
+        );
+        assert_eq!(
+            approval_surface.data["actions"][0]["capability"],
+            json!("plugins.install")
+        );
+
         let mut install_params = Map::new();
         install_params.insert("source".to_string(), json!(source));
         let mut install_request = request("plugins.install", install_params);
@@ -8011,6 +8343,30 @@ Categories=Utility;Development;
         assert_eq!(catalog.status, ActionStatus::Succeeded);
         assert_eq!(catalog.data["plugin_count"], json!(1));
         assert_eq!(catalog.data["plugins"][0]["enabled"], json!(true));
+
+        let mut installed_approval_params = Map::new();
+        installed_approval_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        let installed_approval = execute_capability(
+            &config,
+            &registry,
+            request("plugins.approval.surface", installed_approval_params),
+        );
+        assert_eq!(installed_approval.status, ActionStatus::Succeeded);
+        assert_eq!(installed_approval.data["mode"], json!("installed_plugin"));
+        assert_eq!(
+            installed_approval.data["decision"]["can_disable"],
+            json!(true)
+        );
+        assert_eq!(
+            installed_approval.data["sections"]["rollback"]["automatic_rollback"],
+            json!(false)
+        );
+        assert!(
+            installed_approval.data["sections"]["rollback"]["recent_record_count"]
+                .as_u64()
+                .unwrap()
+                >= 1
+        );
 
         let mut workflow_params = Map::new();
         workflow_params.insert("plugin_id".to_string(), json!("sample.hello"));
@@ -8133,6 +8489,13 @@ Categories=Utility;Development;
 
         let catalog_plan =
             build_ai_plan(&config, &registry, "list plugins", Some("local.rules")).unwrap();
+        let approval_plan = build_ai_plan(
+            &config,
+            &registry,
+            "plugin approval sample.hello",
+            Some("local.rules"),
+        )
+        .unwrap();
         let workflow_plan = build_ai_plan(
             &config,
             &registry,
@@ -8142,6 +8505,14 @@ Categories=Utility;Development;
         .unwrap();
 
         assert_eq!(catalog_plan.steps[0].capability, "plugins.catalog");
+        assert_eq!(
+            approval_plan.steps[0].capability,
+            "plugins.approval.surface"
+        );
+        assert_eq!(
+            approval_plan.steps[0].params["plugin_id"],
+            json!("sample.hello")
+        );
         assert_eq!(workflow_plan.steps[0].capability, "plugins.workflow.plan");
         assert_eq!(
             workflow_plan.steps[0].params["plugin_id"],

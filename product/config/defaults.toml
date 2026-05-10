@@ -1,8 +1,8 @@
 [product]
 name = "huggingOS"
-version = "0.11.0-phase11"
+version = "0.12.0-phase12"
 track = "product"
-phase = "Product Phase 11"
+phase = "Product Phase 12"
 base_strategy = "Ubuntu LTS hosted prototype"
 
 [runtime]
@@ -65,6 +65,7 @@ declarative_plugins_enabled = true
 plugin_package_trust_enabled = true
 plugin_permission_review_enabled = true
 plugin_signature_verification_enabled = true
+plugin_approval_surface_enabled = true
 
 [policy]
 audit_log_name = "audit.log"

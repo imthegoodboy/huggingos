@@ -548,6 +548,26 @@ Still later:
 - Trusted marketplace/update feeds.
 - Automatic rollback execution.
 
+### Phase 12: Plugin Approval Surface
+
+Complete for the first desktop-ready approval contract slice:
+
+- `plugins.approval.surface` read-only capability.
+- Stable `huggingos.plugin.approval.v1` payloads for source manifests and
+  installed plugins.
+- Trust, permissions, sandbox, update, rollback, warnings, blocked reasons, and
+  confirmed next actions in one UI-ready payload.
+- Local planner support for plugin approval prompts.
+- Plugin agent allowlist support for approval-surface inspection.
+
+Still later:
+
+- Rendered desktop overlay and control center screens.
+- Sandboxed plugin-provided code execution.
+- Signed archive bundles beyond manifest-only packages.
+- Trusted marketplace/update feeds.
+- Automatic rollback execution.
+
 ## Production-Readiness Gates
 
 No phase is complete until:
@@ -571,6 +591,7 @@ No phase is complete until:
 - ADR 0011: `docs/adr/0011-declarative-plugin-manifests.md`
 - ADR 0012: `docs/adr/0012-plugin-trust-before-code-execution.md`
 - ADR 0013: `docs/adr/0013-plugin-signature-verification.md`
+- ADR 0014: `docs/adr/0014-plugin-approval-surface.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-workflow-detect agent-proactive-suggest agent-selfheal-diagnose agent-timeline-explain agent-plugin-validate agent-plugin-package-validate agent-plugin-permission-review agent-plugin-install agent-plugin-catalog agent-plugin-workflow agent-plugin-run agent-plugin-disable agent-plugin-remove agent-smoke smoke
+.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-workflow-detect agent-proactive-suggest agent-selfheal-diagnose agent-timeline-explain agent-plugin-validate agent-plugin-package-validate agent-plugin-permission-review agent-plugin-approval-surface agent-plugin-install agent-plugin-catalog agent-plugin-workflow agent-plugin-run agent-plugin-disable agent-plugin-remove agent-smoke smoke
 
 status:
 	$(PYTHON) cli/huggingos.py status
@@ -103,6 +103,9 @@ agent-plugin-package-validate:
 
 agent-plugin-permission-review:
 	cd agent && cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
+
+agent-plugin-approval-surface:
+	cd agent && cargo run -- run plugins.approval.surface --param source=../plugins/hello-assistant --json
 
 agent-plugin-install:
 	cd agent && cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json

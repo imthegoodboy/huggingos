@@ -16,10 +16,10 @@ capability control plane, the first Rust AI planning bridge, the first
 permissioned Linux desktop-control slice, the first screen/context observation
 engine, local memory/semantic file search, and permissioned multi-agent
 orchestration, plus the first predictive/self-healing suggestion layer. The
-first plugin SDK, trust-metadata slice, and cryptographically verified local
-plugin package path are also present for manifest-based third-party extensions.
-The custom kernel is already a working QEMU-bootable lab OS, but it is not the
-production AI OS path.
+first plugin SDK, trust-metadata slice, cryptographically verified local plugin
+package path, and first plugin approval surface are also present for
+manifest-based third-party extensions. The custom kernel is already a working
+QEMU-bootable lab OS, but it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -57,6 +57,9 @@ Product track:
 - Phase 11 plugin signature capabilities exist for local signed package
   verification, install-time signature enforcement, package update metadata,
   persisted rollback manifests, and tamper rejection.
+- Phase 12 plugin approval surface capabilities exist for desktop-ready review
+  payloads covering trust, permissions, sandbox, update, rollback, and confirmed
+  next actions.
 - Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, `workspace.mode.plan`, `screen.status`,
@@ -70,7 +73,7 @@ Product track:
   `plugins.validate`, `plugins.install`, `plugins.catalog`,
   `plugins.workflow.plan`, `plugins.capability.run`, `plugins.disable`, and
   `plugins.remove`, plus `plugins.package.validate` and
-  `plugins.permission.review`.
+  `plugins.permission.review`, and `plugins.approval.surface`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -111,6 +114,7 @@ cd product/agent && cargo run -- ai run "what is open" --confirm --json
 cd product/agent && cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
 cd product/agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
 cd product/agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+cd product/agent && cargo run -- run plugins.approval.surface --param source=../plugins/hello-assistant --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -129,6 +133,7 @@ make product-agent-context-snapshot
 make product-agent-memory-remember
 make product-agent-semantic-index
 make product-agent-agents-orchestrate
+make product-agent-plugin-approval-surface
 make product-agent-smoke
 make product-smoke
 ```
@@ -136,11 +141,12 @@ make product-smoke
 The Rust product agent now plans simple local AI intents and executes them
 through registry, policy, verification, and audit. It also has real desktop
 session/app/browser contracts, permissioned screen/context observation,
-user-controlled local memory, opt-in file search, and permissioned multi-agent
-orchestration, plus signed local plugin package verification. Cloud AI provider
-execution, browser DOM automation, global hotkeys, overlays, accessibility-tree
-extraction, and window arrangement remain intentionally deferred until their
-backends and permission models exist.
+user-controlled local memory, opt-in file search, permissioned multi-agent
+orchestration, signed local plugin package verification, and desktop-ready
+plugin approval payloads. Cloud AI provider execution, browser DOM automation,
+global hotkeys, rendered overlays, accessibility-tree extraction, and window
+arrangement remain intentionally deferred until their backends and permission
+models exist.
 
 ## Kernel-Lab Quick Start
 
@@ -329,9 +335,9 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start after Product Phase 11 by adding desktop
-approval UI surfaces, sandbox architecture, and richer signed plugin package
-update flows.
+The next product work should start after Product Phase 12 by adding sandbox
+architecture, signed archive bundles, and richer signed plugin package update
+flows.
 
 ## References
 

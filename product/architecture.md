@@ -22,13 +22,14 @@ Linux kernel and distro base
   -> predictive and self-healing suggestion bridge
   -> declarative plugin SDK bridge
   -> signed plugin package trust bridge
+  -> plugin approval surface bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane Through Phase 11 Plugin Trust
+## Phase 2 Control Plane Through Phase 12 Plugin Approval
 
 Product Phase 2 adds the first executable capability control plane:
 
@@ -90,6 +91,11 @@ validation and install verify SHA-256 plus Ed25519 signatures, update metadata
 is explicit with auto-update disabled, and lifecycle actions persist rollback
 manifests under local state.
 
+Product Phase 12 adds the first plugin approval surface. The Rust agent returns
+desktop-ready JSON payloads that combine trust, permissions, sandbox posture,
+update metadata, rollback records, warnings, blocked reasons, and confirmed
+next actions without changing plugin state.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -105,6 +111,7 @@ Tracking:
 - Phase 9 epic: [#77 Product Phase 9 Epic: Plugin SDK and ecosystem](https://github.com/imthegoodboy/huggingos/issues/77)
 - Phase 10 epic: [#79 Product Phase 10 Epic: Plugin trust packaging and approval UI](https://github.com/imthegoodboy/huggingos/issues/79)
 - Phase 11 epic: [#81 Product Phase 11 Epic: Plugin signature verification](https://github.com/imthegoodboy/huggingos/issues/81)
+- Phase 12 epic: [#83 Product Phase 12 Epic: Plugin approval surface readiness](https://github.com/imthegoodboy/huggingos/issues/83)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -134,7 +141,7 @@ permissioned, testable, and reversible where possible.
 
 ## Readiness Verdict
 
-Phase 1 through Phase 11 are directionally correct:
+Phase 1 through Phase 12 are directionally correct:
 
 - It uses Linux as the real OS foundation.
 - It does not copy or fork the Linux kernel before there is a need.
@@ -154,6 +161,8 @@ Phase 1 through Phase 11 are directionally correct:
 - It adds plugin extension points without arbitrary native plugin execution.
 - It adds plugin trust metadata and now enforces verified local package
   signatures before install.
+- It exposes plugin trust decisions as a read-only desktop-ready approval
+  contract without pretending the overlay renderer exists.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

@@ -61,7 +61,8 @@ make product-agent-plugin-permission-review
 ## Still Later
 
 - Signed plugin archive bundles beyond manifest-only packages.
-- Desktop approval UI for trust, permissions, and updates.
+- Desktop approval UI data contract for trust, permissions, and updates.
+  Completed in [PHASE12.md](PHASE12.md) as a read-only approval surface.
 - Sandboxed plugin-provided code execution.
 - Trusted marketplace/update feeds.
 - Automatic rollback execution.

@@ -180,7 +180,8 @@ means Linux userspace services, not custom-kernel shortcuts:
 - Current plugin trust path: `plugins.package.validate` verifies
   `huggingos.plugin.package.v1` manifests with
   `ed25519-canonical-json-sha256-v1`; `plugins.install` requires
-  `signature_verified`; plugin code execution remains disabled.
+  `signature_verified`; `plugins.approval.surface` exposes a read-only
+  desktop-ready approval payload; plugin code execution remains disabled.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.
