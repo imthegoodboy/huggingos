@@ -39,8 +39,11 @@ class CapabilityEngine:
                 error=str(exc),
                 verification=Verification(False, str(exc)),
             )
-            result.audit_ref = self.audit.append(request, outcome, result)
-            return result
+            return self.record_audit(request, outcome, result)
+
+        audit_failure = self.ensure_audit_ready(request, outcome, started_at)
+        if audit_failure is not None:
+            return audit_failure
 
         if outcome.decision == PolicyDecision.DENY:
             result = ActionResult(
@@ -53,8 +56,7 @@ class CapabilityEngine:
                 error=outcome.reason,
                 verification=Verification(False, outcome.reason),
             )
-            result.audit_ref = self.audit.append(request, outcome, result)
-            return result
+            return self.record_audit(request, outcome, result)
 
         if outcome.decision == PolicyDecision.CONFIRM:
             result = ActionResult(
@@ -67,8 +69,7 @@ class CapabilityEngine:
                 error=outcome.reason,
                 verification=Verification(False, outcome.reason),
             )
-            result.audit_ref = self.audit.append(request, outcome, result)
-            return result
+            return self.record_audit(request, outcome, result)
 
         if request.dry_run or outcome.decision == PolicyDecision.DRY_RUN_ONLY:
             result = ActionResult(
@@ -81,8 +82,7 @@ class CapabilityEngine:
                 data={"params": request.params},
                 verification=Verification(True, "Dry run completed without mutation."),
             )
-            result.audit_ref = self.audit.append(request, outcome, result)
-            return result
+            return self.record_audit(request, outcome, result)
 
         try:
             data = capability.executor(request, self.config)
@@ -121,5 +121,40 @@ class CapabilityEngine:
                 verification=Verification(False, str(exc)),
             )
 
-        result.audit_ref = self.audit.append(request, outcome, result)
+        return self.record_audit(request, outcome, result)
+
+    def ensure_audit_ready(
+        self,
+        request: ActionRequest,
+        outcome: PolicyOutcome,
+        started_at: str,
+    ) -> ActionResult | None:
+        try:
+            self.audit.ensure_ready()
+            return None
+        except OSError as exc:
+            return ActionResult(
+                action_id=request.action_id,
+                capability=request.capability,
+                status=ActionStatus.FAILED,
+                started_at=started_at,
+                finished_at=utc_now(),
+                summary="Capability blocked because audit logging is unavailable.",
+                error=f"Audit logging failed: {exc}",
+                verification=Verification(False, outcome.reason),
+            )
+
+    def record_audit(
+        self,
+        request: ActionRequest,
+        outcome: PolicyOutcome,
+        result: ActionResult,
+    ) -> ActionResult:
+        try:
+            result.audit_ref = self.audit.append(request, outcome, result)
+        except OSError as exc:
+            result.status = ActionStatus.FAILED
+            result.summary = "Capability completed but audit logging failed."
+            result.error = f"Audit logging failed: {exc}"
+            result.verification = Verification(False, result.error)
         return result

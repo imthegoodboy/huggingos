@@ -148,6 +148,41 @@ confirmation_required_for = ["delete", "secret", "system"]
             self.assertEqual(note_path, workspace / "phase-two.md")
             self.assertTrue(note_path.exists())
 
+    def test_note_create_rejects_empty_title(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = run_cli(
+                "run",
+                "notes.create",
+                "--param",
+                "title=",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+
+            self.assertEqual(result.returncode, 1)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "failed")
+            self.assertIn("title", payload["error"])
+
+    def test_read_text_denies_sensitive_path_before_reading(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            secret_path = Path(tmp_dir) / ".env"
+            secret_path.write_text("API_KEY=should-not-print", encoding="utf-8")
+
+            result = run_cli(
+                "run",
+                "fs.read_text",
+                "--param",
+                f"path={secret_path}",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertNotIn("should-not-print", result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "denied")
+
     def test_unknown_capability_is_denied_and_audited(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result = run_cli(

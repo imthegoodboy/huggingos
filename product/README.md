@@ -25,6 +25,7 @@ For the product architecture, see [architecture.md](architecture.md).
 product/
   README.md              Product-track entry point
   huggingos_core/        Capability, policy, audit, and config library
+  agent/                 Rust production agent runtime
   distro/                Base image, package, and rootfs definitions
   services/              huggingOS daemons and local APIs
   cli/                   huggingos command-line entrypoint
@@ -46,6 +47,7 @@ The product track currently provides:
 - Runtime config layout with no committed secrets.
 - Product smoke tests and CI.
 - Phase 2 in-process capability control plane.
+- Rust production agent runtime started under `product/agent/`.
 - First safe capabilities for product status, file listing, small text reads,
   safe workspace note creation, and audit listing.
 
@@ -58,6 +60,8 @@ python3 product/cli/huggingos.py status
 python3 product/cli/huggingos.py doctor
 python3 product/cli/huggingos.py capabilities
 python3 product/cli/huggingos.py run product.status
+cd product/agent && cargo run -- status --json
+cd product/agent && cargo run -- run product.status --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -68,6 +72,7 @@ make product-status
 make product-doctor
 make product-capabilities
 make product-run-status
+make product-agent-smoke
 make product-smoke
 ```
 
@@ -78,6 +83,7 @@ make status
 make doctor
 make capabilities
 make run-status
+make agent-smoke
 make smoke
 ```
 
@@ -100,6 +106,10 @@ audit log is JSON Lines at the product state path.
 The CLI still does not call AI providers, control browsers, launch arbitrary
 shell commands, or manage desktop apps. Those come after the safe capability,
 secret, and desktop integration phases.
+
+The Rust agent currently mirrors the Phase 2 capability safety model and is the
+production path for the future daemon. The Python CLI remains a reference
+control surface until Rust reaches full parity.
 
 ## Local Files
 

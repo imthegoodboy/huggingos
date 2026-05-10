@@ -47,21 +47,21 @@ def xdg_state_home(config: dict[str, Any] | None = None) -> Path:
     env_name = runtime.get("state_dir_env") or "HUGGINGOS_STATE_DIR"
     explicit = os.environ.get(str(env_name))
     if explicit:
-        return Path(explicit).expanduser()
+        return resolve_runtime_path(explicit)
 
     xdg_state = os.environ.get("XDG_STATE_HOME")
     if xdg_state:
-        return Path(xdg_state).expanduser() / "huggingos"
+        return resolve_runtime_path(xdg_state) / "huggingos"
 
-    return Path.home() / ".local" / "state" / "huggingos"
+    return resolve_runtime_path(Path.home() / ".local" / "state" / "huggingos")
 
 
 def xdg_config_home() -> Path:
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config:
-        return Path(xdg_config).expanduser() / "huggingos"
+        return resolve_runtime_path(xdg_config) / "huggingos"
 
-    return Path.home() / ".config" / "huggingos"
+    return resolve_runtime_path(Path.home() / ".config" / "huggingos")
 
 
 def workspace_dir(config: dict[str, Any]) -> Path:
@@ -69,19 +69,28 @@ def workspace_dir(config: dict[str, Any]) -> Path:
     env_name = runtime.get("workspace_dir_env") or "HUGGINGOS_WORKSPACE_DIR"
     explicit = os.environ.get(str(env_name))
     if explicit:
-        return Path(explicit).expanduser()
+        return resolve_runtime_path(explicit)
 
     configured = runtime.get("workspace_dir")
     if configured:
-        return Path(configured).expanduser()
+        configured_path = Path(str(configured)).expanduser()
+        if configured_path.is_absolute():
+            return resolve_runtime_path(configured_path)
+        return resolve_runtime_path(xdg_state_home(config) / configured_path)
 
-    return xdg_state_home(config) / "workspace"
+    return resolve_runtime_path(xdg_state_home(config) / "workspace")
 
 
 def audit_log_path(config: dict[str, Any]) -> Path:
     policy = config.get("policy", {})
-    log_name = policy.get("audit_log_name", "audit.log")
-    return xdg_state_home(config) / log_name
+    log_name = Path(str(policy.get("audit_log_name", "audit.log"))).name
+    if not log_name or log_name in {".", ".."}:
+        log_name = "audit.log"
+    return resolve_runtime_path(xdg_state_home(config) / log_name)
+
+
+def resolve_runtime_path(value: str | Path) -> Path:
+    return Path(value).expanduser().resolve()
 
 
 def redact(value: Any) -> Any:

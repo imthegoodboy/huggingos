@@ -16,6 +16,7 @@ audit records what happened.
 - Append-only JSON Lines audit log for successful, failed, denied, and dry-run
   actions.
 - CLI listing and execution through the control plane.
+- Rust production agent runtime crate under `product/agent/`.
 - First safe local capabilities:
   - `product.status`
   - `fs.list`
@@ -34,6 +35,8 @@ python3 product/cli/huggingos.py run fs.list --param path=. --json
 python3 product/cli/huggingos.py run fs.read_text --param path=product/README.md --json
 python3 product/cli/huggingos.py run notes.create --param title=PhaseTwo --param content="hello" --json
 python3 product/cli/huggingos.py run audit.list --param limit=10 --json
+cd product/agent && cargo run -- capabilities --json
+cd product/agent && cargo run -- run product.status --json
 ```
 
 Use a temporary state/workspace path when testing write behavior:
@@ -47,6 +50,9 @@ python3 product/cli/huggingos.py run notes.create --param title=Scratch --dry-ru
 ## Safety Rules
 
 - Read-only capabilities can observe local state and must still be audited.
+- File read/list capabilities deny obvious secret paths such as `.env`, `.ssh`,
+  `credentials`, API keys, tokens, and private keys until higher-risk secret
+  handling exists.
 - Low-risk write capabilities must be constrained to a safe workspace.
 - Medium-risk capabilities require confirmation.
 - High-risk capabilities are denied by default until a stronger approval path
@@ -54,6 +60,9 @@ python3 product/cli/huggingos.py run notes.create --param title=Scratch --dry-ru
 - Dry runs must not mutate state.
 - Every denied, failed, dry-run, and successful action must write an audit
   record.
+- Audit input summaries recursively redact secret-like keys.
+- If audit logging is unavailable, capabilities fail closed instead of executing
+  and reporting success.
 
 ## Runtime State
 
@@ -87,6 +96,7 @@ HUGGINGOS_WORKSPACE_DIR=/path/to/workspace
 python3 product/cli/huggingos.py doctor --json
 python3 product/cli/huggingos.py capabilities --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
+cd product/agent && cargo test
 ```
 
 or:
@@ -94,6 +104,7 @@ or:
 ```bash
 make product-doctor
 make product-capabilities
+make product-agent-smoke
 make product-smoke
 ```
 

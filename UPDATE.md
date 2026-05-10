@@ -69,6 +69,20 @@ track:
   policy, audit, dry-run, failure, and safe workspace behavior.
 - Documented Phase 2 commands, local state paths, and safety rules.
 
+## Product Agent Runtime Hardening
+
+Follow-up audit and runtime alignment:
+
+- Installed and validated a Rust toolchain for the production agent direction.
+- Added ADR 0004 selecting Rust as the production agent/runtime language.
+- Added the first Rust `huggingos-agent` crate under `product/agent/`.
+- Mirrored the Phase 2 capability model in Rust for status, filesystem reads,
+  safe note creation, audit listing, policy, verification, and JSONL audit.
+- Hardened the Python reference against sensitive file paths, nested secret
+  audit leakage, empty note titles, overwrite races, relative runtime paths, and
+  unavailable audit logs.
+- Added CI and make targets for Rust agent tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

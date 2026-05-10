@@ -97,13 +97,15 @@ and low-level experiments, but product AI features belong in Linux userspace.
 
 ### 1. Product CLI
 
-Current entrypoint: `product/cli/huggingos.py`.
+Current reference entrypoint: `product/cli/huggingos.py`.
+Production runtime entrypoint: `product/agent/` (`huggingos-agent`, Rust).
 
 Responsibilities:
 
 - Developer and power-user control plane.
 - Status, doctor, config inspection.
 - Phase 2 capability listing and execution.
+- Rust agent runtime parity path.
 - CI-friendly smoke validation.
 
 Rules:
@@ -114,7 +116,7 @@ Rules:
 
 ### 2. Local User Service
 
-Future entrypoint: `huggingosd` as a user-level service.
+Future entrypoint: Rust `huggingosd` as a user-level service.
 
 Responsibilities:
 
@@ -126,6 +128,7 @@ Responsibilities:
 Recommended path:
 
 - Start in-process in Phase 2.
+- Move the production runtime to Rust in `product/agent/`.
 - Move to a systemd user service after the schemas stabilize.
 - Use D-Bus or local HTTP/Unix socket only when the service boundary is needed.
 
@@ -287,7 +290,8 @@ then policy decides what can run.
 
 Use now:
 
-- Python standard library for Phase 1 and early Phase 2 speed.
+- Python standard library for Phase 1 and Phase 2 reference behavior.
+- Rust for the production agent runtime and future `huggingosd`.
 - TOML for local config.
 - JSON/JSON Lines for action and audit records.
 - GitHub Actions on Ubuntu for CI.
@@ -296,6 +300,7 @@ Use now:
 Use in Phase 2 and Phase 3:
 
 - Dataclasses or typed models for action contracts.
+- Rust structs/enums for production action contracts.
 - systemd user service for `huggingosd` once daemon state exists.
 - D-Bus for Linux service/app integration where appropriate.
 - SQLite for audit indexes, event history, and local metadata when JSON Lines is
@@ -345,6 +350,7 @@ Complete.
 - Audit log.
 - First safe local capabilities.
 - CLI execution through the control plane.
+- Rust production agent crate started.
 
 ### Phase 3: AI Runtime And Secrets
 
