@@ -35,6 +35,8 @@ Current rules:
   flows exist.
 - Plugin approval surfaces are read-only review payloads. Lifecycle actions
   still require their own confirmed capabilities.
+- Product readiness audits are read-only gates; they do not enable deferred
+  features or bypass policy.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe

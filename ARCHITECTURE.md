@@ -568,6 +568,20 @@ Still later:
 - Trusted marketplace/update feeds.
 - Automatic rollback execution.
 
+### Product Readiness Audit Gate
+
+Complete for the current executable readiness gate:
+
+- `product.readiness.audit` read-only capability.
+- Stable `huggingos.product.readiness.v1` payload.
+- Checks for registered production capabilities, audit path scoping, dangerous
+  feature flags, signed sample plugin trust, approval-surface generation, docs,
+  smoke targets, and plugin code-execution blocking.
+- Known deferred work is returned in the payload.
+
+This gate is not a replacement for feature implementation. It prevents agents
+from claiming readiness without executable evidence.
+
 ## Production-Readiness Gates
 
 No phase is complete until:
@@ -592,6 +606,7 @@ No phase is complete until:
 - ADR 0012: `docs/adr/0012-plugin-trust-before-code-execution.md`
 - ADR 0013: `docs/adr/0013-plugin-signature-verification.md`
 - ADR 0014: `docs/adr/0014-plugin-approval-surface.md`
+- ADR 0015: `docs/adr/0015-product-readiness-audit-gate.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

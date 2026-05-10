@@ -35,6 +35,7 @@ in PR descriptions.
 - [Product Phase 10 plugin trust](product-phase10-plugin-trust.md)
 - [Product Phase 11 plugin signatures](product-phase11-plugin-signatures.md)
 - [Product Phase 12 plugin approval surface](product-phase12-plugin-approval-surface.md)
+- [Product readiness audit gate](product-readiness-audit-gate.md)
 
 ## Knowledge Capture Rule
 

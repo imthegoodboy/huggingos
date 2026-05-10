@@ -23,6 +23,7 @@ Linux kernel and distro base
   -> declarative plugin SDK bridge
   -> signed plugin package trust bridge
   -> plugin approval surface bridge
+  -> product readiness audit bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
@@ -95,6 +96,11 @@ Product Phase 12 adds the first plugin approval surface. The Rust agent returns
 desktop-ready JSON payloads that combine trust, permissions, sandbox posture,
 update metadata, rollback records, warnings, blocked reasons, and confirmed
 next actions without changing plugin state.
+
+The product readiness audit adds an executable gate over the current product
+surface. It checks required capabilities, audit scoping, dangerous feature
+flags, signed sample plugin trust, approval-surface generation, docs, smoke
+targets, and known deferred work.
 
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.

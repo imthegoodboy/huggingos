@@ -16,6 +16,7 @@ cargo run -- run notes.create --param title=RustAgent --dry-run --json
 cargo run -- ai status --json
 cargo run -- ai plan "show product status" --json
 cargo run -- ai run "show product status" --json
+cargo run -- run product.readiness.audit --json
 cargo run -- secrets status --json
 cargo run -- run desktop.status --json
 cargo run -- run apps.list --json
@@ -185,6 +186,19 @@ Plugin trust decisions are now renderable by future desktop UI code:
 This is a JSON control surface, not a rendered desktop overlay. Overlay
 rendering, automatic rollback, plugin auto-update, and plugin code execution
 remain disabled.
+
+## Product Readiness Audit
+
+Production-readiness checks are executable:
+
+- `product.readiness.audit` returns `huggingos.product.readiness.v1`.
+- The audit checks required capabilities, audit path scoping, high-trust feature
+  flags, required trust/readiness controls, signed sample plugin trust,
+  approval-surface generation, docs, smoke targets, and the plugin
+  code-execution block.
+- The audit reports known deferred work instead of hiding missing features.
+
+Run it before claiming the product track is ready.
 
 ## Safety Model
 

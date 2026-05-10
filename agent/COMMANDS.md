@@ -18,6 +18,7 @@ Current product checks:
 
 ```bash
 make product-agent-smoke
+make product-agent-readiness-audit
 make product-agent-ai-run
 make product-agent-desktop-status
 make product-agent-screen-status

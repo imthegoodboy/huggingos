@@ -15,6 +15,9 @@ That command returns `huggingos.plugin.approval.v1`, which a future renderer can
 use for plugin trust, permissions, sandbox, update, rollback, and confirmed
 next-action review.
 
+Run `product.readiness.audit` after UI contract changes so the product gate
+continues to prove docs, smoke targets, and approval surfaces are aligned.
+
 Do not add static mock screens that claim to control the OS. UI work should
 consume real capability payloads and keep lifecycle actions routed through the
 policy, confirmation, verification, and audit path.

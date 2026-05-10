@@ -561,6 +561,34 @@ Tracking:
 
 - Epic: [#83 Product Phase 12 Epic: Plugin approval surface readiness](https://github.com/imthegoodboy/huggingos/issues/83)
 
+## Product Readiness Audit Gate
+
+Goal: make production-readiness claims executable and repeatable.
+
+Status: complete for the current product surface.
+
+Core features:
+
+- Machine-readable readiness audit. Done through `product.readiness.audit`.
+- Capability registration checks. Done for the current product-critical
+  capability set.
+- Audit path scoping check. Done against the configured state directory.
+- Plugin trust and approval checks. Done against the signed sample plugin and
+  `plugins.approval.surface`.
+- Documentation and smoke target checks. Done against the current repo files.
+- Known deferred work reporting. Done in the readiness payload.
+
+Acceptance criteria:
+
+- `product.readiness.audit` returns `huggingos.product.readiness.v1`. Done.
+- The current repo is not blocked by the readiness gate. Done in Rust tests and
+  smoke commands.
+- Deferred work remains visible instead of hidden behind a green status. Done.
+
+Tracking:
+
+- Issue: [#85 Product Readiness Audit: executable production gate](https://github.com/imthegoodboy/huggingos/issues/85)
+
 ## Track B: Kernel-Lab Roadmap
 
 This track keeps the existing custom x86 kernel useful without blocking the
