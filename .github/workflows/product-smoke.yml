@@ -189,7 +189,7 @@ jobs:
         run: cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
         working-directory: product/agent
 
-      - name: Validate sample plugin package trust metadata
+      - name: Verify sample plugin package signature
         run: cargo run -- run plugins.package.validate --param source=../plugins/hello-assistant --json
         working-directory: product/agent
 

@@ -16,9 +16,10 @@ capability control plane, the first Rust AI planning bridge, the first
 permissioned Linux desktop-control slice, the first screen/context observation
 engine, local memory/semantic file search, and permissioned multi-agent
 orchestration, plus the first predictive/self-healing suggestion layer. The
-first plugin SDK and trust-metadata slice is also present for manifest-based
-third-party extensions. The custom kernel is already a working QEMU-bootable lab
-OS, but it is not the production AI OS path.
+first plugin SDK, trust-metadata slice, and cryptographically verified local
+plugin package path are also present for manifest-based third-party extensions.
+The custom kernel is already a working QEMU-bootable lab OS, but it is not the
+production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -53,6 +54,9 @@ Product track:
 - Phase 10 plugin trust capabilities exist for package metadata validation,
   permission review, sandbox declarations, rollback metadata, and audited trust
   state.
+- Phase 11 plugin signature capabilities exist for local signed package
+  verification, install-time signature enforcement, package update metadata,
+  persisted rollback manifests, and tamper rejection.
 - Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, `workspace.mode.plan`, `screen.status`,
@@ -133,9 +137,10 @@ The Rust product agent now plans simple local AI intents and executes them
 through registry, policy, verification, and audit. It also has real desktop
 session/app/browser contracts, permissioned screen/context observation,
 user-controlled local memory, opt-in file search, and permissioned multi-agent
-orchestration. Cloud AI provider execution, browser DOM automation, global
-hotkeys, overlays, accessibility-tree extraction, and window arrangement remain
-intentionally deferred until their backends and permission models exist.
+orchestration, plus signed local plugin package verification. Cloud AI provider
+execution, browser DOM automation, global hotkeys, overlays, accessibility-tree
+extraction, and window arrangement remain intentionally deferred until their
+backends and permission models exist.
 
 ## Kernel-Lab Quick Start
 
@@ -324,8 +329,9 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start after Product Phase 10 by adding real
-signature verification, package archives, and desktop approval UI.
+The next product work should start after Product Phase 11 by adding desktop
+approval UI surfaces, sandbox architecture, and richer signed plugin package
+update flows.
 
 ## References
 

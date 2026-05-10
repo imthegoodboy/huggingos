@@ -150,8 +150,24 @@ Plugin trust and approval metadata are explicit:
 - Plugin lifecycle actions include rollback metadata.
 - Audit records include plugin trust state.
 
-Signature metadata can be present, but signatures are not cryptographically
-verified yet. The runtime reports that as `signed_metadata_present_unverified`.
+Phase 10 was metadata-only. Phase 11 makes local package signatures
+cryptographically verified before install.
+
+## Phase 11 Plugin Signatures
+
+Signed local package trust is enforced:
+
+- `plugins.package.validate` verifies the package SHA-256 and Ed25519
+  signature.
+- `plugins.install` requires `signature_verified` package trust.
+- Plugin manifests can declare update channel metadata, but auto-update remains
+  disabled until approvals exist.
+- Install, disable, and remove write rollback manifests under local state.
+- Tampered manifests fail closed with a package digest mismatch or signature
+  error.
+
+The current signed package format is `huggingos.plugin.package.v1` with
+`ed25519-canonical-json-sha256-v1`. Plugin code execution remains disabled.
 
 ## Safety Model
 
@@ -165,6 +181,6 @@ verified yet. The runtime reports that as `signed_metadata_present_unverified`.
 - Memory collection is opt-in and deletable.
 - Agents delegate only through capability permissions, policy, audit, and traces.
 - Predictive and self-healing features are suggestion-first and read-only.
-- Plugins are manifest-only and read-only until sandboxing and signing exist.
-- Plugin signatures are metadata-only until real verification exists.
+- Plugins are manifest-only and read-only until sandboxed code execution exists.
+- Plugin install requires verified local package signatures.
 - Capabilities fail closed when audit logging is unavailable.

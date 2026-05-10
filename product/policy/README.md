@@ -28,10 +28,11 @@ Current rules:
   calls still pass through policy, audit, and verification.
 - Predictive and self-healing behavior must stay suggestion-first until
   confirmation, rollback, and daemon controls exist.
-- Plugins must stay manifest-only and read-only until sandboxing, signatures,
-  and rollback controls exist.
-- Plugin signature fields are metadata-only until cryptographic verification is
-  implemented.
+- Plugins must stay manifest-only and read-only until sandboxed code execution
+  and stronger approval controls exist.
+- Plugin install requires a verified local package signature.
+- Plugin update metadata is allowed, but auto-update is denied until approval
+  flows exist.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe

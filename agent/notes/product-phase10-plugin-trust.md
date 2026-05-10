@@ -9,6 +9,11 @@ signatures cryptographically. Keep the wording honest:
 - It does not mean the signature has been verified.
 - Plugin code execution remains disabled.
 
+Phase 11 supersedes the signature-warning part of this note for current code:
+local plugin packages now verify as `signature_verified` before install. The
+Phase 10 warning still matters when reading old PRs, old docs, or old installed
+state.
+
 Implemented surfaces:
 
 - `plugins.package.validate`
@@ -16,5 +21,5 @@ Implemented surfaces:
 - Trust state in plugin lifecycle/run audit records.
 - Rollback metadata for install, disable, and remove.
 
-Future agents should add real signature verification and sandboxing before
+Future agents should add sandboxing, approval UI, and rollback execution before
 allowing plugin-provided code, daemons, network access, or filesystem writes.

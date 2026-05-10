@@ -33,7 +33,7 @@ class HuggingOsCliTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["product"], "huggingOS")
         self.assertEqual(payload["track"], "product")
-        self.assertEqual(payload["phase"], "Product Phase 10")
+        self.assertEqual(payload["phase"], "Product Phase 11")
         self.assertIn("python", payload["host"])
         self.assertTrue(Path(payload["paths"]["config_file"]).exists())
         self.assertIn("audit_log", payload["paths"])

@@ -465,8 +465,8 @@ Status: complete for the first trust-metadata slice.
 
 Core features:
 
-- Signed plugin package metadata. Done as validated signature metadata fields;
-  cryptographic verification remains later.
+- Signed plugin package metadata. Done as validated signature metadata fields
+  in Phase 10; cryptographic verification is completed in Phase 11.
 - Install-time permission review. Done through `plugins.permission.review`.
 - Disable/remove rollback metadata. Done in plugin lifecycle results.
 - Sandbox design for plugin-provided code execution. Done as manifest sandbox
@@ -488,6 +488,42 @@ Acceptance criteria:
 Tracking:
 
 - Epic: [#79 Product Phase 10 Epic: Plugin trust packaging and approval UI](https://github.com/imthegoodboy/huggingos/issues/79)
+
+## Phase 11: Plugin Signature Verification
+
+Goal: make local plugin package trust cryptographically verifiable before
+expanding plugin power.
+
+Status: complete for the first signed manifest package slice.
+
+Core features:
+
+- Real cryptographic signature verification for plugin packages. Done with
+  SHA-256 plus Ed25519 verification over canonical manifest JSON.
+- Local signed package archive format. Done as
+  `huggingos.plugin.package.v1`, a signed manifest package format that can
+  evolve into archive bundles later.
+- Package update channel metadata and rollback manifests. Done with `update`
+  metadata, disabled auto-update, and persisted rollback records under local
+  state.
+- Desktop approval UI surfaces for plugin trust and permissions. Deferred to
+  Product Phase 12; Phase 11 exposes the data contracts and CLI responses.
+- Plugin-provided code remains disabled until sandboxing exists. Done through
+  sandbox validation and runtime policy.
+
+Acceptance criteria:
+
+- A plugin package can be cryptographically validated before install. Done
+  through `plugins.package.validate` returning `signature_verified`.
+- Tampered plugin manifests fail closed. Done with Rust regression coverage.
+- Plugin install requires verified package trust. Done through
+  `plugins.install`.
+- Rollback manifests are persisted for plugin install, disable, and remove.
+  Done under the configured state directory.
+
+Tracking:
+
+- Epic: [#81 Product Phase 11 Epic: Plugin signature verification](https://github.com/imthegoodboy/huggingos/issues/81)
 
 ## Track B: Kernel-Lab Roadmap
 
@@ -573,18 +609,21 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 11
+## Next Sprint: Product Phase 12
 
-Start here next after Product Phase 10 is merged:
+Start here next after Product Phase 11 is merged:
 
-1. Add real cryptographic signature verification for plugin packages.
-2. Define a local signed package archive format.
-3. Add package update channel metadata and rollback manifests.
-4. Add desktop approval UI surfaces for plugin trust and permissions.
-5. Keep plugin-provided code disabled until the sandbox is implemented.
+1. Add desktop approval UI surfaces for plugin trust, permissions, sandbox
+   declarations, and update metadata.
+2. Design the sandbox boundary for future plugin-provided code execution.
+3. Add a signed archive bundle format beyond manifest-only packages.
+4. Add trusted update feed metadata and manual update approval flow.
+5. Keep plugin-provided code disabled until the sandbox is implemented and
+   audited.
 
-Product Phase 10 gives plugin manifests honest trust metadata. Phase 11 should
-turn that into verified package trust before expanding plugin power.
+Product Phase 11 gives plugin manifests verified local package trust. Phase 12
+should make those trust decisions visible in the desktop control surface before
+expanding plugin power.
 
 ## Things We Will Not Fake
 

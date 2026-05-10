@@ -41,8 +41,9 @@ Before changing code, read only what is needed:
   reason it cannot be exercised yet.
 - Do not fake hardware, networking, AI, persistence, browser automation, or GUI
   support. Stub code must fail safely and be documented as a stub.
-- Do not execute arbitrary plugin code. Product Phase 9 plugins are declarative
-  manifests until sandboxing, verified signatures, and rollback exist.
+- Do not execute arbitrary plugin code. Product plugins are declarative
+  manifests until sandboxed code execution, approval UI, and rollback execution
+  exist.
 - Keep the OS bootable after every phase.
 - Prefer small, reviewable PRs tied to GitHub issues.
 - Add tests or `selftest` coverage for risky kernel behavior.
@@ -161,8 +162,8 @@ means Linux userspace services, not custom-kernel shortcuts:
   workflow engine, agent orchestration, predictive suggestions, and
   self-healing diagnostics.
 - Capability API: the only path for AI actions that affect OS state.
-- Plugin SDK: declarative manifests first; plugin code execution must wait for
-  sandboxing and verified package trust.
+- Plugin SDK: declarative manifests first; plugin install requires verified
+  package trust, and plugin code execution must wait for sandboxing.
 - Policy layer: permissions, confirmation, audit logs, and rollback.
 - Current production AI path: `product/agent` in Rust, with `local.rules`
   planning and `ai run` execution through capabilities.
@@ -176,6 +177,10 @@ means Linux userspace services, not custom-kernel shortcuts:
   `files.semantic.*`, and `workspace.resume.plan` in the Rust agent.
 - Current multi-agent path: `agents.catalog`, `agents.plan`,
   `agents.orchestrate`, and `agents.trace.list` in the Rust agent.
+- Current plugin trust path: `plugins.package.validate` verifies
+  `huggingos.plugin.package.v1` manifests with
+  `ed25519-canonical-json-sha256-v1`; `plugins.install` requires
+  `signature_verified`; plugin code execution remains disabled.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

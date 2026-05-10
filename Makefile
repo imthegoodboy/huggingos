@@ -249,7 +249,7 @@ help:
 	@echo "  product-agent-selfheal-diagnose - Diagnose a simulated recoverable failure"
 	@echo "  product-agent-timeline-explain - Explain recent audited activity"
 	@echo "  product-agent-plugin-validate - Validate the sample plugin manifest"
-	@echo "  product-agent-plugin-package-validate - Validate sample plugin package trust metadata"
+	@echo "  product-agent-plugin-package-validate - Verify the sample plugin package signature"
 	@echo "  product-agent-plugin-permission-review - Review sample plugin permissions"
 	@echo "  product-agent-plugin-install - Install the sample plugin"
 	@echo "  product-agent-plugin-catalog - List installed plugins"

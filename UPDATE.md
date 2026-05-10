@@ -189,6 +189,19 @@ Completed the first plugin trust-metadata slice:
 - Kept plugin code execution disabled and documented signature metadata as
   unverified until real cryptographic verification exists.
 
+## Product Phase 11 Plugin Signature Verification
+
+Completed the first cryptographically verified plugin package slice:
+
+- Added SHA-256 and Ed25519 verification for local plugin package manifests.
+- Made `plugins.package.validate` and `plugins.install` require
+  `signature_verified` package trust.
+- Added plugin update channel metadata while keeping auto-update disabled.
+- Added persisted rollback manifests for install, disable, and remove.
+- Updated the sample plugin with a signed package manifest.
+- Added tamper rejection and rollback manifest coverage to Rust tests.
+- Kept arbitrary plugin code execution disabled until sandboxing exists.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

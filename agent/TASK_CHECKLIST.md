@@ -33,9 +33,10 @@ Stop and rethink if the task starts to become:
   services, deletes files, or performs cleanup without confirmation and
   rollback design.
 - Plugin behavior that executes arbitrary native code, downloads packages, or
-  starts background services without sandboxing, signatures, and rollback.
-- Plugin trust UI or docs that imply signature verification before real
-  cryptographic verification exists.
+  starts background services without sandboxing, approval UI, and rollback
+  execution.
+- Plugin trust UI or docs that imply sandboxed code execution, marketplace
+  trust, or automatic updates before those controls exist.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate
