@@ -2,7 +2,7 @@ use chrono::Utc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 const MAX_TEXT_BYTES: u64 = 64 * 1024;
 const MAX_OCR_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
+const MAX_SEMANTIC_FILES: usize = 200;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ProductConfig {
@@ -30,7 +31,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 5".to_string(),
+            phase: "Product Phase 7".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -341,6 +342,23 @@ struct ActiveContext {
     app: Option<String>,
     is_private: bool,
     privacy_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AgentDefinition {
+    id: String,
+    name: String,
+    description: String,
+    allowed_capabilities: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+struct DelegatedCapabilityCall {
+    step_id: String,
+    agent_id: String,
+    capability: String,
+    params: Map<String, Value>,
+    reason: String,
 }
 
 fn main() -> ExitCode {
@@ -1237,6 +1255,18 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps.push(step);
     } else if let Some(step) = plan_screen_status_intent(registry, prompt, &lowered) {
         steps.push(step);
+    } else if let Some(step) = plan_memory_session_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_memory_list_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_semantic_search_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_resume_workspace_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_agent_catalog_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_agent_orchestration_intent(registry, prompt, &lowered) {
+        steps.push(step);
     } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
@@ -1353,6 +1383,136 @@ fn plan_screen_status_intent(
         "screen.status",
         Map::new(),
         format!("Report screen/context readiness for prompt: {prompt}"),
+    ))
+}
+
+fn plan_memory_session_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("remember ")
+        || lowered.starts_with("remember that ")
+        || lowered.starts_with("save memory "))
+    {
+        return None;
+    }
+    let value = extract_path_after(prompt, &["remember that ", "remember ", "save memory "])?;
+    let mut params = Map::new();
+    params.insert("key".to_string(), json!(safe_memory_key(&value)));
+    params.insert("value".to_string(), json!(value));
+    Some(plan_step(
+        registry,
+        "memory.session.remember",
+        params,
+        "Store a user-approved session memory fact.".to_string(),
+    ))
+}
+
+fn plan_memory_list_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("list memory")
+        || lowered.contains("show memory")
+        || lowered.contains("memory status"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "memory.session.list",
+        Map::new(),
+        format!("List session memory for prompt: {prompt}"),
+    ))
+}
+
+fn plan_semantic_search_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("semantic search")
+        || lowered.contains("search files for")
+        || lowered.contains("find files about"))
+    {
+        return None;
+    }
+    let query = extract_path_after(
+        prompt,
+        &["semantic search ", "search files for ", "find files about "],
+    )
+    .unwrap_or_else(|| prompt.to_string());
+    let mut params = Map::new();
+    params.insert("query".to_string(), json!(query));
+    Some(plan_step(
+        registry,
+        "files.semantic.search",
+        params,
+        "Search the local opt-in semantic file index.".to_string(),
+    ))
+}
+
+fn plan_resume_workspace_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("resume workspace")
+        || lowered.contains("resume my workspace")
+        || lowered.contains("continue my work")
+        || lowered.contains("resume my day"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "workspace.resume.plan",
+        Map::new(),
+        format!("Build a memory-backed resume plan for prompt: {prompt}"),
+    ))
+}
+
+fn plan_agent_catalog_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("agent catalog")
+        || lowered.contains("list agents")
+        || lowered.contains("available agents"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "agents.catalog",
+        Map::new(),
+        format!("List available agents for prompt: {prompt}"),
+    ))
+}
+
+fn plan_agent_orchestration_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("orchestrate")
+        || lowered.contains("delegate")
+        || lowered.contains("daily brief")
+        || lowered.contains("multi agent")
+        || lowered.contains("multi-agent"))
+    {
+        return None;
+    }
+    let mut params = Map::new();
+    params.insert("goal".to_string(), json!(prompt.trim()));
+    Some(plan_step(
+        registry,
+        "agents.orchestrate",
+        params,
+        "Delegate the goal through the local agent catalog.".to_string(),
     ))
 }
 
@@ -2187,6 +2347,942 @@ fn process_name(pid: u32) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn memory_dir(config: &Config) -> PathBuf {
+    absolute_path_lossy(state_dir(config).join("memory"))
+}
+
+fn session_memory_path(config: &Config) -> PathBuf {
+    memory_dir(config).join("session.jsonl")
+}
+
+fn preferences_path(config: &Config) -> PathBuf {
+    memory_dir(config).join("preferences.json")
+}
+
+fn semantic_index_path(config: &Config) -> PathBuf {
+    memory_dir(config).join("semantic-index.json")
+}
+
+fn agent_trace_path(config: &Config) -> PathBuf {
+    memory_dir(config).join("agent-traces.jsonl")
+}
+
+fn remember_session_memory(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let key = safe_memory_key(&string_param(request, "key")?);
+    let value = string_param(request, "value")?.trim().to_string();
+    if value.is_empty() {
+        return Err("memory value cannot be empty".to_string());
+    }
+    let tags = request
+        .params
+        .get("tags")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(safe_memory_key)
+                .filter(|tag| !tag.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let memory_id = Uuid::new_v4().to_string();
+    let record = json!({
+        "memory_id": memory_id,
+        "key": key,
+        "value": truncate_text(&value, 2000),
+        "tags": tags,
+        "source": "session",
+        "actor": request.actor,
+        "created_at": utc_now(),
+    });
+    append_json_line(&session_memory_path(config), &record)?;
+    Ok(json!({
+        "stored": true,
+        "memory_id": memory_id,
+        "key": record["key"],
+        "path": session_memory_path(config),
+    }))
+}
+
+fn list_session_memory(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let query = request
+        .params
+        .get("query")
+        .and_then(Value::as_str)
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let limit = bounded_limit(request, 50, 200)?;
+    let mut items = read_json_lines(&session_memory_path(config))?;
+    items.retain(|item| match &query {
+        Some(query) => item.to_string().to_ascii_lowercase().contains(query),
+        None => true,
+    });
+    if items.len() > limit {
+        items = items.split_off(items.len() - limit);
+    }
+    let item_count = items.len();
+    Ok(json!({
+        "path": session_memory_path(config),
+        "items": items,
+        "item_count": item_count,
+        "query": query,
+    }))
+}
+
+fn set_preference(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let key = safe_memory_key(&string_param(request, "key")?);
+    let value = string_param(request, "value")?.trim().to_string();
+    if value.is_empty() {
+        return Err("preference value cannot be empty".to_string());
+    }
+    let mut preferences = read_preferences(config)?;
+    preferences.insert(
+        key.clone(),
+        json!({
+            "value": truncate_text(&value, 2000),
+            "updated_at": utc_now(),
+            "actor": request.actor,
+        }),
+    );
+    write_json_file(
+        &preferences_path(config),
+        &Value::Object(preferences.clone()),
+    )?;
+    Ok(json!({
+        "updated": true,
+        "key": key,
+        "path": preferences_path(config),
+        "preference": preferences.get(&key),
+    }))
+}
+
+fn list_preferences(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let preferences = read_preferences(config)?;
+    if let Some(key) = request.params.get("key").and_then(Value::as_str) {
+        let key = safe_memory_key(key);
+        let mut filtered = Map::new();
+        if let Some(value) = preferences.get(&key) {
+            filtered.insert(key, value.clone());
+        }
+        let count = filtered.len();
+        return Ok(json!({
+            "path": preferences_path(config),
+            "preferences": filtered,
+            "preference_count": count,
+        }));
+    }
+    let count = preferences.len();
+    Ok(json!({
+        "path": preferences_path(config),
+        "preferences": preferences,
+        "preference_count": count,
+    }))
+}
+
+fn delete_memory(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let scope = string_param(request, "scope")?;
+    let scope = scope.trim().to_ascii_lowercase();
+    let key = request
+        .params
+        .get("key")
+        .and_then(Value::as_str)
+        .map(safe_memory_key);
+    let mut deleted = vec![];
+    match scope.as_str() {
+        "session" => {
+            let path = session_memory_path(config);
+            if let Some(key) = key {
+                let mut items = read_json_lines(&path)?;
+                let before = items.len();
+                items.retain(|item| item.get("key").and_then(Value::as_str) != Some(key.as_str()));
+                write_json_lines(&path, &items)?;
+                deleted
+                    .push(json!({"scope": "session", "key": key, "removed": before - items.len()}));
+            } else {
+                remove_file_if_exists(&path)?;
+                deleted.push(json!({"scope": "session", "path": path}));
+            }
+        }
+        "preferences" => {
+            let path = preferences_path(config);
+            if let Some(key) = key {
+                let mut preferences = read_preferences(config)?;
+                let removed = preferences.remove(&key).is_some();
+                write_json_file(&path, &Value::Object(preferences))?;
+                deleted.push(json!({"scope": "preferences", "key": key, "removed": removed}));
+            } else {
+                remove_file_if_exists(&path)?;
+                deleted.push(json!({"scope": "preferences", "path": path}));
+            }
+        }
+        "semantic_index" => {
+            let path = semantic_index_path(config);
+            remove_file_if_exists(&path)?;
+            deleted.push(json!({"scope": "semantic_index", "path": path}));
+        }
+        "traces" => {
+            let path = agent_trace_path(config);
+            remove_file_if_exists(&path)?;
+            deleted.push(json!({"scope": "traces", "path": path}));
+        }
+        "all" => {
+            for path in [
+                session_memory_path(config),
+                preferences_path(config),
+                semantic_index_path(config),
+                agent_trace_path(config),
+            ] {
+                remove_file_if_exists(&path)?;
+                deleted.push(json!({"scope": "all", "path": path}));
+            }
+        }
+        _ => {
+            return Err(
+                "memory delete scope must be session, preferences, semantic_index, traces, or all"
+                    .to_string(),
+            )
+        }
+    }
+    Ok(json!({ "deleted": deleted, "scope": scope }))
+}
+
+fn export_memory(config: &Config) -> Value {
+    json!({
+        "session": {
+            "path": session_memory_path(config),
+            "items": read_json_lines(&session_memory_path(config)).unwrap_or_default(),
+        },
+        "preferences": {
+            "path": preferences_path(config),
+            "items": read_preferences(config).unwrap_or_default(),
+        },
+        "semantic_index": {
+            "path": semantic_index_path(config),
+            "present": semantic_index_path(config).exists(),
+        },
+        "traces": {
+            "path": agent_trace_path(config),
+            "items": read_json_lines(&agent_trace_path(config)).unwrap_or_default(),
+        },
+    })
+}
+
+fn list_memory_events(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let limit = bounded_limit(request, 25, 200)?;
+    let entries = list_audit_entries(&audit_log_path(config), limit)?;
+    let events = entries
+        .into_iter()
+        .map(|entry| {
+            json!({
+                "recorded_at": entry.get("recorded_at"),
+                "actor": entry.get("actor"),
+                "capability": entry.get("capability"),
+                "status": entry.get("status"),
+                "summary": entry.get("summary"),
+            })
+        })
+        .collect::<Vec<_>>();
+    let event_count = events.len();
+    Ok(json!({
+        "source": audit_log_path(config),
+        "events": events,
+        "event_count": event_count,
+    }))
+}
+
+fn index_semantic_files(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let root_raw = string_param(request, "root")?;
+    if is_sensitive_path(&json!(root_raw)) {
+        return Err("Sensitive paths require a higher-risk capability.".to_string());
+    }
+    let root = resolve_existing_path(&root_raw)?;
+    if !root.is_dir() {
+        return Err(format!(
+            "semantic index root is not a directory: {}",
+            root.display()
+        ));
+    }
+    let recursive = request
+        .params
+        .get("recursive")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let max_files = bounded_limit(request, MAX_SEMANTIC_FILES, MAX_SEMANTIC_FILES)?;
+    let mut candidates = vec![];
+    collect_semantic_candidates(&root, recursive, &mut candidates, max_files)?;
+    let mut documents = vec![];
+    for path in candidates {
+        if documents.len() >= max_files {
+            break;
+        }
+        if is_sensitive_path(&json!(path.to_string_lossy().to_string()))
+            || path_has_hidden_component(&path)
+        {
+            continue;
+        }
+        let metadata = fs::metadata(&path).map_err(|err| err.to_string())?;
+        if !metadata.is_file()
+            || metadata.len() > MAX_TEXT_BYTES
+            || !is_supported_semantic_file(&path)
+        {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let tokens = unique_tokens(&text);
+        if tokens.is_empty() {
+            continue;
+        }
+        documents.push(json!({
+            "path": path,
+            "size": metadata.len(),
+            "modified": metadata.modified().ok().and_then(system_time_json),
+            "tokens": tokens,
+            "summary": summarize_document_text(&text),
+        }));
+    }
+    let index = json!({
+        "indexed_at": utc_now(),
+        "root": root,
+        "recursive": recursive,
+        "engine": "local.token_overlap.v1",
+        "embedding_provider": null,
+        "document_count": documents.len(),
+        "documents": documents,
+    });
+    write_json_file(&semantic_index_path(config), &index)?;
+    Ok(json!({
+        "path": semantic_index_path(config),
+        "root": index["root"],
+        "engine": index["engine"],
+        "document_count": index["document_count"],
+    }))
+}
+
+fn search_semantic_files(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let query = string_param(request, "query")?;
+    let query_tokens = unique_tokens(&query);
+    if query_tokens.is_empty() {
+        return Err("semantic search query must contain searchable text".to_string());
+    }
+    let limit = bounded_limit(request, 10, 50)?;
+    let index = read_json_file(&semantic_index_path(config))?.ok_or_else(|| {
+        "semantic index not found; run files.semantic.index on an opt-in root first".to_string()
+    })?;
+    let mut results = vec![];
+    for document in index
+        .get("documents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let tokens = document
+            .get("tokens")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<BTreeSet<_>>()
+            })
+            .unwrap_or_default();
+        let matches = query_tokens
+            .iter()
+            .filter(|token| tokens.contains(*token))
+            .cloned()
+            .collect::<Vec<_>>();
+        let score = matches.len() as i64;
+        if score > 0 {
+            results.push(json!({
+                "path": document.get("path"),
+                "score": score,
+                "matches": matches,
+                "summary": document.get("summary"),
+                "engine": index.get("engine"),
+            }));
+        }
+    }
+    results.sort_by(|a, b| {
+        b["score"]
+            .as_i64()
+            .cmp(&a["score"].as_i64())
+            .then_with(|| a["path"].to_string().cmp(&b["path"].to_string()))
+    });
+    results.truncate(limit);
+    let result_count = results.len();
+    Ok(json!({
+        "query": query,
+        "query_tokens": query_tokens,
+        "index_path": semantic_index_path(config),
+        "results": results,
+        "result_count": result_count,
+    }))
+}
+
+fn resume_workspace_plan(config: &Config) -> Value {
+    let events = list_audit_entries(&audit_log_path(config), 50).unwrap_or_default();
+    let session = read_json_lines(&session_memory_path(config)).unwrap_or_default();
+    let preferences = read_preferences(config).unwrap_or_default();
+    let mut recent_capabilities = vec![];
+    for event in events.iter().rev() {
+        if let Some(capability) = event.get("capability").and_then(Value::as_str) {
+            if !recent_capabilities.contains(&capability.to_string()) {
+                recent_capabilities.push(capability.to_string());
+            }
+        }
+        if recent_capabilities.len() >= 8 {
+            break;
+        }
+    }
+    let mut steps = vec![
+        json!({"kind": "inspect", "capability": "memory.event.list", "reason": "Review recent audited activity."}),
+        json!({"kind": "inspect", "capability": "memory.session.list", "reason": "Review short-term session facts."}),
+    ];
+    if semantic_index_path(config).exists() {
+        steps.push(json!({"kind": "search", "capability": "files.semantic.search", "reason": "Search indexed files for the current task."}));
+    }
+    if recent_capabilities
+        .iter()
+        .any(|capability| capability == "apps.launch")
+    {
+        steps.push(json!({"kind": "desktop", "capability": "apps.list", "reason": "Inspect app registry before relaunching anything."}));
+    }
+    json!({
+        "generated_at": utc_now(),
+        "recent_capabilities": recent_capabilities,
+        "session_memory_count": session.len(),
+        "preference_count": preferences.len(),
+        "semantic_index_present": semantic_index_path(config).exists(),
+        "steps": steps,
+        "note": "This is a plan only; app launch, browser open, and screen capture still require explicit capabilities and confirmation.",
+    })
+}
+
+fn agent_catalog() -> Vec<AgentDefinition> {
+    vec![
+        AgentDefinition {
+            id: "system.agent".to_string(),
+            name: "System Agent".to_string(),
+            description: "Reads product, desktop, and screen readiness.".to_string(),
+            allowed_capabilities: vec![
+                "product.status".to_string(),
+                "desktop.status".to_string(),
+                "screen.status".to_string(),
+            ],
+        },
+        AgentDefinition {
+            id: "memory.agent".to_string(),
+            name: "Memory Agent".to_string(),
+            description: "Inspects session memory, preferences, events, and resume plans."
+                .to_string(),
+            allowed_capabilities: vec![
+                "memory.session.list".to_string(),
+                "memory.preference.list".to_string(),
+                "memory.event.list".to_string(),
+                "memory.export".to_string(),
+                "workspace.resume.plan".to_string(),
+            ],
+        },
+        AgentDefinition {
+            id: "file.agent".to_string(),
+            name: "File Agent".to_string(),
+            description: "Searches opt-in file indexes and reads user-approved text files."
+                .to_string(),
+            allowed_capabilities: vec![
+                "fs.list".to_string(),
+                "fs.read_text".to_string(),
+                "files.semantic.search".to_string(),
+            ],
+        },
+        AgentDefinition {
+            id: "desktop.agent".to_string(),
+            name: "Desktop Agent".to_string(),
+            description: "Inspects desktop apps, workspace modes, and active context.".to_string(),
+            allowed_capabilities: vec![
+                "apps.list".to_string(),
+                "workspace.mode.plan".to_string(),
+                "context.snapshot".to_string(),
+            ],
+        },
+        AgentDefinition {
+            id: "writer.agent".to_string(),
+            name: "Writer Agent".to_string(),
+            description: "Creates safe workspace notes.".to_string(),
+            allowed_capabilities: vec!["notes.create".to_string()],
+        },
+    ]
+}
+
+fn agent_catalog_json() -> Value {
+    let agents = agent_catalog();
+    json!({
+        "agents": agents,
+        "agent_count": agents.len(),
+        "permission_model": "agents may execute only listed capabilities through policy and audit",
+    })
+}
+
+fn agent_plan_json(goal: &str, registry: &BTreeMap<String, Capability>) -> Result<Value, String> {
+    let steps = build_agent_delegation_plan(goal, registry)?;
+    Ok(json!({
+        "goal": goal,
+        "plan_id": Uuid::new_v4().to_string(),
+        "created_at": utc_now(),
+        "steps": delegated_steps_json(&steps, registry),
+        "agent_count": steps
+            .iter()
+            .map(|step| step.agent_id.clone())
+            .collect::<BTreeSet<_>>()
+            .len(),
+    }))
+}
+
+fn orchestrate_agents(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let goal = string_param(request, "goal")?;
+    let registry = build_registry();
+    let steps = build_agent_delegation_plan(&goal, &registry)?;
+    let mut results = vec![];
+    for step in &steps {
+        ensure_agent_can_call(&step.agent_id, &step.capability)?;
+        let child_request = ActionRequest {
+            action_id: Uuid::new_v4().to_string(),
+            capability: step.capability.clone(),
+            params: step.params.clone(),
+            actor: format!("agent:{}", step.agent_id),
+            reason: step.reason.clone(),
+            dry_run: false,
+            confirmed: request.confirmed,
+            requested_at: utc_now(),
+        };
+        let result = execute_capability(config, &registry, child_request);
+        let status = result.status;
+        results.push(json!({
+            "step_id": step.step_id,
+            "agent_id": step.agent_id,
+            "capability": step.capability,
+            "status": status,
+            "summary": result.summary,
+            "error": result.error,
+            "audit_ref": result.audit_ref,
+        }));
+        if matches!(
+            status,
+            ActionStatus::Failed | ActionStatus::Denied | ActionStatus::ConfirmationRequired
+        ) {
+            break;
+        }
+    }
+    let trace_id = Uuid::new_v4().to_string();
+    let status = if results
+        .iter()
+        .all(|result| result["status"] == json!("succeeded"))
+    {
+        "succeeded"
+    } else {
+        "partial"
+    };
+    let trace = json!({
+        "trace_id": trace_id,
+        "recorded_at": utc_now(),
+        "goal": goal,
+        "status": status,
+        "steps": delegated_steps_json(&steps, &registry),
+        "results": results,
+    });
+    append_json_line(&agent_trace_path(config), &trace)?;
+    Ok(json!({
+        "trace_id": trace_id,
+        "status": status,
+        "goal": trace["goal"],
+        "steps": trace["steps"],
+        "results": trace["results"],
+        "trace_path": agent_trace_path(config),
+    }))
+}
+
+fn list_agent_traces(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let limit = bounded_limit(request, 20, 100)?;
+    let mut traces = read_json_lines(&agent_trace_path(config))?;
+    if traces.len() > limit {
+        traces = traces.split_off(traces.len() - limit);
+    }
+    let trace_count = traces.len();
+    Ok(json!({
+        "path": agent_trace_path(config),
+        "traces": traces,
+        "trace_count": trace_count,
+    }))
+}
+
+fn build_agent_delegation_plan(
+    goal: &str,
+    registry: &BTreeMap<String, Capability>,
+) -> Result<Vec<DelegatedCapabilityCall>, String> {
+    let lowered = goal.to_ascii_lowercase();
+    let mut steps = vec![];
+    if lowered.contains("daily brief") || lowered.contains("brief") {
+        steps.push(delegated_step(
+            "system.agent",
+            "product.status",
+            Map::new(),
+            "Check product runtime status.",
+        ));
+        steps.push(delegated_step(
+            "memory.agent",
+            "memory.event.list",
+            map_from_pairs([("limit", json!(10))]),
+            "Summarize recent local activity.",
+        ));
+        steps.push(delegated_step(
+            "desktop.agent",
+            "context.snapshot",
+            Map::new(),
+            "Inspect current active context with privacy redaction.",
+        ));
+    } else if lowered.contains("resume") || lowered.contains("continue my work") {
+        steps.push(delegated_step(
+            "memory.agent",
+            "workspace.resume.plan",
+            Map::new(),
+            "Build a resume plan from local memory.",
+        ));
+        steps.push(delegated_step(
+            "memory.agent",
+            "memory.session.list",
+            Map::new(),
+            "Inspect session memory facts.",
+        ));
+    } else if lowered.contains("search") || lowered.contains("find") {
+        let query = extract_path_after(
+            goal,
+            &["search files for ", "find files about ", "search ", "find "],
+        )
+        .unwrap_or_else(|| goal.to_string());
+        steps.push(delegated_step(
+            "file.agent",
+            "files.semantic.search",
+            map_from_pairs([("query", json!(query))]),
+            "Search the opt-in semantic file index.",
+        ));
+        steps.push(delegated_step(
+            "memory.agent",
+            "memory.session.list",
+            Map::new(),
+            "Add session memory context to the file search.",
+        ));
+    } else {
+        steps.push(delegated_step(
+            "system.agent",
+            "product.status",
+            Map::new(),
+            "Check product runtime status.",
+        ));
+        steps.push(delegated_step(
+            "memory.agent",
+            "memory.event.list",
+            map_from_pairs([("limit", json!(5))]),
+            "Inspect recent local events.",
+        ));
+    }
+
+    for step in &steps {
+        ensure_agent_can_call(&step.agent_id, &step.capability)?;
+        if !registry.contains_key(&step.capability) {
+            return Err(format!(
+                "agent plan references unknown capability: {}",
+                step.capability
+            ));
+        }
+    }
+    Ok(steps)
+}
+
+fn delegated_step(
+    agent_id: &str,
+    capability: &str,
+    params: Map<String, Value>,
+    reason: &str,
+) -> DelegatedCapabilityCall {
+    DelegatedCapabilityCall {
+        step_id: Uuid::new_v4().to_string(),
+        agent_id: agent_id.to_string(),
+        capability: capability.to_string(),
+        params,
+        reason: reason.to_string(),
+    }
+}
+
+fn delegated_steps_json(
+    steps: &[DelegatedCapabilityCall],
+    registry: &BTreeMap<String, Capability>,
+) -> Vec<Value> {
+    steps
+        .iter()
+        .map(|step| {
+            let risk = registry
+                .get(&step.capability)
+                .map(|capability| capability.metadata.risk);
+            json!({
+                "step_id": step.step_id,
+                "agent_id": step.agent_id,
+                "capability": step.capability,
+                "params": step.params,
+                "reason": step.reason,
+                "risk": risk,
+                "requires_confirmation": matches!(risk, Some(RiskLevel::Medium | RiskLevel::High)),
+            })
+        })
+        .collect()
+}
+
+fn ensure_agent_can_call(agent_id: &str, capability: &str) -> Result<(), String> {
+    let Some(agent) = agent_catalog()
+        .into_iter()
+        .find(|agent| agent.id == agent_id)
+    else {
+        return Err(format!("unknown agent: {agent_id}"));
+    };
+    if agent
+        .allowed_capabilities
+        .iter()
+        .any(|allowed| allowed == capability)
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "agent {agent_id} is not permitted to call capability {capability}"
+        ))
+    }
+}
+
+fn map_from_pairs<const N: usize>(pairs: [(&str, Value); N]) -> Map<String, Value> {
+    pairs
+        .into_iter()
+        .map(|(key, value)| (key.to_string(), value))
+        .collect()
+}
+
+fn read_preferences(config: &Config) -> Result<Map<String, Value>, String> {
+    match read_json_file(&preferences_path(config))? {
+        Some(Value::Object(object)) => Ok(object),
+        Some(_) => Err("preferences file is not a JSON object".to_string()),
+        None => Ok(Map::new()),
+    }
+}
+
+fn collect_semantic_candidates(
+    root: &Path,
+    recursive: bool,
+    out: &mut Vec<PathBuf>,
+    max_files: usize,
+) -> Result<(), String> {
+    if out.len() >= max_files {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root).map_err(|err| err.to_string())? {
+        let entry = entry.map_err(|err| err.to_string())?;
+        let path = entry.path();
+        if path_has_hidden_component(&path) {
+            continue;
+        }
+        let metadata = entry.metadata().map_err(|err| err.to_string())?;
+        if metadata.is_dir() && recursive {
+            collect_semantic_candidates(&path, recursive, out, max_files)?;
+        } else if metadata.is_file() {
+            out.push(path);
+            if out.len() >= max_files {
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn is_supported_semantic_file(path: &Path) -> bool {
+    let Some(ext) = path.extension().and_then(OsStr::to_str) else {
+        return false;
+    };
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "md" | "txt" | "rs" | "toml" | "py" | "yml" | "yaml" | "json" | "c" | "h" | "asm"
+    )
+}
+
+fn path_has_hidden_component(path: &Path) -> bool {
+    path.file_name()
+        .and_then(OsStr::to_str)
+        .is_some_and(|value| value.starts_with('.') && value != "." && value != "..")
+}
+
+fn unique_tokens(text: &str) -> Vec<String> {
+    let mut tokens = BTreeSet::new();
+    let mut current = String::new();
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() {
+            current.push(ch.to_ascii_lowercase());
+        } else if current.len() >= 2 {
+            tokens.insert(current.clone());
+            current.clear();
+        } else {
+            current.clear();
+        }
+    }
+    if current.len() >= 2 {
+        tokens.insert(current);
+    }
+    tokens.into_iter().take(512).collect()
+}
+
+fn summarize_document_text(text: &str) -> String {
+    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    truncate_text(&compact, 240)
+}
+
+fn safe_memory_key(value: &str) -> String {
+    let re = SAFE_FILENAME_RE.get_or_init(|| Regex::new(r"[^A-Za-z0-9._-]+").unwrap());
+    let key = re
+        .replace_all(value.trim(), "-")
+        .trim_matches(&['.', '-', '_'][..])
+        .to_ascii_lowercase();
+    truncate_text(if key.is_empty() { "memory" } else { &key }, 80)
+}
+
+fn validate_memory_key(key: &str) -> Result<(), String> {
+    if safe_memory_key(key).trim().is_empty() {
+        Err("memory key cannot be empty".to_string())
+    } else if is_sensitive_memory_key(key) {
+        Err("memory keys must not contain secret-like names".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn is_sensitive_memory_key(key: &str) -> bool {
+    let lowered = key
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['-', ' ', '.'], "_");
+    [
+        "secret",
+        "token",
+        "password",
+        "credential",
+        "api_key",
+        "private_key",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn validate_memory_delete_scope(scope: &str) -> Result<(), String> {
+    match scope.trim().to_ascii_lowercase().as_str() {
+        "session" | "preferences" | "semantic_index" | "traces" | "all" => Ok(()),
+        _ => Err(
+            "memory delete scope must be session, preferences, semantic_index, traces, or all"
+                .to_string(),
+        ),
+    }
+}
+
+fn bounded_limit(request: &ActionRequest, default: usize, max: usize) -> Result<usize, String> {
+    let value = request
+        .params
+        .get("limit")
+        .or_else(|| request.params.get("max_files"))
+        .and_then(Value::as_u64)
+        .unwrap_or(default as u64);
+    if value == 0 || value > max as u64 {
+        return Err(format!("limit must be between 1 and {max}"));
+    }
+    Ok(value as usize)
+}
+
+fn append_json_line(path: &Path, value: &Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|err| err.to_string())?;
+    writeln!(
+        file,
+        "{}",
+        serde_json::to_string(value).map_err(|err| err.to_string())?
+    )
+    .map_err(|err| err.to_string())
+}
+
+fn write_json_lines(path: &Path, values: &[Value]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let mut file = File::create(path).map_err(|err| err.to_string())?;
+    for value in values {
+        writeln!(
+            file,
+            "{}",
+            serde_json::to_string(value).map_err(|err| err.to_string())?
+        )
+        .map_err(|err| err.to_string())?;
+    }
+    Ok(())
+}
+
+fn read_json_lines(path: &Path) -> Result<Vec<Value>, String> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(err) => return Err(err.to_string()),
+    };
+    let reader = io::BufReader::new(file);
+    let mut values = vec![];
+    for line in reader.lines() {
+        let line = line.map_err(|err| err.to_string())?;
+        if let Ok(value) = serde_json::from_str::<Value>(&line) {
+            values.push(value);
+        }
+    }
+    Ok(values)
+}
+
+fn read_json_file(path: &Path) -> Result<Option<Value>, String> {
+    match fs::read_to_string(path) {
+        Ok(text) => serde_json::from_str(&text)
+            .map(Some)
+            .map_err(|err| err.to_string()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+fn write_json_file(path: &Path, value: &Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
+    fs::write(path, text).map_err(|err| err.to_string())
+}
+
+fn remove_file_if_exists(path: &Path) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+fn system_time_json(value: std::time::SystemTime) -> Option<Value> {
+    value
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|duration| json!(duration.as_secs()))
+}
+
 fn matches_marker(value: &str, markers: &[String]) -> Option<String> {
     let lowered = value.to_ascii_lowercase();
     markers
@@ -2595,6 +3691,20 @@ fn build_registry() -> BTreeMap<String, Capability> {
         screen_capture_capability(),
         context_snapshot_capability(),
         screen_ocr_image_capability(),
+        memory_session_remember_capability(),
+        memory_session_list_capability(),
+        memory_preference_set_capability(),
+        memory_preference_list_capability(),
+        memory_delete_capability(),
+        memory_export_capability(),
+        memory_event_list_capability(),
+        files_semantic_index_capability(),
+        files_semantic_search_capability(),
+        workspace_resume_plan_capability(),
+        agents_catalog_capability(),
+        agents_plan_capability(),
+        agents_orchestrate_capability(),
+        agents_trace_list_capability(),
     ];
     capabilities
         .into_iter()
@@ -3141,6 +4251,374 @@ fn screen_ocr_image_capability() -> Capability {
     }
 }
 
+fn memory_session_remember_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.session.remember".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Store a user-approved short-term session memory fact.".to_string(),
+            risk: RiskLevel::Low,
+            permissions: vec!["memory:write".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("key".to_string(), "string".to_string()),
+                    ("value".to_string(), "string".to_string()),
+                    ("tags".to_string(), "array".to_string()),
+                ]),
+                vec!["key", "value"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| remember_session_memory(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("memory_id").is_some() && data.get("stored") == Some(&json!(true)),
+            message: "Session memory fact stored.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_session_list_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.session.list".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List inspectable short-term session memory facts.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["memory:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("query".to_string(), "string".to_string()),
+                    ("limit".to_string(), "integer".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| list_session_memory(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("items").is_some(),
+            message: "Session memory list returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_preference_set_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.preference.set".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Create or update a user preference in local memory.".to_string(),
+            risk: RiskLevel::Low,
+            permissions: vec!["memory:write".to_string(), "preferences:write".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("key".to_string(), "string".to_string()),
+                    ("value".to_string(), "string".to_string()),
+                ]),
+                vec!["key", "value"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| set_preference(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("key").is_some() && data.get("updated") == Some(&json!(true)),
+            message: "Preference stored.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_preference_list_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.preference.list".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Inspect local user preferences.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["memory:read".to_string(), "preferences:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("key".to_string(), "string".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| list_preferences(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("preferences").is_some(),
+            message: "Preferences returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_delete_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.delete".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Delete selected local memory, preferences, index, or traces.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["memory:delete".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("scope".to_string(), "string".to_string()),
+                    ("key".to_string(), "string".to_string()),
+                ]),
+                vec!["scope"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| delete_memory(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("deleted").is_some(),
+            message: "Memory delete request completed.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_export_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.export".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Export inspectable local memory state without secrets.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["memory:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| Ok(export_memory(config)),
+        verify: |_, _, data| Verification {
+            ok: data.get("session").is_some() && data.get("preferences").is_some(),
+            message: "Memory export returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn memory_event_list_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "memory.event.list".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List recent local capability events from the audit log.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["memory:read".to_string(), "audit:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("limit".to_string(), "integer".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| list_memory_events(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("events").is_some(),
+            message: "Memory events returned from audit history.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn files_semantic_index_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "files.semantic.index".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Build an opt-in local semantic file index for text files.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["files:index".to_string(), "memory:write".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("root".to_string(), "string".to_string()),
+                    ("recursive".to_string(), "boolean".to_string()),
+                    ("max_files".to_string(), "integer".to_string()),
+                ]),
+                vec!["root"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| index_semantic_files(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("document_count").and_then(Value::as_u64).is_some(),
+            message: "Semantic file index written.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn files_semantic_search_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "files.semantic.search".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Search the opt-in local semantic file index.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["files:search".to_string(), "memory:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("query".to_string(), "string".to_string()),
+                    ("limit".to_string(), "integer".to_string()),
+                ]),
+                vec!["query"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| search_semantic_files(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("results").is_some(),
+            message: "Semantic search returned results.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn workspace_resume_plan_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "workspace.resume.plan".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Build a local memory-backed plan to resume recent work.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["workspace:plan".to_string(), "memory:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| Ok(resume_workspace_plan(config)),
+        verify: |_, _, data| Verification {
+            ok: data.get("steps").is_some(),
+            message: "Workspace resume plan returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn agents_catalog_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "agents.catalog".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List built-in agents and their allowed capabilities.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["agents:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, _| Ok(agent_catalog_json()),
+        verify: |_, _, data| Verification {
+            ok: data.get("agents").is_some(),
+            message: "Agent catalog returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn agents_plan_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "agents.plan".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Create a deterministic multi-agent delegation plan.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["agents:plan".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("goal".to_string(), "string".to_string())]),
+                vec!["goal"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, _| {
+            let goal = string_param(request, "goal")?;
+            agent_plan_json(&goal, &build_registry())
+        },
+        verify: |_, _, data| Verification {
+            ok: data.get("steps").is_some(),
+            message: "Agent delegation plan returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn agents_orchestrate_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "agents.orchestrate".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Run a deterministic multi-agent plan through permitted capabilities."
+                .to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec![
+                "agents:run".to_string(),
+                "capabilities:delegate".to_string(),
+            ],
+            input_schema: object_schema(
+                BTreeMap::from([("goal".to_string(), "string".to_string())]),
+                vec!["goal"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| orchestrate_agents(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("results").is_some() && data.get("trace_id").is_some(),
+            message: "Agent orchestration completed with replayable trace.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn agents_trace_list_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "agents.trace.list".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List recent multi-agent orchestration traces.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["agents:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("limit".to_string(), "integer".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| list_agent_traces(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("traces").is_some(),
+            message: "Agent traces returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn object_schema(properties: BTreeMap<String, String>, required: Vec<&str>) -> Value {
     let properties = properties
         .into_iter()
@@ -3349,6 +4827,12 @@ fn validate_params(schema: &Value, params: &Map<String, Value>) -> Result<(), St
             "integer" if !value.is_i64() && !value.is_u64() => {
                 return Err(format!("Parameter {key} must be an integer."));
             }
+            "boolean" if !value.is_boolean() => {
+                return Err(format!("Parameter {key} must be a boolean."));
+            }
+            "array" if !value.is_array() => {
+                return Err(format!("Parameter {key} must be an array."));
+            }
             _ => {}
         }
     }
@@ -3400,6 +4884,68 @@ fn validate_capability_request(
             } else {
                 Ok(())
             }
+        }
+        "memory.session.remember" | "memory.preference.set" => {
+            let key = params
+                .get("key")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter key must be a string.".to_string())?;
+            validate_memory_key(key)?;
+            let value = params
+                .get("value")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter value must be a string.".to_string())?;
+            if value.trim().is_empty() {
+                return Err("memory value cannot be empty".to_string());
+            }
+            Ok(())
+        }
+        "memory.preference.list" => {
+            if let Some(key) = params.get("key").and_then(Value::as_str) {
+                validate_memory_key(key)?;
+            }
+            Ok(())
+        }
+        "memory.delete" => {
+            let scope = params
+                .get("scope")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter scope must be a string.".to_string())?;
+            validate_memory_delete_scope(scope)?;
+            if let Some(key) = params.get("key").and_then(Value::as_str) {
+                validate_memory_key(key)?;
+            }
+            Ok(())
+        }
+        "files.semantic.index" => {
+            let root = params
+                .get("root")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter root must be a string.".to_string())?;
+            if is_sensitive_path(&json!(root)) {
+                return Err("Sensitive paths require a higher-risk capability.".to_string());
+            }
+            Ok(())
+        }
+        "files.semantic.search" => {
+            let query = params
+                .get("query")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter query must be a string.".to_string())?;
+            if query.trim().is_empty() {
+                return Err("semantic search query cannot be empty".to_string());
+            }
+            Ok(())
+        }
+        "agents.plan" | "agents.orchestrate" => {
+            let goal = params
+                .get("goal")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter goal must be a string.".to_string())?;
+            if goal.trim().is_empty() {
+                return Err("agent goal cannot be empty".to_string());
+            }
+            Ok(())
         }
         _ => Ok(()),
     }
@@ -4237,6 +5783,196 @@ Categories=Utility;Development;
         assert_eq!(capture_plan.steps[0].capability, "screen.capture");
         assert_eq!(ocr_plan.steps[0].capability, "screen.ocr_image");
         assert_eq!(ocr_plan.steps[0].params["path"], json!("product/README.md"));
+    }
+
+    #[test]
+    fn memory_session_remember_and_list_round_trips() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("key".to_string(), json!("editor"));
+        params.insert("value".to_string(), json!("Use Helix for quick edits"));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.session.remember", params),
+        );
+        assert_eq!(result.status, ActionStatus::Succeeded);
+
+        let list = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.session.list", Map::new()),
+        );
+        assert_eq!(list.status, ActionStatus::Succeeded);
+        assert_eq!(list.data["item_count"], json!(1));
+        assert_eq!(list.data["items"][0]["key"], json!("editor"));
+    }
+
+    #[test]
+    fn memory_delete_removes_session_key() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("key".to_string(), json!("project"));
+        params.insert("value".to_string(), json!("huggingOS"));
+        execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.session.remember", params),
+        );
+
+        let mut delete_params = Map::new();
+        delete_params.insert("scope".to_string(), json!("session"));
+        delete_params.insert("key".to_string(), json!("project"));
+        let mut delete_request = request("memory.delete", delete_params);
+        delete_request.confirmed = true;
+        let result = execute_capability(&config, &build_registry(), delete_request);
+        assert_eq!(result.status, ActionStatus::Succeeded);
+
+        let list = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.session.list", Map::new()),
+        );
+        assert_eq!(list.data["item_count"], json!(0));
+    }
+
+    #[test]
+    fn preference_set_and_list_round_trips() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("key".to_string(), json!("theme"));
+        params.insert("value".to_string(), json!("dark"));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.preference.set", params),
+        );
+        assert_eq!(result.status, ActionStatus::Succeeded);
+
+        let list = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.preference.list", Map::new()),
+        );
+        assert_eq!(list.status, ActionStatus::Succeeded);
+        assert_eq!(list.data["preferences"]["theme"]["value"], json!("dark"));
+    }
+
+    #[test]
+    fn memory_rejects_secret_like_keys() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("key".to_string(), json!("api_key"));
+        params.insert("value".to_string(), json!("do-not-store"));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("memory.preference.set", params),
+        );
+
+        assert_eq!(result.status, ActionStatus::Denied);
+        assert!(result.error.unwrap().contains("secret-like"));
+    }
+
+    #[test]
+    fn semantic_index_and_search_are_opt_in_and_local() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let docs = tmp.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(
+            docs.join("memory.md"),
+            "semantic memory search helps resume workspace context",
+        )
+        .unwrap();
+        fs::write(docs.join(".env.local"), "SECRET=hidden").unwrap();
+
+        let mut params = Map::new();
+        params.insert("root".to_string(), json!(docs.to_string_lossy()));
+        params.insert("recursive".to_string(), json!(true));
+        let mut req = request("files.semantic.index", params);
+        req.confirmed = true;
+        let index = execute_capability(&config, &build_registry(), req);
+        assert_eq!(index.status, ActionStatus::Succeeded);
+        assert_eq!(index.data["document_count"], json!(1));
+
+        let mut search_params = Map::new();
+        search_params.insert("query".to_string(), json!("workspace memory"));
+        let search = execute_capability(
+            &config,
+            &build_registry(),
+            request("files.semantic.search", search_params),
+        );
+        assert_eq!(search.status, ActionStatus::Succeeded);
+        assert_eq!(search.data["result_count"], json!(1));
+        assert!(search.data["results"][0]["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("memory.md"));
+    }
+
+    #[test]
+    fn agent_catalog_enforces_allowed_capabilities() {
+        assert!(ensure_agent_can_call("system.agent", "product.status").is_ok());
+        assert!(ensure_agent_can_call("memory.agent", "apps.launch").is_err());
+    }
+
+    #[test]
+    fn agent_orchestration_delegates_and_records_trace() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("goal".to_string(), json!("daily brief"));
+        let mut req = request("agents.orchestrate", params);
+        req.confirmed = true;
+
+        let result = execute_capability(&config, &build_registry(), req);
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert_eq!(result.data["results"].as_array().unwrap().len(), 3);
+        assert!(agent_trace_path(&config).exists());
+        let agents = result.data["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|step| step["agent_id"].as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(agents.len() >= 2);
+    }
+
+    #[test]
+    fn local_planner_maps_phase6_and_phase7_prompts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+
+        let memory_plan = build_ai_plan(
+            &config,
+            &registry,
+            "remember that color is blue",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let resume_plan = build_ai_plan(
+            &config,
+            &registry,
+            "resume my workspace",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let agent_plan =
+            build_ai_plan(&config, &registry, "daily brief", Some("local.rules")).unwrap();
+
+        assert_eq!(memory_plan.steps[0].capability, "memory.session.remember");
+        assert_eq!(resume_plan.steps[0].capability, "workspace.resume.plan");
+        assert_eq!(agent_plan.steps[0].capability, "agents.orchestrate");
     }
 
     #[test]

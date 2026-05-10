@@ -112,3 +112,51 @@ jobs:
       - name: Plan screenshot intent through AI runtime
         run: cargo run -- ai plan "take a screenshot" --json
         working-directory: product/agent
+
+      - name: Store session memory
+        run: cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+        working-directory: product/agent
+
+      - name: List session memory
+        run: cargo run -- run memory.session.list --json
+        working-directory: product/agent
+
+      - name: Store preference memory
+        run: cargo run -- run memory.preference.set --param key=theme --param value=dark --json
+        working-directory: product/agent
+
+      - name: Build semantic file index
+        run: cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+        working-directory: product/agent
+
+      - name: Search semantic file index
+        run: cargo run -- run files.semantic.search --param query=capability --json
+        working-directory: product/agent
+
+      - name: Build workspace resume plan
+        run: cargo run -- run workspace.resume.plan --json
+        working-directory: product/agent
+
+      - name: Show agent catalog
+        run: cargo run -- run agents.catalog --json
+        working-directory: product/agent
+
+      - name: Plan multi-agent delegation
+        run: cargo run -- run agents.plan --param "goal=daily brief" --json
+        working-directory: product/agent
+
+      - name: Run multi-agent orchestration
+        run: cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+        working-directory: product/agent
+
+      - name: List multi-agent traces
+        run: cargo run -- run agents.trace.list --json
+        working-directory: product/agent
+
+      - name: Plan Phase 6 memory intent through AI runtime
+        run: cargo run -- ai plan "resume my workspace" --json
+        working-directory: product/agent
+
+      - name: Plan Phase 7 agent intent through AI runtime
+        run: cargo run -- ai plan "daily brief" --json
+        working-directory: product/agent

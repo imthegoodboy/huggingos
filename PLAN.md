@@ -335,40 +335,65 @@ Tracking:
 
 ## Phase 6: Memory And Semantic Files
 
+Status: complete.
+
 Goal: add useful memory and semantic file search without unsafe collection.
 
 Core features:
 
-- Short-term session memory.
-- User preference store.
-- Event store for app/file/workflow history.
-- Semantic file index with embeddings.
-- User controls for inspect, edit, export, and delete memory.
-- Retention rules and private mode.
+- Short-term session memory. Done through `memory.session.remember` and
+  `memory.session.list`.
+- User preference store. Done through `memory.preference.set` and
+  `memory.preference.list`.
+- Event store for app/file/workflow history. Started through
+  `memory.event.list`, which derives event memory from the audit log.
+- Semantic file index with embeddings. Done as a confirmed opt-in local token
+  index through `files.semantic.index` and `files.semantic.search`; embeddings
+  remain later because provider, retention, and deletion controls must mature
+  first.
+- User controls for inspect, edit, export, and delete memory. Done through
+  list/set/export/delete capabilities.
+- Retention rules and private mode. Partially done through explicit delete and
+  secret-path exclusions; daemon-level retention/private mode remains later.
 
 Acceptance criteria:
 
-- "Resume my last workspace" can restore known local state.
+- "Resume my last workspace" can build a memory-backed plan from known local
+  state through `workspace.resume.plan`.
 - User can inspect and delete remembered facts.
 - Memory collection is documented, permissioned, and testable.
 
+Tracking:
+
+- Epic: [#72 Product Phase 6 Epic: Memory and semantic files](https://github.com/imthegoodboy/huggingos/issues/72)
+
 ## Phase 7: Multi-Agent Orchestration
+
+Status: complete.
 
 Goal: split intelligence into focused agents coordinated by an orchestrator.
 
 Core features:
 
-- Agent manifest format.
-- Capability permissions per agent.
-- System, file, app, browser, coding, security, productivity agents.
-- Orchestrator that plans, delegates, verifies, and reports.
-- Agent logs and replayable traces.
+- Agent manifest format. Done through the built-in `agents.catalog`.
+- Capability permissions per agent. Done with explicit per-agent allowlists.
+- System, file, app, browser, coding, security, productivity agents. Started
+  with system, memory, file, desktop, and writer agents. Browser/coding/security
+  specialist agents remain later when those capability surfaces exist.
+- Orchestrator that plans, delegates, verifies, and reports. Done through
+  `agents.plan` and confirmed `agents.orchestrate`.
+- Agent logs and replayable traces. Done through local JSONL traces and
+  `agents.trace.list`.
 
 Acceptance criteria:
 
 - Orchestrator can delegate at least one workflow to two separate agents.
 - Agents cannot call capabilities outside their permission scope.
 - User can inspect what each agent did.
+
+Tracking:
+
+- Epic: [#73 Product Phase 7 Epic: Multi-agent orchestration](https://github.com/imthegoodboy/huggingos/issues/73)
 
 ## Phase 8: Predictive And Self-Healing OS
 
@@ -490,20 +515,22 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 6
+## Next Sprint: Product Phase 8
 
-Start here next after Product Phase 5 is merged:
+Start here next after Product Phase 7 is merged:
 
-1. Add short-term session memory for the current AI command session.
-2. Add a user preference store with inspect, edit, export, and delete commands.
-3. Add an event store that indexes audited app/file/workflow activity without
-   collecting private contexts.
-4. Add semantic file indexing behind opt-in roots, retention rules, and
-   deletion controls.
-5. Add "resume my last workspace" as the first memory-backed workflow.
+1. Detect repeated audited workflows and suggest user-approved automations.
+2. Add low-risk self-healing checks for failed services, resource pressure, and
+   slow operations.
+3. Add explain-what-happened timelines using audit events, memory, and agent
+   traces.
+4. Keep proactive actions suggestion-first until confirmation, rollback, and
+   daemon controls are stronger.
+5. Add tests that simulate at least one repeated workflow and one recoverable
+   failure.
 
-Product Phase 5 gives AI a real observation surface. Phase 6 should make that
-context useful over time without unsafe or invisible memory collection.
+Product Phase 7 gives AI a permissioned agent layer. Phase 8 should use it for
+proactive help without silent or destructive automation.
 
 ## Things We Will Not Fake
 

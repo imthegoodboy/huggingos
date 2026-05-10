@@ -28,6 +28,11 @@ cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
 cargo run -- ai plan "what is open" --json
 cargo run -- ai run "what is open" --confirm --json
 cargo run -- ai plan "take a screenshot" --json
+cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+cargo run -- run files.semantic.search --param query=capability --json
+cargo run -- run agents.catalog --json
+cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
 cargo test
 ```
 
@@ -70,6 +75,30 @@ Headless CI and WSL should use `screen.status` plus dry runs. Confirmed capture
 requires a supported capture backend and active-context backend so private
 windows can be blocked before capture.
 
+## Phase 6 Memory And Semantic Files
+
+Memory and file search are local capabilities:
+
+- `memory.session.remember` / `memory.session.list` for short-term facts.
+- `memory.preference.set` / `memory.preference.list` for preferences.
+- `memory.event.list` for audit-derived event history.
+- `files.semantic.index` / `files.semantic.search` for opt-in local text search.
+- `workspace.resume.plan` for a memory-backed resume plan.
+- `memory.export` and `memory.delete` for user control.
+
+The semantic index is `local.token_overlap.v1`; it is not cloud embeddings.
+
+## Phase 7 Multi-Agent Orchestration
+
+Agents are permissioned manifests over existing capabilities:
+
+- `agents.catalog` lists built-in agents.
+- `agents.plan` previews deterministic delegation.
+- `agents.orchestrate` runs delegated capabilities after confirmation.
+- `agents.trace.list` shows replayable local traces.
+
+Agents cannot call capabilities outside their catalog permissions.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -79,4 +108,6 @@ windows can be blocked before capture.
 - Low-risk note creation is workspace-scoped and uses exclusive file creation.
 - Screen/context capabilities redact private active-window data and deny capture
   for private contexts.
+- Memory collection is opt-in and deletable.
+- Agents delegate only through capability permissions, policy, audit, and traces.
 - Capabilities fail closed when audit logging is unavailable.

@@ -295,7 +295,8 @@ Memory layers:
 - Session memory: current task state.
 - Preference memory: user settings and style.
 - Event memory: audited actions and workflow history.
-- Semantic file memory: embeddings over user-approved files.
+- Semantic file memory: local token indexes now, embeddings later over
+  user-approved files.
 - Private mode: no collection beyond active task.
 
 Rules:
@@ -342,6 +343,7 @@ Use in Phase 2 through Phase 5:
 - `xdotool`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, ImageMagick
   `import`, and `tesseract` as discovered optional host backends for the first
   screen/context slice.
+- Local JSON/JSONL storage for the first memory and agent trace slice.
 - SQLite for audit indexes, event history, and local metadata when JSON Lines is
   no longer enough.
 - OS keyring/libsecret for provider secrets.
@@ -442,16 +444,38 @@ Still later:
 
 ### Phase 6: Memory And Semantic Files
 
-- User-controlled memory.
-- Semantic file search.
-- Retention and deletion controls.
+Complete for the first local memory slice:
+
+- Session memory facts.
+- Preference memory.
+- Audit-derived event history.
+- User inspect, export, and delete controls.
+- Confirmed opt-in local file indexing.
+- Local token-overlap semantic search.
+- Workspace resume planning.
+
+Still later:
+
+- Cloud/local embeddings.
+- SQLite/vector storage.
+- Rich retention UI and private mode daemon.
 
 ### Phase 7: Multi-Agent Orchestration
 
-- Agent manifests.
-- Per-agent permissions.
-- Orchestrator.
-- Replayable traces.
+Complete for the first permissioned orchestration slice:
+
+- Built-in agent catalog.
+- Per-agent capability allowlists.
+- Deterministic delegation planner.
+- Confirmed orchestration through policy and audit.
+- Replayable local traces.
+
+Still later:
+
+- Plugin-provided agents.
+- Parallel delegation.
+- Long-running orchestration service.
+- Approval UI per delegated step.
 
 ### Phase 8: Predictive And Self-Healing OS
 

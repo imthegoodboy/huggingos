@@ -13,9 +13,10 @@ This repository has two tracks:
 
 The current product work has completed the Linux foundation, the first
 capability control plane, the first Rust AI planning bridge, the first
-permissioned Linux desktop-control slice, and the first screen/context
-observation engine. The custom kernel is already a working QEMU-bootable lab
-OS, but it is not the production AI OS path.
+permissioned Linux desktop-control slice, the first screen/context observation
+engine, local memory/semantic file search, and permissioned multi-agent
+orchestration. The custom kernel is already a working QEMU-bootable lab OS, but
+it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -37,10 +38,20 @@ Product track:
 - Phase 5 screen/context capabilities exist for screen readiness, permissioned
   screenshot capture, active-context snapshots, OCR image reads, and privacy
   redaction.
+- Phase 6 memory capabilities exist for session facts, preferences, audit-event
+  history, opt-in semantic file indexing/search, export/delete, and resume
+  planning.
+- Phase 7 agent capabilities exist for a built-in agent catalog, delegation
+  plans, confirmed orchestration, and trace listing.
 - Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, `workspace.mode.plan`, `screen.status`,
-  `screen.capture`, `context.snapshot`, and `screen.ocr_image`.
+  `screen.capture`, `context.snapshot`, `screen.ocr_image`,
+  `memory.session.remember`, `memory.session.list`, `memory.preference.set`,
+  `memory.preference.list`, `memory.delete`, `memory.export`,
+  `memory.event.list`, `files.semantic.index`, `files.semantic.search`,
+  `workspace.resume.plan`, `agents.catalog`, `agents.plan`,
+  `agents.orchestrate`, and `agents.trace.list`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -78,6 +89,9 @@ cd product/agent && cargo run -- run screen.status --json
 cd product/agent && cargo run -- run screen.capture --dry-run --json
 cd product/agent && cargo run -- run context.snapshot --confirm --json
 cd product/agent && cargo run -- ai run "what is open" --confirm --json
+cd product/agent && cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+cd product/agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+cd product/agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -93,16 +107,20 @@ make product-agent-browser-dry-run
 make product-agent-screen-status
 make product-agent-screen-capture-dry-run
 make product-agent-context-snapshot
+make product-agent-memory-remember
+make product-agent-semantic-index
+make product-agent-agents-orchestrate
 make product-agent-smoke
 make product-smoke
 ```
 
 The Rust product agent now plans simple local AI intents and executes them
 through registry, policy, verification, and audit. It also has real desktop
-session/app/browser contracts plus the first permissioned screen/context
-observation contracts. Cloud AI provider execution, browser DOM automation,
-global hotkeys, overlays, accessibility-tree extraction, and window arrangement
-remain intentionally deferred until their backends and permission models exist.
+session/app/browser contracts, permissioned screen/context observation,
+user-controlled local memory, opt-in file search, and permissioned multi-agent
+orchestration. Cloud AI provider execution, browser DOM automation, global
+hotkeys, overlays, accessibility-tree extraction, and window arrangement remain
+intentionally deferred until their backends and permission models exist.
 
 ## Kernel-Lab Quick Start
 
@@ -256,8 +274,9 @@ Product track:
 - No long-running `huggingosd` daemon is implemented yet.
 - No cloud AI provider execution is implemented yet.
 - No XDG Desktop Portal/PipeWire capture path, accessibility tree, desktop
-  overlay, browser DOM automation, browser tab context, window arrangement, or
-  persistent memory is implemented yet.
+  overlay, browser DOM automation, browser tab context, window arrangement,
+  cloud embeddings, plugin agents, or long-running orchestrator daemon is
+  implemented yet.
 
 Kernel-lab track:
 
@@ -290,9 +309,8 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start in Product Phase 6, adding user-controlled
-memory and semantic file search behind retention, deletion, and private-mode
-controls.
+The next product work should start in Product Phase 8, adding predictive and
+self-healing behavior on top of the now-audited memory and agent layers.
 
 ## References
 

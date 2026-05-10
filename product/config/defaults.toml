@@ -1,8 +1,8 @@
 [product]
 name = "huggingOS"
-version = "0.5.0-phase5"
+version = "0.7.0-phase7"
 track = "product"
-phase = "Product Phase 5"
+phase = "Product Phase 7"
 base_strategy = "Ubuntu LTS hosted prototype"
 
 [runtime]
@@ -47,12 +47,16 @@ cloud_ai_enabled = false
 desktop_control_enabled = true
 browser_control_enabled = false
 desktop_overlay_enabled = false
-memory_index_enabled = false
+memory_index_enabled = true
 workspace_modes_enabled = true
 screen_context_enabled = true
 screen_capture_enabled = true
 privacy_exclusions_enabled = true
 ocr_enabled = false
+session_memory_enabled = true
+preference_memory_enabled = true
+semantic_file_search_enabled = true
+multi_agent_orchestration_enabled = true
 
 [policy]
 audit_log_name = "audit.log"

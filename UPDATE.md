@@ -130,6 +130,27 @@ agent:
 - Added Phase 5 docs, ADR, Make targets, CI smoke commands, privacy defaults,
   and Rust tests.
 
+## Product Phase 6 Memory And Semantic Files
+
+Completed the first local memory layer in the Rust agent:
+
+- Added session memory facts, preference memory, audit-derived event history,
+  export, and delete capabilities.
+- Added confirmed opt-in semantic file indexing and local token-overlap search.
+- Added memory-backed workspace resume planning.
+- Added Phase 6 docs, ADR, Make targets, CI smoke commands, and Rust tests.
+
+## Product Phase 7 Multi-Agent Orchestration
+
+Completed the first permissioned multi-agent orchestration slice:
+
+- Added built-in agent catalog with explicit capability allowlists.
+- Added deterministic agent planning and confirmed orchestration.
+- Added local JSONL orchestration traces and trace listing.
+- Extended local AI planning for memory, resume, agent catalog, and daily brief
+  prompts.
+- Added Phase 7 docs, ADR, Make targets, CI smoke commands, and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

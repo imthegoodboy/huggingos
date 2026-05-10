@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-smoke smoke
+.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-smoke smoke
 
 status:
 	$(PYTHON) cli/huggingos.py status
@@ -52,6 +52,36 @@ agent-context-snapshot:
 
 agent-ocr-dry-run:
 	cd agent && cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
+
+agent-memory-remember:
+	cd agent && cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+
+agent-memory-list:
+	cd agent && cargo run -- run memory.session.list --json
+
+agent-preference-set:
+	cd agent && cargo run -- run memory.preference.set --param key=theme --param value=dark --json
+
+agent-semantic-index:
+	cd agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+
+agent-semantic-search:
+	cd agent && cargo run -- run files.semantic.search --param query=capability --json
+
+agent-resume-plan:
+	cd agent && cargo run -- run workspace.resume.plan --json
+
+agent-agents-catalog:
+	cd agent && cargo run -- run agents.catalog --json
+
+agent-agents-plan:
+	cd agent && cargo run -- run agents.plan --param "goal=daily brief" --json
+
+agent-agents-orchestrate:
+	cd agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+
+agent-agents-trace-list:
+	cd agent && cargo run -- run agents.trace.list --json
 
 agent-smoke:
 	cd agent && cargo test

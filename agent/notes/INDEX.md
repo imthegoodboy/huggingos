@@ -28,6 +28,8 @@ in PR descriptions.
 - [Product Phase 3 AI runtime](product-phase3-ai-runtime.md)
 - [Product Phase 4 desktop control](product-phase4-desktop-control.md)
 - [Product Phase 5 screen context](product-phase5-screen-context.md)
+- [Product Phase 6 memory](product-phase6-memory.md)
+- [Product Phase 7 agents](product-phase7-agents.md)
 
 ## Knowledge Capture Rule
 

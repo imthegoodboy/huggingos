@@ -166,6 +166,11 @@ means Linux userspace services, not custom-kernel shortcuts:
 - Current screen/context path: `screen.status`, `screen.capture`,
   `context.snapshot`, and `screen.ocr_image` in the Rust agent, with privacy
   redaction and no silent clipboard reads.
+- Current memory path: `memory.session.*`, `memory.preference.*`,
+  `memory.event.list`, `memory.export`, `memory.delete`,
+  `files.semantic.*`, and `workspace.resume.plan` in the Rust agent.
+- Current multi-agent path: `agents.catalog`, `agents.plan`,
+  `agents.orchestrate`, and `agents.trace.list` in the Rust agent.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

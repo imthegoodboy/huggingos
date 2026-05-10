@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -135,6 +135,36 @@ product-agent-context-snapshot:
 product-agent-ocr-dry-run:
 	cd product/agent && cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
 
+product-agent-memory-remember:
+	cd product/agent && cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+
+product-agent-memory-list:
+	cd product/agent && cargo run -- run memory.session.list --json
+
+product-agent-preference-set:
+	cd product/agent && cargo run -- run memory.preference.set --param key=theme --param value=dark --json
+
+product-agent-semantic-index:
+	cd product/agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+
+product-agent-semantic-search:
+	cd product/agent && cargo run -- run files.semantic.search --param query=capability --json
+
+product-agent-resume-plan:
+	cd product/agent && cargo run -- run workspace.resume.plan --json
+
+product-agent-agents-catalog:
+	cd product/agent && cargo run -- run agents.catalog --json
+
+product-agent-agents-plan:
+	cd product/agent && cargo run -- run agents.plan --param "goal=daily brief" --json
+
+product-agent-agents-orchestrate:
+	cd product/agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+
+product-agent-agents-trace-list:
+	cd product/agent && cargo run -- run agents.trace.list --json
+
 product-agent-smoke:
 	cd product/agent && cargo test
 
@@ -165,6 +195,16 @@ help:
 	@echo "  product-agent-screen-capture-dry-run - Dry-run screenshot capture"
 	@echo "  product-agent-context-snapshot - Capture active context metadata"
 	@echo "  product-agent-ocr-dry-run - Dry-run OCR over a local file path"
+	@echo "  product-agent-memory-remember - Store a short-term session memory fact"
+	@echo "  product-agent-memory-list - List short-term session memory"
+	@echo "  product-agent-preference-set - Store a local preference"
+	@echo "  product-agent-semantic-index - Build an opt-in local file index"
+	@echo "  product-agent-semantic-search - Search the local file index"
+	@echo "  product-agent-resume-plan - Build a memory-backed resume plan"
+	@echo "  product-agent-agents-catalog - List built-in agents"
+	@echo "  product-agent-agents-plan - Preview a multi-agent plan"
+	@echo "  product-agent-agents-orchestrate - Run a confirmed multi-agent plan"
+	@echo "  product-agent-agents-trace-list - List multi-agent traces"
 	@echo "  product-agent-smoke - Run Rust product agent tests"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"

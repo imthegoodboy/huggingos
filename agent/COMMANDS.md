@@ -22,6 +22,9 @@ make product-agent-ai-run
 make product-agent-desktop-status
 make product-agent-screen-status
 make product-agent-screen-capture-dry-run
+make product-agent-memory-remember
+make product-agent-semantic-index
+make product-agent-agents-orchestrate
 make product-smoke
 ```
 
@@ -75,6 +78,8 @@ gh issue list --label "track:kernel-lab"
 gh issue list --milestone "Product Phase 1: Linux Product Foundation"
 gh issue list --milestone "Product Phase 5: Screen And Context Engine"
 gh issue list --milestone "Phase 1: Reliable Kernel And Shell Foundation"
+gh issue list --label "track:product" --search "Phase 6"
+gh issue list --label "track:product" --search "Phase 7"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```
