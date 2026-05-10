@@ -167,17 +167,36 @@ GitHub issue plan:
 
 ## Phase 2: Capability API And Local Automation
 
+Status: architecture ready; implementation not started.
+
 Goal: expose safe local OS actions that AI can later call.
 
 Core features:
 
 - Capability registry for files, apps, shell commands, windows, browser, system
-  state, notifications, and settings.
+  state, notifications, and settings. Start with read-only and low-risk local
+  capabilities.
 - Structured action schema: intent, parameters, risk level, permissions, result.
 - Confirmation policy for destructive/sensitive actions.
 - Audit log for every automated action.
 - Reversible file operations where possible.
 - Local deterministic planner for simple commands before LLM integration.
+
+Architecture:
+
+- ADR: [0003 Capability Control Plane](docs/adr/0003-capability-control-plane.md)
+- Product overview: [product/architecture.md](product/architecture.md)
+
+GitHub issue plan:
+
+- Milestone: [Product Phase 2: Capability API And Local Automation](https://github.com/imthegoodboy/huggingos/milestone/3)
+- Epic: [#31 Product Phase 2 capability API and local automation](https://github.com/imthegoodboy/huggingos/issues/31)
+- [#23 Define capability action schema and risk levels](https://github.com/imthegoodboy/huggingos/issues/23)
+- [#24 Add local capability registry and CLI listing](https://github.com/imthegoodboy/huggingos/issues/24)
+- [#26 Add policy engine for capability execution](https://github.com/imthegoodboy/huggingos/issues/26)
+- [#27 Add append-only audit log for capability actions](https://github.com/imthegoodboy/huggingos/issues/27)
+- [#30 Add first safe local capabilities](https://github.com/imthegoodboy/huggingos/issues/30)
+- [#28 Expand product smoke tests for capability layer](https://github.com/imthegoodboy/huggingos/issues/28)
 
 Acceptance criteria:
 

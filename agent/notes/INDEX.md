@@ -22,6 +22,7 @@ in PR descriptions.
 - [Git metadata corruption](git-metadata-corruption.md)
 - [Prebuild readiness audit](prebuild-readiness-audit.md)
 - [Product Phase 1 foundation](product-phase1-foundation.md)
+- [Pre-Phase 2 architecture audit](pre-phase2-architecture-audit.md)
 
 ## Knowledge Capture Rule
 

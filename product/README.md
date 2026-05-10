@@ -16,6 +16,8 @@ product AI features to the hobby kernel unless an issue explicitly says to work
 on the kernel-lab track.
 
 For the Product Phase 1 kickoff sequence, see [PHASE1.md](PHASE1.md).
+For the product architecture and Phase 2 control-plane direction, see
+[architecture.md](architecture.md).
 
 ## Planned Structure
 
