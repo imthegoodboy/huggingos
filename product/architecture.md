@@ -17,13 +17,15 @@ Linux kernel and distro base
   -> provider-neutral AI runtime bridge
   -> desktop/app/browser capability bridge
   -> screen/context observation bridge
+  -> memory and semantic file bridge
+  -> multi-agent orchestration bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane Through Phase 5 Context Bridge
+## Phase 2 Control Plane Through Phase 7 Orchestration
 
 Product Phase 2 adds the first executable capability control plane:
 
@@ -58,6 +60,14 @@ context with privacy redaction, and OCR local images through discovered host
 backends. Clipboard content, accessibility trees, browser tab context, and
 portal/PipeWire capture remain later.
 
+Product Phase 6 adds local memory and semantic file search. Session facts,
+preferences, event history, opt-in token indexes, export/delete, and resume
+planning all run through typed capabilities.
+
+Product Phase 7 adds multi-agent orchestration. Built-in agents have explicit
+capability allowlists, deterministic plans, confirmed execution, audit records,
+and replayable traces.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -67,6 +77,8 @@ Tracking:
 - Phase 3 epic: [#39 Product Phase 3 Epic: AI runtime bridge and secrets](https://github.com/imthegoodboy/huggingos/issues/39)
 - Phase 4 epic: [#56 Product Phase 4 Epic: Desktop command center and app control](https://github.com/imthegoodboy/huggingos/issues/56)
 - Phase 5 epic: [#65 Product Phase 5 Epic: Screen and context engine](https://github.com/imthegoodboy/huggingos/issues/65)
+- Phase 6 epic: [#72 Product Phase 6 Epic: Memory and semantic files](https://github.com/imthegoodboy/huggingos/issues/72)
+- Phase 7 epic: [#73 Product Phase 7 Epic: Multi-agent orchestration](https://github.com/imthegoodboy/huggingos/issues/73)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -109,6 +121,9 @@ Phase 1 through Phase 4 are directionally correct:
 - It adds real desktop/app/browser contracts without fake UI automation.
 - It adds real screen/context observation contracts without fake pixels, fake
   OCR, or silent private-window capture.
+- It adds local memory and file search without fake embeddings or invisible
+  collection.
+- It adds multi-agent orchestration without letting agents bypass policy.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

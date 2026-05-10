@@ -27,6 +27,8 @@ Stop and rethink if the task starts to become:
 - A browser automation feature before a browser/app automation layer exists.
 - Silent screen, clipboard, or OCR observation that does not pass through
   policy, confirmation, privacy rules, and audit.
+- Silent memory collection, semantic indexing outside an opt-in root, or agents
+  executing capabilities outside their allowlist.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

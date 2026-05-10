@@ -20,6 +20,8 @@ For the Product Phase 2 capability layer, see [PHASE2.md](PHASE2.md).
 For the Product Phase 3 AI runtime bridge, see [PHASE3.md](PHASE3.md).
 For the Product Phase 4 desktop control slice, see [PHASE4.md](PHASE4.md).
 For the Product Phase 5 screen/context engine, see [PHASE5.md](PHASE5.md).
+For the Product Phase 6 memory layer, see [PHASE6.md](PHASE6.md).
+For the Product Phase 7 agent orchestration layer, see [PHASE7.md](PHASE7.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -59,6 +61,11 @@ The product track currently provides:
   launch, confirmed browser URL opening, and workspace mode planning.
 - Phase 5 screen/context capabilities for readiness, permissioned screenshot
   capture, active-context snapshots, OCR image reads, and privacy redaction.
+- Phase 6 memory capabilities for session facts, preferences, audit-derived
+  events, opt-in semantic file indexing/search, export/delete, and resume
+  planning.
+- Phase 7 agent capabilities for catalog, delegation plans, confirmed
+  orchestration, and trace listing.
 
 ## Product Commands
 
@@ -84,6 +91,11 @@ cd product/agent && cargo run -- run screen.capture --dry-run --json
 cd product/agent && cargo run -- run context.snapshot --confirm --json
 cd product/agent && cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
 cd product/agent && cargo run -- ai run "what is open" --confirm --json
+cd product/agent && cargo run -- run memory.session.remember --param key=current-goal --param value=phase-six-seven --json
+cd product/agent && cargo run -- run memory.preference.set --param key=theme --param value=dark --json
+cd product/agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
+cd product/agent && cargo run -- run files.semantic.search --param query=capability --json
+cd product/agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -106,6 +118,16 @@ make product-agent-screen-status
 make product-agent-screen-capture-dry-run
 make product-agent-context-snapshot
 make product-agent-ocr-dry-run
+make product-agent-memory-remember
+make product-agent-memory-list
+make product-agent-preference-set
+make product-agent-semantic-index
+make product-agent-semantic-search
+make product-agent-resume-plan
+make product-agent-agents-catalog
+make product-agent-agents-plan
+make product-agent-agents-orchestrate
+make product-agent-agents-trace-list
 make product-agent-smoke
 make product-smoke
 ```
@@ -129,6 +151,16 @@ make agent-screen-status
 make agent-screen-capture-dry-run
 make agent-context-snapshot
 make agent-ocr-dry-run
+make agent-memory-remember
+make agent-memory-list
+make agent-preference-set
+make agent-semantic-index
+make agent-semantic-search
+make agent-resume-plan
+make agent-agents-catalog
+make agent-agents-plan
+make agent-agents-orchestrate
+make agent-agents-trace-list
 make agent-smoke
 make smoke
 ```
@@ -154,10 +186,11 @@ The Rust agent can now plan simple natural-language intents through the offline
 plane. It can detect desktop readiness, list desktop apps, perform confirmed
 app/browser launch commands from a real graphical Linux session, report
 screen/context readiness, capture screenshots through discovered Linux backends,
-snapshot active-window context, and OCR local images when `tesseract` exists.
-It still does not call cloud AI providers, automate browser DOMs, launch
-arbitrary shell commands, read clipboard contents by default, extract
-accessibility trees, or arrange windows.
+snapshot active-window context, OCR local images when `tesseract` exists, store
+user-controlled memory, search opt-in text file indexes, and delegate work
+through permissioned built-in agents. It still does not call cloud AI providers,
+automate browser DOMs, launch arbitrary shell commands, read clipboard contents
+by default, extract accessibility trees, run plugin agents, or arrange windows.
 
 The Rust agent is the production path for AI planning, future daemon work, and
 desktop integration. The Python CLI remains a reference control surface for the

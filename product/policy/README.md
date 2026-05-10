@@ -22,9 +22,14 @@ Current rules:
   APIs.
 - Screen/context observation must redact private active-window data and block
   confirmed capture when the active context is private or unknown.
+- Memory writes and semantic indexing must stay opt-in, inspectable, and
+  deletable.
+- Agents must call only capabilities listed in their allowlist, and delegated
+  calls still pass through policy, audit, and verification.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe
 workspace, and list audit records. The Rust agent adds AI planning,
 desktop/app/browser capabilities, and the first screen/context observation
-capabilities. It does not call cloud AI providers yet.
+capabilities, local memory/search, and multi-agent orchestration. It does not
+call cloud AI providers yet.
