@@ -14,8 +14,23 @@ cargo run -- capabilities --json
 cargo run -- run product.status --json
 cargo run -- run fs.list --param path=.. --json
 cargo run -- run notes.create --param title=RustAgent --dry-run --json
+cargo run -- ai status --json
+cargo run -- ai plan "show product status" --json
+cargo run -- ai run "show product status" --json
+cargo run -- secrets status --json
 cargo test
 ```
+
+## Phase 3 AI Bridge
+
+The Rust agent owns the production AI bridge.
+
+- `local.rules` is the current offline provider.
+- Natural-language prompts become typed capability plans.
+- `ai run` executes those plans only through policy, audit, and verification.
+- Secret readiness is reported as present/missing and never prints values.
+- Cloud/local-model providers are declared for status and failure handling, but
+  they are not executable until real provider adapters are added.
 
 ## Safety Model
 

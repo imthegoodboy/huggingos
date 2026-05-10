@@ -234,6 +234,17 @@ MCP can be supported later as an adapter layer for external tools, but internal
 OS control should stay behind huggingOS capabilities so policy and audit remain
 consistent.
 
+Phase 3 implements the first production AI runtime bridge in Rust:
+
+- `local.rules` is the deterministic offline provider.
+- `ai plan` maps supported natural-language intents into typed capability
+  calls.
+- `ai run` executes only through the capability engine, policy, audit, and
+  verifier.
+- `secrets status` reports provider readiness without exposing values.
+- Cloud and local-model providers are declared for selection/status/failure
+  handling, but are not executable until real adapters are added.
+
 ### 7. Desktop Integration
 
 Use Linux desktop-native APIs before brittle UI scraping.
@@ -354,11 +365,14 @@ Complete.
 
 ### Phase 3: AI Runtime And Secrets
 
+Complete in the Rust production agent:
+
 - Provider abstraction.
-- Local planner.
-- Secret loading.
+- Deterministic local planner.
+- Redacted secret readiness checks.
 - Plan-execute-verify loop.
 - Offline mode.
+- Safe unavailable-provider errors.
 
 ### Phase 4: Desktop Overlay And App Control
 

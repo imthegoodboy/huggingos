@@ -14,18 +14,22 @@ on that OS safely.
 Linux kernel and distro base
   -> huggingOS product CLI
   -> Rust huggingOS agent runtime
+  -> provider-neutral AI runtime bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane
+## Phase 2 Control Plane And Phase 3 AI Bridge
 
 Product Phase 2 adds the first executable capability control plane:
 
 ```text
-Intent
+Natural-language intent
+  -> AI provider bridge
+  -> deterministic local planner
+  -> capability plan
   -> capability registry
   -> policy decision
   -> executor
@@ -37,12 +41,17 @@ Intent
 Current Python reference implementation lives in `product/huggingos_core/` and
 is called by `product/cli/huggingos.py run ...`.
 
-The production agent runtime starts in `product/agent/` as a Rust crate. Future
-daemon, planner, and desktop integration work should move there first.
+Product Phase 3 adds the first Rust AI bridge above that control plane. The
+current executable provider is `local.rules`, which can plan supported prompts
+offline and execute them only through policy, audit, and verification.
+
+The production agent runtime lives in `product/agent/` as a Rust crate. Future
+daemon and desktop integration work should move there first.
 
 Tracking:
 
 - Epic: [#31 Product Phase 2 capability API and local automation](https://github.com/imthegoodboy/huggingos/issues/31)
+- Phase 3 epic: [#39 Product Phase 3 Epic: AI runtime bridge and secrets](https://github.com/imthegoodboy/huggingos/issues/39)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -64,19 +73,21 @@ permissioned, testable, and reversible where possible.
   actions.
 - Write audit records for every executed or denied action.
 - Keep CLI commands usable without root.
-- Do not add AI provider calls until capabilities, policy, audit, and secret
-  loading exist.
+- Do not add cloud AI provider calls until provider clients, budgets, consent,
+  retries, and secret storage are ready.
 
 ## Readiness Verdict
 
-Phase 1 and Phase 2 are directionally correct:
+Phase 1, Phase 2, and Phase 3 are directionally correct:
 
 - It uses Linux as the real OS foundation.
 - It does not copy or fork the Linux kernel before there is a need.
 - It creates a runnable hosted product slice that works in WSL and CI.
-- It keeps secrets and fake AI out of the product.
+- It keeps secrets and fake cloud AI out of the product.
 - It routes real automated actions through registry, policy, verifier, and
-  audit before later AI or desktop control exists.
+  audit before later desktop control exists.
+- It adds a real local AI planning bridge without allowing models to mutate the
+  OS directly.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

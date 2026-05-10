@@ -29,7 +29,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 2".to_string(),
+            phase: "Product Phase 3".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -52,6 +52,38 @@ struct RuntimeConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+struct AiConfig {
+    #[serde(default = "default_ai_provider")]
+    default_provider: String,
+    #[serde(default = "default_ai_provider_env")]
+    provider_env: String,
+    #[serde(default = "default_ai_offline_env")]
+    offline_env: String,
+    #[serde(default)]
+    offline_mode: bool,
+    #[serde(default = "default_openai_api_key_env")]
+    openai_api_key_env: String,
+    #[serde(default = "default_anthropic_api_key_env")]
+    anthropic_api_key_env: String,
+    #[serde(default = "default_local_model_endpoint_env")]
+    local_model_endpoint_env: String,
+}
+
+impl Default for AiConfig {
+    fn default() -> Self {
+        Self {
+            default_provider: default_ai_provider(),
+            provider_env: default_ai_provider_env(),
+            offline_env: default_ai_offline_env(),
+            offline_mode: true,
+            openai_api_key_env: default_openai_api_key_env(),
+            anthropic_api_key_env: default_anthropic_api_key_env(),
+            local_model_endpoint_env: default_local_model_endpoint_env(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct PolicyConfig {
     audit_log_name: String,
 }
@@ -68,6 +100,7 @@ impl Default for PolicyConfig {
 struct Config {
     product: ProductConfig,
     runtime: RuntimeConfig,
+    ai: AiConfig,
     features: BTreeMap<String, bool>,
     policy: PolicyConfig,
     config_path: PathBuf,
@@ -80,6 +113,8 @@ struct FileConfig {
     product: ProductConfig,
     #[serde(default)]
     runtime: RuntimeConfig,
+    #[serde(default)]
+    ai: AiConfig,
     #[serde(default)]
     features: BTreeMap<String, bool>,
     #[serde(default)]
@@ -184,6 +219,85 @@ struct RunOptions {
     json: bool,
 }
 
+#[derive(Default)]
+struct AiOptions {
+    provider: Option<String>,
+    actor: String,
+    reason: String,
+    dry_run: bool,
+    confirmed: bool,
+    json: bool,
+    prompt: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SecretStatus {
+    name: String,
+    env_var: String,
+    required_for: Vec<String>,
+    present: bool,
+    source: Option<String>,
+    redacted: bool,
+}
+
+#[derive(Clone, Debug)]
+struct SecretSpec {
+    name: String,
+    env_var: String,
+    required_for: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AiProviderStatus {
+    id: String,
+    provider_type: String,
+    configured: bool,
+    available: bool,
+    offline_capable: bool,
+    uses_network: bool,
+    secret_names: Vec<String>,
+    message: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AiRuntimeStatus {
+    default_provider: String,
+    selected_provider: String,
+    offline_mode: bool,
+    providers: Vec<AiProviderStatus>,
+    secrets: Vec<SecretStatus>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AiPlanStep {
+    step_id: String,
+    capability: String,
+    params: Map<String, Value>,
+    reason: String,
+    risk: Option<RiskLevel>,
+    requires_confirmation: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AiPlan {
+    plan_id: String,
+    provider: String,
+    prompt: String,
+    created_at: String,
+    executable: bool,
+    steps: Vec<AiPlanStep>,
+    warnings: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct AiRunReport {
+    run_id: String,
+    status: String,
+    summary: String,
+    plan: AiPlan,
+    results: Vec<ActionResult>,
+}
+
 fn main() -> ExitCode {
     match run(
         env::args().skip(1).collect(),
@@ -221,6 +335,8 @@ fn run(args: Vec<String>, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
             emit_capabilities(stdout, as_json);
             0
         }
+        "secrets" => run_secrets_command(&args[1..], stdout, stderr, &config),
+        "ai" => run_ai_command(&args[1..], stdout, stderr, &config),
         "run" => run_capability_command(&args[1..], stdout, stderr, &config),
         command => {
             let _ = writeln!(stderr, "huggingos-agent: unknown command: {command}");
@@ -372,6 +488,292 @@ fn emit_result(stdout: &mut dyn Write, result: &ActionResult, as_json: bool) {
     }
 }
 
+fn run_secrets_command(
+    args: &[String],
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    config: &Config,
+) -> i32 {
+    let (command, rest) = if let Some(first) = args.first().filter(|arg| !arg.starts_with("--")) {
+        (first.as_str(), &args[1..])
+    } else {
+        ("status", args)
+    };
+    match command {
+        "status" => {
+            let as_json = rest.iter().any(|arg| arg == "--json");
+            emit_secret_status(stdout, config, as_json);
+            0
+        }
+        other => {
+            let _ = writeln!(stderr, "huggingos-agent: unknown secrets command: {other}");
+            2
+        }
+    }
+}
+
+fn run_ai_command(
+    args: &[String],
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    config: &Config,
+) -> i32 {
+    let (command, rest) = if let Some(first) = args.first().filter(|arg| !arg.starts_with("--")) {
+        (first.as_str(), &args[1..])
+    } else {
+        ("status", args)
+    };
+    match command {
+        "status" => {
+            let options = match parse_ai_options(rest) {
+                Ok(options) => options,
+                Err(err) => {
+                    let _ = writeln!(stderr, "huggingos-agent: {err}");
+                    return 2;
+                }
+            };
+            emit_ai_status(stdout, config, options.provider.as_deref(), options.json);
+            0
+        }
+        "plan" => run_ai_plan_command(rest, stdout, stderr, config),
+        "run" => run_ai_run_command(rest, stdout, stderr, config),
+        other => {
+            let _ = writeln!(stderr, "huggingos-agent: unknown ai command: {other}");
+            2
+        }
+    }
+}
+
+fn run_ai_plan_command(
+    args: &[String],
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    config: &Config,
+) -> i32 {
+    let options = match parse_ai_options(args) {
+        Ok(options) => options,
+        Err(err) => {
+            let _ = writeln!(stderr, "huggingos-agent: {err}");
+            return 2;
+        }
+    };
+    let prompt = options.prompt.join(" ").trim().to_string();
+    if prompt.is_empty() {
+        let _ = writeln!(stderr, "huggingos-agent: ai plan requires a prompt");
+        return 2;
+    }
+
+    match build_ai_plan(
+        config,
+        &build_registry(),
+        &prompt,
+        options.provider.as_deref(),
+    ) {
+        Ok(plan) => {
+            emit_ai_plan(stdout, &plan, options.json);
+            if plan.executable {
+                0
+            } else {
+                1
+            }
+        }
+        Err(error) => {
+            if options.json {
+                emit_json(
+                    stdout,
+                    &json!({
+                        "error": error,
+                        "status": ai_runtime_status(config, options.provider.as_deref()),
+                    }),
+                );
+            } else {
+                let _ = writeln!(stderr, "huggingos-agent: {error}");
+            }
+            1
+        }
+    }
+}
+
+fn run_ai_run_command(
+    args: &[String],
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    config: &Config,
+) -> i32 {
+    let options = match parse_ai_options(args) {
+        Ok(options) => options,
+        Err(err) => {
+            let _ = writeln!(stderr, "huggingos-agent: {err}");
+            return 2;
+        }
+    };
+    let prompt = options.prompt.join(" ").trim().to_string();
+    if prompt.is_empty() {
+        let _ = writeln!(stderr, "huggingos-agent: ai run requires a prompt");
+        return 2;
+    }
+
+    let registry = build_registry();
+    let plan = match build_ai_plan(config, &registry, &prompt, options.provider.as_deref()) {
+        Ok(plan) => plan,
+        Err(error) => {
+            if options.json {
+                emit_json(
+                    stdout,
+                    &json!({
+                        "error": error,
+                        "status": ai_runtime_status(config, options.provider.as_deref()),
+                    }),
+                );
+            } else {
+                let _ = writeln!(stderr, "huggingos-agent: {error}");
+            }
+            return 1;
+        }
+    };
+
+    let report = execute_ai_plan(config, &registry, plan, &options);
+    emit_ai_run_report(stdout, &report, options.json);
+    if report.status == "succeeded" || report.status == "dry_run" {
+        0
+    } else {
+        1
+    }
+}
+
+fn parse_ai_options(args: &[String]) -> Result<AiOptions, String> {
+    let mut options = AiOptions {
+        actor: "ai.cli".to_string(),
+        ..AiOptions::default()
+    };
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--provider" => {
+                index += 1;
+                options.provider = Some(
+                    args.get(index)
+                        .ok_or_else(|| "--provider requires a value".to_string())?
+                        .clone(),
+                );
+            }
+            "--actor" => {
+                index += 1;
+                options.actor = args
+                    .get(index)
+                    .ok_or_else(|| "--actor requires a value".to_string())?
+                    .clone();
+            }
+            "--reason" => {
+                index += 1;
+                options.reason = args
+                    .get(index)
+                    .ok_or_else(|| "--reason requires a value".to_string())?
+                    .clone();
+            }
+            "--dry-run" => options.dry_run = true,
+            "--confirm" => options.confirmed = true,
+            "--json" => options.json = true,
+            "--" => {
+                options.prompt.extend(args[index + 1..].iter().cloned());
+                break;
+            }
+            other if other.starts_with("--") => return Err(format!("unknown ai option: {other}")),
+            other => options.prompt.push(other.to_string()),
+        }
+        index += 1;
+    }
+    Ok(options)
+}
+
+fn emit_secret_status(stdout: &mut dyn Write, config: &Config, as_json: bool) {
+    let secrets = secret_statuses(config);
+    if as_json {
+        emit_json(stdout, &json!({ "secrets": secrets }));
+        return;
+    }
+    for secret in secrets {
+        let state = if secret.present {
+            "present (redacted)"
+        } else {
+            "missing"
+        };
+        let _ = writeln!(stdout, "{} [{}]: {state}", secret.name, secret.env_var);
+    }
+}
+
+fn emit_ai_status(
+    stdout: &mut dyn Write,
+    config: &Config,
+    provider_override: Option<&str>,
+    as_json: bool,
+) {
+    let status = ai_runtime_status(config, provider_override);
+    if as_json {
+        emit_json(stdout, &status);
+        return;
+    }
+    let _ = writeln!(
+        stdout,
+        "AI runtime provider: {}\noffline mode: {}",
+        status.selected_provider, status.offline_mode
+    );
+    for provider in status.providers {
+        let state = if provider.available {
+            "available"
+        } else if provider.configured {
+            "configured"
+        } else {
+            "not configured"
+        };
+        let _ = writeln!(stdout, "{}: {state} - {}", provider.id, provider.message);
+    }
+}
+
+fn emit_ai_plan(stdout: &mut dyn Write, plan: &AiPlan, as_json: bool) {
+    if as_json {
+        emit_json(stdout, plan);
+        return;
+    }
+    let _ = writeln!(
+        stdout,
+        "plan {} via {} (executable: {})",
+        plan.plan_id, plan.provider, plan.executable
+    );
+    for step in &plan.steps {
+        let _ = writeln!(
+            stdout,
+            "{} -> {} {:?}",
+            step.step_id, step.capability, step.params
+        );
+    }
+    for warning in &plan.warnings {
+        let _ = writeln!(stdout, "warning: {warning}");
+    }
+}
+
+fn emit_ai_run_report(stdout: &mut dyn Write, report: &AiRunReport, as_json: bool) {
+    if as_json {
+        emit_json(stdout, report);
+        return;
+    }
+    let _ = writeln!(
+        stdout,
+        "ai run {}: {}\n{}",
+        report.run_id, report.status, report.summary
+    );
+    for result in &report.results {
+        let _ = writeln!(
+            stdout,
+            "{}: {:?} - {}",
+            result.capability, result.status, result.summary
+        );
+        if let Some(error) = &result.error {
+            let _ = writeln!(stdout, "error: {error}");
+        }
+    }
+}
+
 fn emit_json<T: Serialize>(stdout: &mut dyn Write, payload: &T) {
     match serde_json::to_string_pretty(payload) {
         Ok(text) => {
@@ -401,6 +803,7 @@ fn load_config() -> Result<Config, String> {
     Ok(Config {
         product: file_config.product,
         runtime: file_config.runtime,
+        ai: file_config.ai,
         features: file_config.features,
         policy: file_config.policy,
         config_path,
@@ -441,6 +844,12 @@ fn product_status(config: &Config) -> Value {
             "name": "huggingos-agent",
             "version": env!("CARGO_PKG_VERSION"),
             "language": "rust",
+        },
+        "ai": {
+            "default_provider": config.ai.default_provider,
+            "selected_provider": selected_ai_provider(config, None),
+            "offline_mode": ai_offline_mode(config),
+            "cloud_ai_enabled": feature_enabled(config, "cloud_ai_enabled"),
         },
         "paths": {
             "product_root": config.product_root,
@@ -506,6 +915,554 @@ fn default_state_dir_env() -> String {
 
 fn default_workspace_dir_env() -> String {
     "HUGGINGOS_WORKSPACE_DIR".to_string()
+}
+
+fn default_ai_provider() -> String {
+    "local.rules".to_string()
+}
+
+fn default_ai_provider_env() -> String {
+    "HUGGINGOS_AI_PROVIDER".to_string()
+}
+
+fn default_ai_offline_env() -> String {
+    "HUGGINGOS_AI_OFFLINE".to_string()
+}
+
+fn default_openai_api_key_env() -> String {
+    "HUGGINGOS_OPENAI_API_KEY".to_string()
+}
+
+fn default_anthropic_api_key_env() -> String {
+    "HUGGINGOS_ANTHROPIC_API_KEY".to_string()
+}
+
+fn default_local_model_endpoint_env() -> String {
+    "HUGGINGOS_LOCAL_MODEL_ENDPOINT".to_string()
+}
+
+fn feature_enabled(config: &Config, name: &str) -> bool {
+    config.features.get(name).copied().unwrap_or(false)
+}
+
+fn selected_ai_provider(config: &Config, provider_override: Option<&str>) -> String {
+    provider_override
+        .map(str::to_string)
+        .or_else(|| env::var(&config.ai.provider_env).ok())
+        .unwrap_or_else(|| config.ai.default_provider.clone())
+        .trim()
+        .to_ascii_lowercase()
+}
+
+fn ai_offline_mode(config: &Config) -> bool {
+    env::var(&config.ai.offline_env)
+        .ok()
+        .and_then(|value| parse_bool(&value))
+        .unwrap_or(config.ai.offline_mode)
+}
+
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn secret_specs(config: &Config) -> Vec<SecretSpec> {
+    vec![
+        SecretSpec {
+            name: "openai_api_key".to_string(),
+            env_var: config.ai.openai_api_key_env.clone(),
+            required_for: vec!["cloud.openai".to_string()],
+        },
+        SecretSpec {
+            name: "anthropic_api_key".to_string(),
+            env_var: config.ai.anthropic_api_key_env.clone(),
+            required_for: vec!["cloud.anthropic".to_string()],
+        },
+        SecretSpec {
+            name: "local_model_endpoint".to_string(),
+            env_var: config.ai.local_model_endpoint_env.clone(),
+            required_for: vec!["local.model".to_string()],
+        },
+    ]
+}
+
+fn secret_statuses(config: &Config) -> Vec<SecretStatus> {
+    secret_specs(config)
+        .into_iter()
+        .map(|spec| {
+            let value = env::var(&spec.env_var).ok();
+            secret_status_from_value(spec, value.as_deref())
+        })
+        .collect()
+}
+
+fn secret_status_from_value(spec: SecretSpec, value: Option<&str>) -> SecretStatus {
+    let present = value.is_some_and(|value| !value.trim().is_empty());
+    SecretStatus {
+        name: spec.name,
+        env_var: spec.env_var,
+        required_for: spec.required_for,
+        present,
+        source: present.then(|| "environment".to_string()),
+        redacted: present,
+    }
+}
+
+fn ai_runtime_status(config: &Config, provider_override: Option<&str>) -> AiRuntimeStatus {
+    let secrets = secret_statuses(config);
+    AiRuntimeStatus {
+        default_provider: config.ai.default_provider.clone(),
+        selected_provider: selected_ai_provider(config, provider_override),
+        offline_mode: ai_offline_mode(config),
+        providers: ai_provider_statuses(config, &secrets),
+        secrets,
+    }
+}
+
+fn ai_provider_statuses(config: &Config, secrets: &[SecretStatus]) -> Vec<AiProviderStatus> {
+    let local_model_configured = env::var(&config.ai.local_model_endpoint_env)
+        .ok()
+        .is_some_and(|value| !value.trim().is_empty());
+    let openai_configured = secret_present(secrets, "openai_api_key");
+    let anthropic_configured = secret_present(secrets, "anthropic_api_key");
+    let cloud_enabled = feature_enabled(config, "cloud_ai_enabled");
+
+    vec![
+        AiProviderStatus {
+            id: "local.rules".to_string(),
+            provider_type: "deterministic_rules".to_string(),
+            configured: true,
+            available: true,
+            offline_capable: true,
+            uses_network: false,
+            secret_names: vec![],
+            message: "Deterministic local planner is ready and requires no network.".to_string(),
+        },
+        AiProviderStatus {
+            id: "local.model".to_string(),
+            provider_type: "local_model_runtime".to_string(),
+            configured: local_model_configured,
+            available: false,
+            offline_capable: true,
+            uses_network: false,
+            secret_names: vec!["local_model_endpoint".to_string()],
+            message: if local_model_configured {
+                "Endpoint is configured; model planning adapter is not enabled yet.".to_string()
+            } else {
+                "Set the local model endpoint env var when a local runtime adapter is added."
+                    .to_string()
+            },
+        },
+        AiProviderStatus {
+            id: "cloud.openai".to_string(),
+            provider_type: "cloud_model_runtime".to_string(),
+            configured: openai_configured && cloud_enabled,
+            available: false,
+            offline_capable: false,
+            uses_network: true,
+            secret_names: vec!["openai_api_key".to_string()],
+            message: if openai_configured {
+                "Secret is detected and redacted; outbound cloud planning is disabled in this build."
+                    .to_string()
+            } else {
+                "Missing redacted API-key readiness signal.".to_string()
+            },
+        },
+        AiProviderStatus {
+            id: "cloud.anthropic".to_string(),
+            provider_type: "cloud_model_runtime".to_string(),
+            configured: anthropic_configured && cloud_enabled,
+            available: false,
+            offline_capable: false,
+            uses_network: true,
+            secret_names: vec!["anthropic_api_key".to_string()],
+            message: if anthropic_configured {
+                "Secret is detected and redacted; outbound cloud planning is disabled in this build."
+                    .to_string()
+            } else {
+                "Missing redacted API-key readiness signal.".to_string()
+            },
+        },
+    ]
+}
+
+fn secret_present(secrets: &[SecretStatus], name: &str) -> bool {
+    secrets
+        .iter()
+        .any(|secret| secret.name == name && secret.present)
+}
+
+trait AiPlanProvider {
+    fn id(&self) -> &'static str;
+    fn plan(&self, registry: &BTreeMap<String, Capability>, prompt: &str) -> AiPlan;
+}
+
+struct LocalRulesProvider;
+
+impl AiPlanProvider for LocalRulesProvider {
+    fn id(&self) -> &'static str {
+        "local.rules"
+    }
+
+    fn plan(&self, registry: &BTreeMap<String, Capability>, prompt: &str) -> AiPlan {
+        local_rules_plan(registry, prompt)
+    }
+}
+
+fn build_ai_plan(
+    config: &Config,
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    provider_override: Option<&str>,
+) -> Result<AiPlan, String> {
+    let provider_id = selected_ai_provider(config, provider_override);
+    let local_provider = LocalRulesProvider;
+    if provider_id == local_provider.id() {
+        return Ok(local_provider.plan(registry, prompt));
+    }
+
+    let status = ai_runtime_status(config, Some(&provider_id));
+    let provider = status
+        .providers
+        .iter()
+        .find(|provider| provider.id == provider_id);
+    match provider {
+        Some(provider) => Err(format!(
+            "AI provider {} is not executable yet: {}",
+            provider.id, provider.message
+        )),
+        None => Err(format!("unknown AI provider: {provider_id}")),
+    }
+}
+
+fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> AiPlan {
+    let lowered = prompt.trim().to_lowercase();
+    let mut steps = vec![];
+    let mut warnings = vec![];
+
+    if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_list_files_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_note_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_status_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else {
+        warnings.push(
+            "No deterministic local rule matched this prompt; no capability will execute."
+                .to_string(),
+        );
+    }
+
+    AiPlan {
+        plan_id: Uuid::new_v4().to_string(),
+        provider: "local.rules".to_string(),
+        prompt: prompt.to_string(),
+        created_at: utc_now(),
+        executable: !steps.is_empty(),
+        steps,
+        warnings,
+    }
+}
+
+fn plan_audit_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("audit")
+        || lowered.contains("recent action")
+        || lowered.contains("recent run"))
+    {
+        return None;
+    }
+    let mut params = Map::new();
+    params.insert("limit".to_string(), json!(20));
+    Some(plan_step(
+        registry,
+        "audit.list",
+        params,
+        format!("List recent audit records for prompt: {prompt}"),
+    ))
+}
+
+fn plan_read_file_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("read ")
+        || lowered.starts_with("open file ")
+        || lowered.starts_with("show file ")
+        || lowered.starts_with("cat "))
+    {
+        return None;
+    }
+    let path = extract_path_after(
+        prompt,
+        &[
+            "open file ",
+            "show file ",
+            "read file ",
+            "read text ",
+            "read ",
+            "cat ",
+        ],
+    )?;
+    let mut params = Map::new();
+    params.insert("path".to_string(), json!(path));
+    Some(plan_step(
+        registry,
+        "fs.read_text",
+        params,
+        "Read a user-requested small UTF-8 text file.".to_string(),
+    ))
+}
+
+fn plan_list_files_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("list")
+        || lowered.starts_with("show files")
+        || lowered.starts_with("ls "))
+    {
+        return None;
+    }
+    let path = extract_path_after(
+        prompt,
+        &[
+            "list files in ",
+            "list files under ",
+            "list directory ",
+            "list dir ",
+            "show files in ",
+            "show files under ",
+            "ls ",
+            "list ",
+        ],
+    )
+    .filter(|value| {
+        !matches!(
+            value.to_ascii_lowercase().as_str(),
+            "file" | "files" | "directory" | "directories" | "dir" | "dirs"
+        )
+    })
+    .unwrap_or_else(|| ".".to_string());
+    let mut params = Map::new();
+    params.insert("path".to_string(), json!(path));
+    Some(plan_step(
+        registry,
+        "fs.list",
+        params,
+        "List a user-requested local directory.".to_string(),
+    ))
+}
+
+fn plan_note_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("create note")
+        || lowered.starts_with("make note")
+        || lowered.starts_with("write note"))
+    {
+        return None;
+    }
+    let body = extract_path_after(prompt, &["create note", "make note", "write note"])
+        .unwrap_or_else(|| "AI Note".to_string());
+    let (title, content) = split_note_body(&body);
+    let mut params = Map::new();
+    params.insert("title".to_string(), json!(title));
+    if !content.trim().is_empty() {
+        params.insert("content".to_string(), json!(content));
+    }
+    Some(plan_step(
+        registry,
+        "notes.create",
+        params,
+        "Create a safe workspace note from the prompt.".to_string(),
+    ))
+}
+
+fn plan_status_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    let trimmed = lowered.trim();
+    if !(trimmed == "status"
+        || trimmed == "health"
+        || lowered.contains("product status")
+        || lowered.contains("system status")
+        || lowered.contains("agent status")
+        || lowered.contains("about huggingos"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "product.status",
+        Map::new(),
+        format!("Report product status for prompt: {prompt}"),
+    ))
+}
+
+fn plan_step(
+    registry: &BTreeMap<String, Capability>,
+    capability: &str,
+    params: Map<String, Value>,
+    reason: String,
+) -> AiPlanStep {
+    let risk = registry
+        .get(capability)
+        .map(|capability| capability.metadata.risk);
+    let requires_confirmation = matches!(risk, Some(RiskLevel::Medium | RiskLevel::High));
+    AiPlanStep {
+        step_id: Uuid::new_v4().to_string(),
+        capability: capability.to_string(),
+        params,
+        reason,
+        risk,
+        requires_confirmation,
+    }
+}
+
+fn extract_path_after(prompt: &str, markers: &[&str]) -> Option<String> {
+    let lowered = prompt.to_ascii_lowercase();
+    for marker in markers {
+        if let Some(index) = lowered.find(marker) {
+            let value = clean_prompt_value(&prompt[index + marker.len()..]);
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+fn clean_prompt_value(value: &str) -> String {
+    value
+        .trim()
+        .trim_matches(|ch| matches!(ch, '"' | '\'' | '`' | ',' | ';' | ':'))
+        .trim()
+        .to_string()
+}
+
+fn split_note_body(body: &str) -> (String, String) {
+    let body = clean_prompt_value(body);
+    if let Some((title, content)) = body.split_once(" content:") {
+        return (safe_note_title(title), clean_prompt_value(content));
+    }
+    if let Some((title, content)) = body.split_once(" with content ") {
+        return (safe_note_title(title), clean_prompt_value(content));
+    }
+    let title = safe_note_title(&body);
+    (title, body)
+}
+
+fn safe_note_title(value: &str) -> String {
+    let title = value.trim();
+    if title.is_empty() {
+        "AI Note".to_string()
+    } else {
+        title.chars().take(80).collect()
+    }
+}
+
+fn execute_ai_plan(
+    config: &Config,
+    registry: &BTreeMap<String, Capability>,
+    plan: AiPlan,
+    options: &AiOptions,
+) -> AiRunReport {
+    let mut results = vec![];
+    if !plan.executable {
+        return AiRunReport {
+            run_id: Uuid::new_v4().to_string(),
+            status: "no_plan".to_string(),
+            summary: "No executable capability plan was produced.".to_string(),
+            plan,
+            results,
+        };
+    }
+
+    for step in &plan.steps {
+        let request = ActionRequest {
+            action_id: Uuid::new_v4().to_string(),
+            capability: step.capability.clone(),
+            params: step.params.clone(),
+            actor: options.actor.clone(),
+            reason: if options.reason.trim().is_empty() {
+                step.reason.clone()
+            } else {
+                options.reason.clone()
+            },
+            dry_run: options.dry_run,
+            confirmed: options.confirmed,
+            requested_at: utc_now(),
+        };
+        let result = execute_capability(config, registry, request);
+        let should_stop = matches!(
+            result.status,
+            ActionStatus::Failed | ActionStatus::Denied | ActionStatus::ConfirmationRequired
+        );
+        results.push(result);
+        if should_stop {
+            break;
+        }
+    }
+
+    let status = ai_run_status(&results);
+    let summary = match status.as_str() {
+        "succeeded" => "All planned capability calls executed and verified.",
+        "dry_run" => "All planned capability calls completed as dry runs.",
+        "needs_confirmation" => "A planned capability requires explicit confirmation.",
+        "failed" => "A planned capability failed or was denied.",
+        _ => "AI run finished.",
+    }
+    .to_string();
+
+    AiRunReport {
+        run_id: Uuid::new_v4().to_string(),
+        status,
+        summary,
+        plan,
+        results,
+    }
+}
+
+fn ai_run_status(results: &[ActionResult]) -> String {
+    if results.is_empty() {
+        return "no_plan".to_string();
+    }
+    if results
+        .iter()
+        .any(|result| result.status == ActionStatus::ConfirmationRequired)
+    {
+        return "needs_confirmation".to_string();
+    }
+    if results
+        .iter()
+        .any(|result| matches!(result.status, ActionStatus::Failed | ActionStatus::Denied))
+    {
+        return "failed".to_string();
+    }
+    if results
+        .iter()
+        .all(|result| result.status == ActionStatus::DryRun)
+    {
+        return "dry_run".to_string();
+    }
+    "succeeded".to_string()
 }
 
 fn build_registry() -> BTreeMap<String, Capability> {
@@ -1291,6 +2248,7 @@ mod tests {
                 workspace_dir: Some(tmp.path().join("workspace").to_string_lossy().to_string()),
                 state_dir: Some(tmp.path().join("state").to_string_lossy().to_string()),
             },
+            ai: AiConfig::default(),
             features: BTreeMap::new(),
             policy: PolicyConfig::default(),
             config_path: tmp.path().join("defaults.toml"),
@@ -1387,5 +2345,97 @@ mod tests {
 
         assert_eq!(result.status, ActionStatus::Failed);
         assert!(result.error.unwrap().contains("Audit logging failed"));
+    }
+
+    #[test]
+    fn local_planner_maps_status_prompt_to_capability() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let plan = build_ai_plan(
+            &config,
+            &build_registry(),
+            "show product status",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert!(plan.executable);
+        assert_eq!(plan.steps[0].capability, "product.status");
+    }
+
+    #[test]
+    fn local_planner_lists_current_directory_when_no_path_given() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let plan = build_ai_plan(
+            &config,
+            &build_registry(),
+            "list files",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert!(plan.executable);
+        assert_eq!(plan.steps[0].capability, "fs.list");
+        assert_eq!(plan.steps[0].params["path"], json!("."));
+    }
+
+    #[test]
+    fn ai_run_executes_through_capability_engine() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+        let plan = build_ai_plan(
+            &config,
+            &registry,
+            "show product status",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let options = AiOptions {
+            actor: "test.ai".to_string(),
+            ..AiOptions::default()
+        };
+
+        let report = execute_ai_plan(&config, &registry, plan, &options);
+
+        assert_eq!(report.status, "succeeded");
+        assert_eq!(report.results[0].status, ActionStatus::Succeeded);
+        assert!(audit_log_path(&config).exists());
+    }
+
+    #[test]
+    fn secret_status_redacts_present_values() {
+        let spec = SecretSpec {
+            name: "openai_api_key".to_string(),
+            env_var: "HUGGINGOS_OPENAI_API_KEY".to_string(),
+            required_for: vec!["cloud.openai".to_string()],
+        };
+
+        let status = secret_status_from_value(spec, Some("provider-test-value-should-not-leak"));
+        let output = serde_json::to_string(&status).unwrap();
+
+        assert!(status.present);
+        assert!(status.redacted);
+        assert!(!output.contains("provider-test-value-should-not-leak"));
+    }
+
+    #[test]
+    fn unknown_prompt_does_not_execute() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+        let plan = build_ai_plan(
+            &config,
+            &registry,
+            "make the computer magically do everything",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let report = execute_ai_plan(&config, &registry, plan, &AiOptions::default());
+
+        assert_eq!(report.status, "no_plan");
+        assert!(report.results.is_empty());
+        assert!(!audit_log_path(&config).exists());
     }
 }

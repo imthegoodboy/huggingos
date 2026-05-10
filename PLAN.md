@@ -225,11 +225,16 @@ shortcuts.
 Core features:
 
 - Provider abstraction for local rules, local model runtimes, and cloud models.
-- Secret loading from OS keyring or encrypted runtime config.
-- Prompt/action schema mapped to the capability API.
-- Planner, executor, verifier loop.
-- Offline mode that keeps local control working without cloud providers.
-- Provider failure handling and user-visible error reporting.
+  Done in the Rust agent runtime status model.
+- Secret readiness checks without printing or storing provider secrets. Done
+  through redacted environment/keyring-ready boundaries.
+- Prompt/action schema mapped to the capability API. Done for deterministic
+  local intents.
+- Planner, executor, verifier loop. Done through `ai plan` and `ai run`.
+- Offline mode that keeps local control working without cloud providers. Done
+  through the `local.rules` provider.
+- Provider failure handling and user-visible error reporting. Done for declared
+  but unavailable local-model and cloud adapters.
 
 Acceptance criteria:
 
@@ -237,6 +242,16 @@ Acceptance criteria:
 - The AI bridge can produce a plan and execute approved capability calls.
 - The verifier checks observable results before reporting success.
 - Provider failures do not break local OS control.
+
+Tracking:
+
+- Milestone: [Product Phase 3: AI Runtime Bridge And Secrets](https://github.com/imthegoodboy/huggingos/milestone/4)
+- Epic: [#39 Product Phase 3 Epic: AI runtime bridge and secrets](https://github.com/imthegoodboy/huggingos/issues/39)
+- Provider interface: [#43](https://github.com/imthegoodboy/huggingos/issues/43)
+- Secret checks: [#38](https://github.com/imthegoodboy/huggingos/issues/38)
+- Local planner: [#45](https://github.com/imthegoodboy/huggingos/issues/45)
+- Plan-execute-verify: [#40](https://github.com/imthegoodboy/huggingos/issues/40)
+- Smoke tests and docs: [#37](https://github.com/imthegoodboy/huggingos/issues/37)
 
 ## Phase 4: Desktop Overlay And App Control
 
@@ -434,22 +449,20 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 3
+## Next Sprint: Product Phase 4
 
-Start here next after Product Phase 2 is merged:
+Start here next after Product Phase 3 is merged:
 
-1. Add a provider-neutral AI runtime interface.
-2. Move planner/executor work into the Rust agent runtime.
-3. Add secure secret loading through OS keyring or ignored encrypted local
-   config.
-4. Add a deterministic local planner that maps simple natural-language commands
-   to capability calls.
-5. Add the plan-execute-verify loop using the Phase 2 capability engine.
-6. Preserve offline local control when no cloud model or API key exists.
+1. Add a Linux desktop command-center entrypoint around the Rust agent.
+2. Add permissioned app-launch and window/workspace capability contracts.
+3. Add browser-control architecture using a real browser backend behind policy
+   and audit.
+4. Add workspace modes as explicit, reversible capability plans.
+5. Keep all desktop actions behind the same planner -> capability -> policy ->
+   audit -> verifier path.
 
-Product Phase 2 gives AI features a permissioned action surface. Phase 3 should
-connect planning to that surface without hardcoded providers, committed keys, or
-direct OS mutation.
+Product Phase 3 gives AI features a real planning bridge. Phase 4 should make
+that bridge visible in the desktop without adding broad, untracked OS control.
 
 ## Things We Will Not Fake
 

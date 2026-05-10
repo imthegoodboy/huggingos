@@ -11,9 +11,10 @@ This repository has two tracks:
 - Kernel-lab track: the existing bootable 32-bit x86 hobby kernel under
   `kernel/`, kept for low-level OS experiments and learning.
 
-The current product work has completed the Linux foundation and the first
-capability control plane. The custom kernel is already a working QEMU-bootable
-lab OS, but it is not the production AI OS path.
+The current product work has completed the Linux foundation, the first
+capability control plane, and the first Rust AI planning bridge. The custom
+kernel is already a working QEMU-bootable lab OS, but it is not the production
+AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -27,7 +28,8 @@ Product track:
 - Runtime config, CLI, service, packaging, and smoke-test structure exists.
 - Phase 2 capability layer exists for typed, policy-checked, audited local
   actions.
-- Rust production agent runtime is started under `product/agent/`.
+- Phase 3 Rust AI bridge exists under `product/agent/` for deterministic local
+  planning, redacted provider readiness, and plan-execute-verify execution.
 - Current capabilities: `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, and `audit.list`.
 - No committed API keys, provider secrets, or fake AI integrations.
@@ -60,6 +62,7 @@ python3 product/cli/huggingos.py status
 python3 product/cli/huggingos.py capabilities
 python3 product/cli/huggingos.py run product.status
 cd product/agent && cargo run -- run product.status --json
+cd product/agent && cargo run -- ai run "show product status" --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -69,13 +72,15 @@ Or use the make targets:
 make product-status
 make product-capabilities
 make product-run-status
+make product-agent-ai-run
 make product-agent-smoke
 make product-smoke
 ```
 
-The product CLI now executes safe local capabilities through registry, policy,
-verification, and audit. AI providers, browser control, and desktop app control
-are intentionally deferred until the secret and desktop integration phases.
+The Rust product agent now plans simple local AI intents and executes them
+through registry, policy, verification, and audit. Cloud AI providers, browser
+control, and desktop app control remain intentionally deferred until real
+provider adapters and desktop permissions exist.
 
 ## Kernel-Lab Quick Start
 
@@ -227,7 +232,7 @@ Product track:
 
 - No Linux image/rootfs build is implemented yet.
 - No long-running `huggingosd` daemon is implemented yet.
-- No AI provider integration is implemented yet.
+- No cloud AI provider execution is implemented yet.
 - No desktop overlay, browser automation, app/window control, or screen capture
   is implemented yet.
 
@@ -262,9 +267,9 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start in Product Phase 3, connecting an AI runtime
-and secure secret loading to the Phase 2 capability layer without adding
-advanced AI features to the custom kernel.
+The next product work should start in Product Phase 4, adding desktop command
+center and app-control capabilities behind the same AI planner, policy, audit,
+and verifier path.
 
 ## References
 
