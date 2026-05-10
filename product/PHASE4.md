@@ -42,7 +42,8 @@ or run from a graphical Linux desktop.
 
 - `desktop.status`: read-only desktop readiness.
 - `apps.list`: read-only `.desktop` registry listing.
-- `apps.launch`: medium-risk app launch by safe desktop ID.
+- `apps.launch`: medium-risk app launch by safe visible desktop ID. Hidden and
+  `NoDisplay` entries are refused.
 - `browser.open_url`: medium-risk HTTP/HTTPS URL open.
 - `workspace.mode.plan`: read-only mode preview.
 

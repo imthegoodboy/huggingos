@@ -1841,6 +1841,17 @@ fn find_desktop_entry(app_id: &str) -> Result<Option<DesktopEntry>, String> {
         .find(|entry| entry.id == app_id))
 }
 
+fn ensure_launchable_desktop_entry(entry: &DesktopEntry) -> Result<(), String> {
+    if entry.hidden || entry.no_display {
+        Err(format!(
+            "refusing to launch hidden or non-display desktop entry: {}",
+            entry.id
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn launch_desktop_entry(entry: &DesktopEntry) -> Result<String, String> {
     if find_command("gio").is_some() {
         run_command("gio", &["launch", entry.path.to_string_lossy().as_ref()])?;
@@ -2346,6 +2357,7 @@ fn apps_launch_capability() -> Capability {
             validate_desktop_id(&app_id)?;
             let entry = find_desktop_entry(&app_id)?
                 .ok_or_else(|| format!("desktop app not found: {app_id}"))?;
+            ensure_launchable_desktop_entry(&entry)?;
             ensure_desktop_session_ready()?;
             let backend = launch_desktop_entry(&entry)?;
             Ok(json!({
@@ -3229,6 +3241,24 @@ Categories=Utility;Development;
         assert_eq!(entry.id, "org-example-Demo.desktop");
         assert_eq!(entry.name, "Demo App");
         assert_eq!(entry.categories, vec!["Utility", "Development"]);
+    }
+
+    #[test]
+    fn hidden_desktop_entry_is_not_launchable() {
+        let tmp = TempDir::new().unwrap();
+        let entry = DesktopEntry {
+            id: "hidden.desktop".to_string(),
+            name: "Hidden App".to_string(),
+            exec: Some("hidden-app".to_string()),
+            path: tmp.path().join("hidden.desktop"),
+            categories: vec![],
+            no_display: false,
+            hidden: true,
+        };
+
+        let error = ensure_launchable_desktop_entry(&entry).unwrap_err();
+
+        assert!(error.contains("hidden or non-display"));
     }
 
     #[test]
