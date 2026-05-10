@@ -32,6 +32,8 @@ Stop and rethink if the task starts to become:
 - Proactive or self-healing behavior that silently launches apps, restarts
   services, deletes files, or performs cleanup without confirmation and
   rollback design.
+- Plugin behavior that executes arbitrary native code, downloads packages, or
+  starts background services without sandboxing, signatures, and rollback.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

@@ -32,7 +32,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 8".to_string(),
+            phase: "Product Phase 9".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -360,6 +360,60 @@ struct DelegatedCapabilityCall {
     capability: String,
     params: Map<String, Value>,
     reason: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginManifest {
+    schema_version: String,
+    id: String,
+    name: String,
+    version: String,
+    description: String,
+    #[serde(default)]
+    permissions: Vec<String>,
+    #[serde(default)]
+    capabilities: Vec<PluginCapabilityManifest>,
+    #[serde(default)]
+    workflows: Vec<PluginWorkflowManifest>,
+    #[serde(default)]
+    agents: Vec<PluginAgentManifest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginCapabilityManifest {
+    name: String,
+    description: String,
+    #[serde(default = "default_plugin_capability_risk")]
+    risk: String,
+    #[serde(default)]
+    permissions: Vec<String>,
+    #[serde(default)]
+    response: Value,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginWorkflowManifest {
+    name: String,
+    description: String,
+    #[serde(default)]
+    steps: Vec<PluginWorkflowStepManifest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginWorkflowStepManifest {
+    capability: String,
+    #[serde(default)]
+    params: Map<String, Value>,
+    reason: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginAgentManifest {
+    id: String,
+    name: String,
+    description: String,
+    #[serde(default)]
+    allowed_capabilities: Vec<String>,
 }
 
 fn main() -> ExitCode {
@@ -967,6 +1021,26 @@ fn audit_log_path(config: &Config) -> PathBuf {
     absolute_path_lossy(state_dir(config).join(name))
 }
 
+fn plugins_dir(config: &Config) -> PathBuf {
+    absolute_path_lossy(state_dir(config).join("plugins"))
+}
+
+fn installed_plugins_dir(config: &Config) -> PathBuf {
+    absolute_path_lossy(plugins_dir(config).join("installed"))
+}
+
+fn plugin_install_dir(config: &Config, plugin_id: &str) -> PathBuf {
+    installed_plugins_dir(config).join(safe_plugin_id(plugin_id))
+}
+
+fn plugin_manifest_path(config: &Config, plugin_id: &str) -> PathBuf {
+    plugin_install_dir(config, plugin_id).join("plugin.json")
+}
+
+fn plugin_disabled_path(config: &Config, plugin_id: &str) -> PathBuf {
+    plugin_install_dir(config, plugin_id).join(".disabled")
+}
+
 fn default_app_id() -> String {
     "huggingos".to_string()
 }
@@ -1005,6 +1079,10 @@ fn default_anthropic_api_key_env() -> String {
 
 fn default_local_model_endpoint_env() -> String {
     "HUGGINGOS_LOCAL_MODEL_ENDPOINT".to_string()
+}
+
+fn default_plugin_capability_risk() -> String {
+    "read".to_string()
 }
 
 fn default_private_title_markers() -> Vec<String> {
@@ -1276,6 +1354,10 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps.push(step);
     } else if let Some(step) = plan_timeline_intent(registry, prompt, &lowered) {
         steps.push(step);
+    } else if let Some(step) = plan_plugin_catalog_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_plugin_workflow_intent(registry, prompt, &lowered) {
+        steps.push(step);
     } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
@@ -1302,6 +1384,45 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps,
         warnings,
     }
+}
+
+fn plan_plugin_catalog_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("plugin catalog")
+        || lowered.contains("list plugins")
+        || lowered.contains("installed plugins"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "plugins.catalog",
+        Map::new(),
+        format!("List installed plugins for prompt: {prompt}"),
+    ))
+}
+
+fn plan_plugin_workflow_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("plugin workflow") || lowered.contains("plan plugin")) {
+        return None;
+    }
+    let mut params = Map::new();
+    if let Some(plugin_id) = extract_path_after(prompt, &["plugin workflow ", "plan plugin "]) {
+        params.insert("plugin_id".to_string(), json!(safe_plugin_id(&plugin_id)));
+    }
+    Some(plan_step(
+        registry,
+        "plugins.workflow.plan",
+        params,
+        "Plan a plugin-provided workflow without executing it.".to_string(),
+    ))
 }
 
 fn plan_repeated_workflow_intent(
@@ -2928,6 +3049,352 @@ fn explain_timeline(config: &Config, request: &ActionRequest) -> Result<Value, S
     }))
 }
 
+fn validate_plugin_manifest_capability(
+    _config: &Config,
+    request: &ActionRequest,
+) -> Result<Value, String> {
+    let source = string_param(request, "source")?;
+    let manifest = read_plugin_manifest_from_source(&source)?;
+    validate_plugin_manifest(&manifest)?;
+    Ok(json!({
+        "valid": true,
+        "manifest": plugin_manifest_summary(&manifest, false),
+        "source": source,
+    }))
+}
+
+fn install_plugin(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let source = string_param(request, "source")?;
+    let force = request
+        .params
+        .get("force")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let manifest = read_plugin_manifest_from_source(&source)?;
+    validate_plugin_manifest(&manifest)?;
+    let plugin_id = safe_plugin_id(&manifest.id);
+    let destination = plugin_install_dir(config, &plugin_id);
+    ensure_plugin_dir_is_scoped(config, &destination)?;
+    if destination.exists() {
+        if !force {
+            return Err(format!(
+                "plugin already installed: {plugin_id}; pass force=true to replace"
+            ));
+        }
+        fs::remove_dir_all(&destination).map_err(|err| err.to_string())?;
+    }
+    fs::create_dir_all(&destination).map_err(|err| err.to_string())?;
+    write_json_file(&destination.join("plugin.json"), &json!(manifest))?;
+    remove_file_if_exists(&destination.join(".disabled"))?;
+    Ok(json!({
+        "installed": true,
+        "plugin": plugin_manifest_summary(&read_installed_plugin(config, &plugin_id)?, true),
+        "path": destination,
+        "plugin_identity": plugin_id,
+    }))
+}
+
+fn disable_plugin(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let plugin_id = safe_plugin_id(&string_param(request, "plugin_id")?);
+    validate_plugin_id(&plugin_id)?;
+    let manifest = read_installed_plugin(config, &plugin_id)?;
+    let disabled_path = plugin_disabled_path(config, &plugin_id);
+    ensure_plugin_dir_is_scoped(config, &plugin_install_dir(config, &plugin_id))?;
+    if let Some(parent) = disabled_path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    fs::write(&disabled_path, utc_now()).map_err(|err| err.to_string())?;
+    Ok(json!({
+        "disabled": true,
+        "plugin": plugin_manifest_summary(&manifest, false),
+        "path": disabled_path,
+        "plugin_identity": plugin_id,
+    }))
+}
+
+fn remove_plugin(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let plugin_id = safe_plugin_id(&string_param(request, "plugin_id")?);
+    validate_plugin_id(&plugin_id)?;
+    let destination = plugin_install_dir(config, &plugin_id);
+    ensure_plugin_dir_is_scoped(config, &destination)?;
+    if !destination.exists() {
+        return Err(format!("plugin is not installed: {plugin_id}"));
+    }
+    fs::remove_dir_all(&destination).map_err(|err| err.to_string())?;
+    Ok(json!({
+        "removed": true,
+        "plugin_id": plugin_id,
+        "path": destination,
+        "plugin_identity": plugin_id,
+    }))
+}
+
+fn catalog_plugins(config: &Config) -> Result<Value, String> {
+    let plugins = read_installed_plugins(config)?
+        .into_iter()
+        .map(|manifest| {
+            let enabled = !plugin_disabled_path(config, &manifest.id).exists();
+            plugin_manifest_summary(&manifest, enabled)
+        })
+        .collect::<Vec<_>>();
+    let plugin_count = plugins.len();
+    Ok(json!({
+        "plugins": plugins,
+        "plugin_count": plugin_count,
+        "path": installed_plugins_dir(config),
+        "permission_model": "plugins declare capabilities and workflows, but execution still uses huggingOS policy and audit",
+    }))
+}
+
+fn plan_plugin_workflow(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let plugin_id = request
+        .params
+        .get("plugin_id")
+        .and_then(Value::as_str)
+        .map(safe_plugin_id);
+    let workflow_name = request
+        .params
+        .get("workflow")
+        .and_then(Value::as_str)
+        .map(safe_plugin_id);
+    let plugins = read_installed_plugins(config)?;
+    let manifest = plugins
+        .iter()
+        .find(|manifest| {
+            plugin_id
+                .as_ref()
+                .map(|id| manifest.id == *id)
+                .unwrap_or(true)
+                && !plugin_disabled_path(config, &manifest.id).exists()
+        })
+        .ok_or_else(|| "no enabled plugin matched workflow request".to_string())?;
+    let workflow = manifest
+        .workflows
+        .iter()
+        .find(|workflow| {
+            workflow_name
+                .as_ref()
+                .map(|name| safe_plugin_id(&workflow.name) == *name)
+                .unwrap_or(true)
+        })
+        .ok_or_else(|| "no workflow matched plugin request".to_string())?;
+    Ok(json!({
+        "plugin_id": manifest.id,
+        "plugin_name": manifest.name,
+        "workflow": workflow.name,
+        "description": workflow.description,
+        "steps": workflow.steps,
+        "step_count": workflow.steps.len(),
+        "policy": "workflow plan only; steps must be executed through normal capability policy",
+    }))
+}
+
+fn run_plugin_capability(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let plugin_id = safe_plugin_id(&string_param(request, "plugin_id")?);
+    let capability_name = safe_plugin_id(&string_param(request, "capability")?);
+    validate_plugin_id(&plugin_id)?;
+    let manifest = read_installed_plugin(config, &plugin_id)?;
+    if plugin_disabled_path(config, &plugin_id).exists() {
+        return Err(format!("plugin is disabled: {plugin_id}"));
+    }
+    let capability = manifest
+        .capabilities
+        .iter()
+        .find(|capability| safe_plugin_id(&capability.name) == capability_name)
+        .ok_or_else(|| format!("plugin capability not found: {capability_name}"))?;
+    if !capability.risk.trim().eq_ignore_ascii_case("read") {
+        return Err(
+            "only read-only declarative plugin capabilities are executable in Phase 9".to_string(),
+        );
+    }
+    Ok(json!({
+        "plugin_identity": plugin_id,
+        "plugin_name": manifest.name,
+        "capability": capability.name,
+        "description": capability.description,
+        "permissions": capability.permissions,
+        "response": capability.response,
+        "policy": "declarative read-only plugin capability executed through huggingOS policy and audit",
+    }))
+}
+
+fn read_plugin_manifest_from_source(source: &str) -> Result<PluginManifest, String> {
+    if is_sensitive_path(&json!(source)) {
+        return Err("plugin source path is sensitive".to_string());
+    }
+    let source = resolve_existing_path(source)?;
+    let manifest_path = if source.is_dir() {
+        source.join("plugin.json")
+    } else {
+        source
+    };
+    let text = fs::read_to_string(&manifest_path).map_err(|err| err.to_string())?;
+    serde_json::from_str::<PluginManifest>(&text)
+        .map_err(|err| format!("invalid plugin manifest: {err}"))
+}
+
+fn read_installed_plugin(config: &Config, plugin_id: &str) -> Result<PluginManifest, String> {
+    validate_plugin_id(plugin_id)?;
+    let manifest_path = plugin_manifest_path(config, plugin_id);
+    let text = fs::read_to_string(&manifest_path)
+        .map_err(|err| format!("plugin is not installed: {plugin_id}: {err}"))?;
+    let manifest = serde_json::from_str::<PluginManifest>(&text)
+        .map_err(|err| format!("invalid installed plugin manifest: {err}"))?;
+    validate_plugin_manifest(&manifest)?;
+    Ok(manifest)
+}
+
+fn read_installed_plugins(config: &Config) -> Result<Vec<PluginManifest>, String> {
+    let root = installed_plugins_dir(config);
+    if !root.exists() {
+        return Ok(vec![]);
+    }
+    let mut plugins = vec![];
+    for entry in fs::read_dir(&root).map_err(|err| err.to_string())? {
+        let entry = entry.map_err(|err| err.to_string())?;
+        let path = entry.path().join("plugin.json");
+        if !path.is_file() {
+            continue;
+        }
+        let text = fs::read_to_string(&path).map_err(|err| err.to_string())?;
+        let manifest = serde_json::from_str::<PluginManifest>(&text).map_err(|err| {
+            format!(
+                "invalid installed plugin manifest {}: {err}",
+                path.display()
+            )
+        })?;
+        validate_plugin_manifest(&manifest)?;
+        plugins.push(manifest);
+    }
+    plugins.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(plugins)
+}
+
+fn validate_plugin_manifest(manifest: &PluginManifest) -> Result<(), String> {
+    if manifest.schema_version != "huggingos.plugin.v1" {
+        return Err("plugin schema_version must be huggingos.plugin.v1".to_string());
+    }
+    validate_plugin_id(&manifest.id)?;
+    if manifest.name.trim().is_empty() || manifest.version.trim().is_empty() {
+        return Err("plugin name and version are required".to_string());
+    }
+    if manifest.capabilities.is_empty() && manifest.workflows.is_empty() {
+        return Err("plugin must declare at least one capability or workflow".to_string());
+    }
+    for permission in &manifest.permissions {
+        validate_plugin_permission(permission)?;
+    }
+    for capability in &manifest.capabilities {
+        validate_plugin_id(&capability.name)?;
+        match capability.risk.trim().to_ascii_lowercase().as_str() {
+            "read" => {}
+            _ => {
+                return Err(
+                    "Phase 9 plugin capabilities must be declarative read-only capabilities"
+                        .to_string(),
+                )
+            }
+        }
+        for permission in &capability.permissions {
+            validate_plugin_permission(permission)?;
+        }
+    }
+    for workflow in &manifest.workflows {
+        validate_plugin_id(&workflow.name)?;
+        if workflow.steps.is_empty() {
+            return Err("plugin workflows must contain at least one step".to_string());
+        }
+        for step in &workflow.steps {
+            if step.capability.trim().is_empty() || step.reason.trim().is_empty() {
+                return Err("plugin workflow steps require capability and reason".to_string());
+            }
+        }
+    }
+    for agent in &manifest.agents {
+        validate_plugin_id(&agent.id)?;
+        if agent.allowed_capabilities.is_empty() {
+            return Err("plugin agents must declare allowed capabilities".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn plugin_manifest_summary(manifest: &PluginManifest, enabled: bool) -> Value {
+    json!({
+        "id": manifest.id,
+        "name": manifest.name,
+        "version": manifest.version,
+        "description": manifest.description,
+        "enabled": enabled,
+        "permissions": manifest.permissions,
+        "capabilities": manifest.capabilities.iter().map(|capability| json!({
+            "name": capability.name,
+            "description": capability.description,
+            "risk": capability.risk,
+            "permissions": capability.permissions,
+        })).collect::<Vec<_>>(),
+        "workflows": manifest.workflows.iter().map(|workflow| json!({
+            "name": workflow.name,
+            "description": workflow.description,
+            "step_count": workflow.steps.len(),
+        })).collect::<Vec<_>>(),
+        "agents": manifest.agents,
+    })
+}
+
+fn validate_plugin_id(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.len() > 80 {
+        return Err("plugin ids must be 1 to 80 characters".to_string());
+    }
+    if trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '.' | '_' | '-'))
+    {
+        Ok(())
+    } else {
+        Err(
+            "plugin ids may contain lowercase letters, numbers, dots, dashes, and underscores"
+                .to_string(),
+        )
+    }
+}
+
+fn validate_plugin_permission(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.len() > 80 {
+        return Err("plugin permissions must be 1 to 80 characters".to_string());
+    }
+    if trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, ':' | '_' | '-'))
+    {
+        Ok(())
+    } else {
+        Err("plugin permissions may contain lowercase letters, numbers, colons, dashes, and underscores".to_string())
+    }
+}
+
+fn safe_plugin_id(value: &str) -> String {
+    let re = SAFE_FILENAME_RE.get_or_init(|| Regex::new(r"[^a-z0-9._-]+").unwrap());
+    let lowered = value.trim().to_ascii_lowercase();
+    let id = re
+        .replace_all(&lowered, "-")
+        .trim_matches(&['.', '-', '_'][..])
+        .to_string();
+    truncate_text(if id.is_empty() { "plugin" } else { &id }, 80)
+}
+
+fn ensure_plugin_dir_is_scoped(config: &Config, path: &Path) -> Result<(), String> {
+    let root = absolute_path_lossy(installed_plugins_dir(config));
+    let candidate = absolute_path_lossy(path);
+    if candidate.starts_with(&root) {
+        Ok(())
+    } else {
+        Err("plugin path escaped installed plugin directory".to_string())
+    }
+}
+
 fn index_semantic_files(config: &Config, request: &ActionRequest) -> Result<Value, String> {
     let root_raw = string_param(request, "root")?;
     if is_sensitive_path(&json!(root_raw)) {
@@ -3172,6 +3639,17 @@ fn agent_catalog() -> Vec<AgentDefinition> {
                 "memory.event.list".to_string(),
             ],
         },
+        AgentDefinition {
+            id: "plugin.agent".to_string(),
+            name: "Plugin Agent".to_string(),
+            description: "Inspects installed plugins and plans plugin-provided workflows."
+                .to_string(),
+            allowed_capabilities: vec![
+                "plugins.catalog".to_string(),
+                "plugins.workflow.plan".to_string(),
+                "plugins.capability.run".to_string(),
+            ],
+        },
     ]
 }
 
@@ -3368,6 +3846,19 @@ fn build_agent_delegation_plan(
             "timeline.explain",
             map_from_pairs([("limit", json!(25))]),
             "Explain recent local activity.",
+        ));
+    } else if lowered.contains("plugin") {
+        steps.push(delegated_step(
+            "plugin.agent",
+            "plugins.catalog",
+            Map::new(),
+            "Inspect installed plugins.",
+        ));
+        steps.push(delegated_step(
+            "plugin.agent",
+            "plugins.workflow.plan",
+            Map::new(),
+            "Plan the first enabled plugin workflow.",
         ));
     } else {
         steps.push(delegated_step(
@@ -4116,6 +4607,13 @@ fn build_registry() -> BTreeMap<String, Capability> {
         proactive_suggest_capability(),
         selfheal_diagnose_capability(),
         timeline_explain_capability(),
+        plugins_validate_capability(),
+        plugins_install_capability(),
+        plugins_disable_capability(),
+        plugins_remove_capability(),
+        plugins_catalog_capability(),
+        plugins_workflow_plan_capability(),
+        plugins_capability_run_capability(),
     ];
     capabilities
         .into_iter()
@@ -5142,6 +5640,189 @@ fn timeline_explain_capability() -> Capability {
     }
 }
 
+fn plugins_validate_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.validate".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Validate a local plugin manifest without installing it.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("source".to_string(), "string".to_string())]),
+                vec!["source"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| validate_plugin_manifest_capability(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("valid") == Some(&json!(true)),
+            message: "Plugin manifest validated.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_install_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.install".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Install a validated local plugin manifest.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["plugins:install".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("source".to_string(), "string".to_string()),
+                    ("force".to_string(), "boolean".to_string()),
+                ]),
+                vec!["source"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| install_plugin(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("installed") == Some(&json!(true))
+                && data.get("plugin_identity").is_some(),
+            message: "Plugin installed with identity.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_disable_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.disable".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Disable an installed plugin without deleting its manifest.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["plugins:disable".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("plugin_id".to_string(), "string".to_string())]),
+                vec!["plugin_id"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| disable_plugin(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("disabled") == Some(&json!(true)) && data.get("plugin_identity").is_some(),
+            message: "Plugin disabled with identity.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_remove_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.remove".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Remove an installed plugin manifest from local state.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["plugins:remove".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("plugin_id".to_string(), "string".to_string())]),
+                vec!["plugin_id"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| remove_plugin(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("removed") == Some(&json!(true)) && data.get("plugin_identity").is_some(),
+            message: "Plugin removed with identity.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_catalog_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.catalog".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List installed plugins, capabilities, workflows, and enabled state."
+                .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| catalog_plugins(config),
+        verify: |_, _, data| Verification {
+            ok: data.get("plugins").is_some(),
+            message: "Plugin catalog returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_workflow_plan_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.workflow.plan".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Plan a plugin-provided workflow without executing it.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string(), "workflows:plan".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("plugin_id".to_string(), "string".to_string()),
+                    ("workflow".to_string(), "string".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| plan_plugin_workflow(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("steps").is_some() && data.get("plugin_id").is_some(),
+            message: "Plugin workflow plan returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_capability_run_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.capability.run".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Run a declarative read-only plugin capability.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:run".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("plugin_id".to_string(), "string".to_string()),
+                    ("capability".to_string(), "string".to_string()),
+                ]),
+                vec!["plugin_id", "capability"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| run_plugin_capability(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("plugin_identity").is_some() && data.get("response").is_some(),
+            message: "Plugin capability returned with identity.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn object_schema(properties: BTreeMap<String, String>, required: Vec<&str>) -> Value {
     let properties = properties
         .into_iter()
@@ -5476,6 +6157,44 @@ fn validate_capability_request(
             }
             Ok(())
         }
+        "plugins.validate" | "plugins.install" => {
+            let source = params
+                .get("source")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter source must be a string.".to_string())?;
+            if is_sensitive_path(&json!(source)) {
+                return Err("plugin source path is sensitive".to_string());
+            }
+            Ok(())
+        }
+        "plugins.disable" | "plugins.remove" => {
+            let plugin_id = params
+                .get("plugin_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter plugin_id must be a string.".to_string())?;
+            validate_plugin_id(&safe_plugin_id(plugin_id))
+        }
+        "plugins.workflow.plan" => {
+            if let Some(plugin_id) = params.get("plugin_id").and_then(Value::as_str) {
+                validate_plugin_id(&safe_plugin_id(plugin_id))?;
+            }
+            if let Some(workflow) = params.get("workflow").and_then(Value::as_str) {
+                validate_plugin_id(&safe_plugin_id(workflow))?;
+            }
+            Ok(())
+        }
+        "plugins.capability.run" => {
+            let plugin_id = params
+                .get("plugin_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter plugin_id must be a string.".to_string())?;
+            let capability = params
+                .get("capability")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter capability must be a string.".to_string())?;
+            validate_plugin_id(&safe_plugin_id(plugin_id))?;
+            validate_plugin_id(&safe_plugin_id(capability))
+        }
         _ => Ok(()),
     }
 }
@@ -5574,6 +6293,7 @@ fn append_audit(
         "action_id": request.action_id,
         "actor": request.actor,
         "capability": request.capability,
+        "plugin_identity": request.params.get("plugin_id"),
         "input_summary": summarize_params(&request.params),
         "policy": outcome,
         "status": result.status,
@@ -5851,6 +6571,52 @@ mod tests {
             confirmed: false,
             requested_at: utc_now(),
         }
+    }
+
+    fn write_sample_plugin(tmp: &TempDir) -> PathBuf {
+        let plugin_dir = tmp.path().join("sample-plugin");
+        fs::create_dir_all(&plugin_dir).unwrap();
+        fs::write(
+            plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "huggingos.plugin.v1",
+                "id": "sample.hello",
+                "name": "Sample Hello Plugin",
+                "version": "1.0.0",
+                "description": "Sample third-party plugin for tests.",
+                "permissions": ["plugins:read"],
+                "capabilities": [
+                    {
+                        "name": "hello",
+                        "description": "Return a sample greeting.",
+                        "risk": "read",
+                        "permissions": ["plugins:read"],
+                        "response": {
+                            "message": "hello from plugin"
+                        }
+                    }
+                ],
+                "workflows": [
+                    {
+                        "name": "hello-workflow",
+                        "description": "Run the sample greeting capability.",
+                        "steps": [
+                            {
+                                "capability": "plugins.capability.run",
+                                "params": {
+                                    "plugin_id": "sample.hello",
+                                    "capability": "hello"
+                                },
+                                "reason": "Run the sample plugin greeting."
+                            }
+                        ]
+                    }
+                ]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        plugin_dir
     }
 
     #[test]
@@ -6611,6 +7377,131 @@ Categories=Utility;Development;
         );
         assert_eq!(healing_plan.steps[0].capability, "selfheal.diagnose");
         assert_eq!(timeline_plan.steps[0].capability, "timeline.explain");
+    }
+
+    #[test]
+    fn plugin_manifest_install_run_disable_and_remove_round_trips() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let source = write_sample_plugin(&tmp);
+        let registry = build_registry();
+
+        let mut validate_params = Map::new();
+        validate_params.insert("source".to_string(), json!(source));
+        let validate = execute_capability(
+            &config,
+            &registry,
+            request("plugins.validate", validate_params),
+        );
+        assert_eq!(validate.status, ActionStatus::Succeeded);
+        assert_eq!(validate.data["manifest"]["id"], json!("sample.hello"));
+
+        let mut install_params = Map::new();
+        install_params.insert("source".to_string(), json!(source));
+        let mut install_request = request("plugins.install", install_params);
+        install_request.confirmed = true;
+        let install = execute_capability(&config, &registry, install_request);
+        assert_eq!(install.status, ActionStatus::Succeeded);
+        assert_eq!(install.data["plugin_identity"], json!("sample.hello"));
+
+        let catalog =
+            execute_capability(&config, &registry, request("plugins.catalog", Map::new()));
+        assert_eq!(catalog.status, ActionStatus::Succeeded);
+        assert_eq!(catalog.data["plugin_count"], json!(1));
+        assert_eq!(catalog.data["plugins"][0]["enabled"], json!(true));
+
+        let mut workflow_params = Map::new();
+        workflow_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        let workflow = execute_capability(
+            &config,
+            &registry,
+            request("plugins.workflow.plan", workflow_params),
+        );
+        assert_eq!(workflow.status, ActionStatus::Succeeded);
+        assert_eq!(workflow.data["step_count"], json!(1));
+
+        let mut run_params = Map::new();
+        run_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        run_params.insert("capability".to_string(), json!("hello"));
+        let run = execute_capability(
+            &config,
+            &registry,
+            request("plugins.capability.run", run_params),
+        );
+        assert_eq!(run.status, ActionStatus::Succeeded);
+        assert_eq!(run.data["response"]["message"], json!("hello from plugin"));
+
+        let audit = list_audit_entries(&audit_log_path(&config), 20).unwrap();
+        assert!(audit.iter().any(|entry| {
+            entry["capability"] == json!("plugins.capability.run")
+                && entry["plugin_identity"] == json!("sample.hello")
+        }));
+
+        let mut disable_params = Map::new();
+        disable_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        let mut disable_request = request("plugins.disable", disable_params);
+        disable_request.confirmed = true;
+        let disable = execute_capability(&config, &registry, disable_request);
+        assert_eq!(disable.status, ActionStatus::Succeeded);
+
+        let mut disabled_run_params = Map::new();
+        disabled_run_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        disabled_run_params.insert("capability".to_string(), json!("hello"));
+        let disabled_run = execute_capability(
+            &config,
+            &registry,
+            request("plugins.capability.run", disabled_run_params),
+        );
+        assert_eq!(disabled_run.status, ActionStatus::Failed);
+
+        let mut remove_params = Map::new();
+        remove_params.insert("plugin_id".to_string(), json!("sample.hello"));
+        let mut remove_request = request("plugins.remove", remove_params);
+        remove_request.confirmed = true;
+        let remove = execute_capability(&config, &registry, remove_request);
+        assert_eq!(remove.status, ActionStatus::Succeeded);
+        assert!(!plugin_install_dir(&config, "sample.hello").exists());
+    }
+
+    #[test]
+    fn plugin_install_requires_confirmation() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let source = write_sample_plugin(&tmp);
+        let mut params = Map::new();
+        params.insert("source".to_string(), json!(source));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("plugins.install", params),
+        );
+
+        assert_eq!(result.status, ActionStatus::ConfirmationRequired);
+    }
+
+    #[test]
+    fn local_planner_maps_phase9_plugin_prompts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+
+        let catalog_plan =
+            build_ai_plan(&config, &registry, "list plugins", Some("local.rules")).unwrap();
+        let workflow_plan = build_ai_plan(
+            &config,
+            &registry,
+            "plugin workflow sample.hello",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert_eq!(catalog_plan.steps[0].capability, "plugins.catalog");
+        assert_eq!(workflow_plan.steps[0].capability, "plugins.workflow.plan");
+        assert_eq!(
+            workflow_plan.steps[0].params["plugin_id"],
+            json!("sample.hello")
+        );
     }
 
     #[test]

@@ -37,6 +37,13 @@ cargo run -- run proactive.workflow.detect --json
 cargo run -- run proactive.suggest --json
 cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
 cargo run -- run timeline.explain --json
+cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
+cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
+cargo run -- run plugins.catalog --json
+cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
+cargo run -- run plugins.capability.run --param plugin_id=sample.hello --param capability=hello --json
+cargo run -- run plugins.disable --param plugin_id=sample.hello --confirm --json
+cargo run -- run plugins.remove --param plugin_id=sample.hello --confirm --json
 cargo test
 ```
 
@@ -116,6 +123,21 @@ These capabilities do not launch apps, restart services, delete files, or run
 cleanup. They return recommended next capability steps, which must still pass
 policy and confirmation.
 
+## Phase 9 Plugin SDK
+
+Plugins are declarative manifests in this slice:
+
+- `plugins.validate` validates a local manifest.
+- `plugins.install` installs a manifest after confirmation.
+- `plugins.catalog` lists installed plugin capabilities and workflows.
+- `plugins.workflow.plan` previews plugin workflows.
+- `plugins.capability.run` runs read-only declarative plugin capabilities.
+- `plugins.disable` and `plugins.remove` manage installed plugins after
+  confirmation.
+
+The sample plugin lives at `product/plugins/hello-assistant/plugin.json`.
+Arbitrary plugin code execution is not enabled yet.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -128,4 +150,5 @@ policy and confirmation.
 - Memory collection is opt-in and deletable.
 - Agents delegate only through capability permissions, policy, audit, and traces.
 - Predictive and self-healing features are suggestion-first and read-only.
+- Plugins are manifest-only and read-only until sandboxing and signing exist.
 - Capabilities fail closed when audit logging is unavailable.
