@@ -18,10 +18,13 @@ Current rules:
 - Audit input summaries must recursively redact secret-like keys.
 - If the audit path cannot be written, capabilities fail closed.
 - AI provider calls must wait for config, secret loading, audit, and policy.
-- Browser, shell, network, and system actions must go through capability APIs in
-  later phases.
+- Browser, screen, shell, network, and system actions must go through capability
+  APIs.
+- Screen/context observation must redact private active-window data and block
+  confirmed capture when the active context is private or unknown.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe
-workspace, and list audit records. It does not automate apps or call AI
-providers yet.
+workspace, and list audit records. The Rust agent adds AI planning,
+desktop/app/browser capabilities, and the first screen/context observation
+capabilities. It does not call cloud AI providers yet.

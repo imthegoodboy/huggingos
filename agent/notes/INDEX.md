@@ -27,6 +27,7 @@ in PR descriptions.
 - [Product Phase 2 capability layer](product-phase2-capability-layer.md)
 - [Product Phase 3 AI runtime](product-phase3-ai-runtime.md)
 - [Product Phase 4 desktop control](product-phase4-desktop-control.md)
+- [Product Phase 5 screen context](product-phase5-screen-context.md)
 
 ## Knowledge Capture Rule
 

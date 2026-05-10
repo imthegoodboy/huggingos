@@ -84,3 +84,31 @@ jobs:
       - name: Run workspace intent through AI runtime
         run: cargo run -- ai run "switch to coding mode" --json
         working-directory: product/agent
+
+      - name: Show screen and context readiness
+        run: cargo run -- run screen.status --json
+        working-directory: product/agent
+
+      - name: Dry-run screenshot capture
+        run: cargo run -- run screen.capture --dry-run --json
+        working-directory: product/agent
+
+      - name: Snapshot active context metadata
+        run: cargo run -- run context.snapshot --confirm --json
+        working-directory: product/agent
+
+      - name: Dry-run OCR image request
+        run: cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
+        working-directory: product/agent
+
+      - name: Plan screen context intent through AI runtime
+        run: cargo run -- ai plan "what is open" --json
+        working-directory: product/agent
+
+      - name: Run screen context intent through AI runtime
+        run: cargo run -- ai run "what is open" --confirm --json
+        working-directory: product/agent
+
+      - name: Plan screenshot intent through AI runtime
+        run: cargo run -- ai plan "take a screenshot" --json
+        working-directory: product/agent

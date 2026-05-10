@@ -21,6 +21,13 @@ cargo run -- run desktop.status --json
 cargo run -- run apps.list --json
 cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
 cargo run -- run workspace.mode.plan --param mode=coding --json
+cargo run -- run screen.status --json
+cargo run -- run screen.capture --dry-run --json
+cargo run -- run context.snapshot --confirm --json
+cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
+cargo run -- ai plan "what is open" --json
+cargo run -- ai run "what is open" --confirm --json
+cargo run -- ai plan "take a screenshot" --json
 cargo test
 ```
 
@@ -47,6 +54,22 @@ Desktop and browser actions are also capabilities:
 
 Headless CI and WSL should use `--dry-run` for mutating desktop actions.
 
+## Phase 5 Screen And Context Engine
+
+Screen and active-context observation are also capabilities:
+
+- `screen.status` reports desktop, capture, OCR, context, clipboard, and privacy
+  readiness.
+- `screen.capture` captures a screenshot to the safe workspace after
+  confirmation and privacy checks.
+- `context.snapshot` reports active-window metadata and system context after
+  confirmation.
+- `screen.ocr_image` runs OCR through `tesseract` after confirmation.
+
+Headless CI and WSL should use `screen.status` plus dry runs. Confirmed capture
+requires a supported capture backend and active-context backend so private
+windows can be blocked before capture.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -54,4 +77,6 @@ Headless CI and WSL should use `--dry-run` for mutating desktop actions.
 - JSON Lines audit for every action.
 - Obvious secret paths are denied by read-only file capabilities.
 - Low-risk note creation is workspace-scoped and uses exclusive file creation.
+- Screen/context capabilities redact private active-window data and deny capture
+  for private contexts.
 - Capabilities fail closed when audit logging is unavailable.

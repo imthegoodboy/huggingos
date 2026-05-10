@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 use uuid::Uuid;
 
 const MAX_TEXT_BYTES: u64 = 64 * 1024;
+const MAX_OCR_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ProductConfig {
@@ -29,7 +30,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 4".to_string(),
+            phase: "Product Phase 5".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -84,6 +85,26 @@ impl Default for AiConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+struct PrivacyConfig {
+    #[serde(default = "default_private_title_markers")]
+    private_title_markers: Vec<String>,
+    #[serde(default = "default_private_app_markers")]
+    private_app_markers: Vec<String>,
+    #[serde(default = "default_max_context_text_chars")]
+    max_context_text_chars: usize,
+}
+
+impl Default for PrivacyConfig {
+    fn default() -> Self {
+        Self {
+            private_title_markers: default_private_title_markers(),
+            private_app_markers: default_private_app_markers(),
+            max_context_text_chars: default_max_context_text_chars(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct PolicyConfig {
     audit_log_name: String,
 }
@@ -101,6 +122,7 @@ struct Config {
     product: ProductConfig,
     runtime: RuntimeConfig,
     ai: AiConfig,
+    privacy: PrivacyConfig,
     features: BTreeMap<String, bool>,
     policy: PolicyConfig,
     config_path: PathBuf,
@@ -115,6 +137,8 @@ struct FileConfig {
     runtime: RuntimeConfig,
     #[serde(default)]
     ai: AiConfig,
+    #[serde(default)]
+    privacy: PrivacyConfig,
     #[serde(default)]
     features: BTreeMap<String, bool>,
     #[serde(default)]
@@ -307,6 +331,16 @@ struct DesktopEntry {
     categories: Vec<String>,
     no_display: bool,
     hidden: bool,
+}
+
+#[derive(Clone, Debug)]
+struct ActiveContext {
+    backend: Option<String>,
+    title: Option<String>,
+    pid: Option<u32>,
+    app: Option<String>,
+    is_private: bool,
+    privacy_reason: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -815,6 +849,7 @@ fn load_config() -> Result<Config, String> {
         product: file_config.product,
         runtime: file_config.runtime,
         ai: file_config.ai,
+        privacy: file_config.privacy,
         features: file_config.features,
         policy: file_config.policy,
         config_path,
@@ -951,6 +986,35 @@ fn default_anthropic_api_key_env() -> String {
 
 fn default_local_model_endpoint_env() -> String {
     "HUGGINGOS_LOCAL_MODEL_ENDPOINT".to_string()
+}
+
+fn default_private_title_markers() -> Vec<String> {
+    vec![
+        "password".to_string(),
+        "secret".to_string(),
+        "token".to_string(),
+        "credential".to_string(),
+        "private".to_string(),
+        "incognito".to_string(),
+        "bank".to_string(),
+        "vault".to_string(),
+        "2fa".to_string(),
+        "otp".to_string(),
+    ]
+}
+
+fn default_private_app_markers() -> Vec<String> {
+    vec![
+        "password".to_string(),
+        "secret".to_string(),
+        "credential".to_string(),
+        "vault".to_string(),
+        "bank".to_string(),
+    ]
+}
+
+fn default_max_context_text_chars() -> usize {
+    240
 }
 
 fn feature_enabled(config: &Config, name: &str) -> bool {
@@ -1165,6 +1229,14 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps.push(step);
     } else if let Some(step) = plan_desktop_status_intent(registry, prompt, &lowered) {
         steps.push(step);
+    } else if let Some(step) = plan_context_snapshot_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_screen_capture_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_screen_ocr_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_screen_status_intent(registry, prompt, &lowered) {
+        steps.push(step);
     } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
@@ -1191,6 +1263,97 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps,
         warnings,
     }
+}
+
+fn plan_context_snapshot_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("what is open")
+        || lowered.contains("active window")
+        || lowered.contains("current window")
+        || lowered.contains("context snapshot")
+        || lowered.contains("current context"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "context.snapshot",
+        Map::new(),
+        format!("Inspect active context for prompt: {prompt}"),
+    ))
+}
+
+fn plan_screen_capture_intent(
+    registry: &BTreeMap<String, Capability>,
+    _prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("screenshot")
+        || lowered.contains("screen shot")
+        || lowered.contains("capture screen")
+        || lowered.contains("capture screenshot"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "screen.capture",
+        Map::new(),
+        "Capture the screen through a permissioned desktop backend.".to_string(),
+    ))
+}
+
+fn plan_screen_ocr_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("ocr ")
+        || lowered.contains("read text from image")
+        || lowered.contains("extract text from image"))
+    {
+        return None;
+    }
+    let path = extract_path_after(
+        prompt,
+        &[
+            "read text from image ",
+            "extract text from image ",
+            "ocr image ",
+            "ocr ",
+        ],
+    )?;
+    let mut params = Map::new();
+    params.insert("path".to_string(), json!(path));
+    Some(plan_step(
+        registry,
+        "screen.ocr_image",
+        params,
+        "Extract text from a user-approved image with an OCR backend.".to_string(),
+    ))
+}
+
+fn plan_screen_status_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("screen status")
+        || lowered.contains("screen readiness")
+        || lowered.contains("capture readiness")
+        || lowered.contains("ocr status"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "screen.status",
+        Map::new(),
+        format!("Report screen/context readiness for prompt: {prompt}"),
+    ))
 }
 
 fn plan_workspace_mode_intent(
@@ -1671,6 +1834,31 @@ fn desktop_status() -> Value {
     })
 }
 
+fn screen_status(config: &Config) -> Value {
+    json!({
+        "desktop": desktop_status(),
+        "capture": {
+            "backends": screen_capture_backends(),
+            "output_dir": screen_capture_dir(config),
+            "requires_confirmation": true,
+        },
+        "active_context": {
+            "backends": active_context_backends(),
+            "requires_confirmation": true,
+        },
+        "ocr": {
+            "backends": ocr_backends(),
+            "requires_confirmation": true,
+            "max_image_bytes": MAX_OCR_IMAGE_BYTES,
+        },
+        "clipboard": {
+            "backends": clipboard_backends(),
+            "content_collection": "not_enabled_in_phase5",
+        },
+        "privacy": privacy_status(config),
+    })
+}
+
 fn ensure_desktop_session_ready() -> Result<(), String> {
     let has_display = env::var("WAYLAND_DISPLAY")
         .ok()
@@ -1686,6 +1874,337 @@ fn ensure_desktop_session_ready() -> Result<(), String> {
                 .to_string(),
         )
     }
+}
+
+fn screen_capture_backends() -> Vec<Value> {
+    [
+        ("grim", "wayland_screenshot"),
+        ("gnome-screenshot", "gnome_screenshot"),
+        ("spectacle", "kde_screenshot"),
+        ("scrot", "x11_screenshot"),
+        ("import", "imagemagick_x11_screenshot"),
+    ]
+    .into_iter()
+    .map(|(command, kind)| {
+        json!({
+            "command": command,
+            "kind": kind,
+            "path": find_command(command),
+            "available": find_command(command).is_some(),
+        })
+    })
+    .collect()
+}
+
+fn active_context_backends() -> Vec<Value> {
+    [("xdotool", "x11_active_window")]
+        .into_iter()
+        .map(|(command, kind)| {
+            json!({
+                "command": command,
+                "kind": kind,
+                "path": find_command(command),
+                "available": find_command(command).is_some(),
+            })
+        })
+        .collect()
+}
+
+fn ocr_backends() -> Vec<Value> {
+    [("tesseract", "ocr_engine")]
+        .into_iter()
+        .map(|(command, kind)| {
+            json!({
+                "command": command,
+                "kind": kind,
+                "path": find_command(command),
+                "available": find_command(command).is_some(),
+            })
+        })
+        .collect()
+}
+
+fn clipboard_backends() -> Vec<Value> {
+    [
+        ("wl-paste", "wayland_clipboard"),
+        ("xclip", "x11_clipboard"),
+        ("xsel", "x11_clipboard"),
+    ]
+    .into_iter()
+    .map(|(command, kind)| {
+        json!({
+            "command": command,
+            "kind": kind,
+            "path": find_command(command),
+            "available": find_command(command).is_some(),
+        })
+    })
+    .collect()
+}
+
+fn privacy_status(config: &Config) -> Value {
+    json!({
+        "private_title_markers": config.privacy.private_title_markers,
+        "private_app_markers": config.privacy.private_app_markers,
+        "max_context_text_chars": config.privacy.max_context_text_chars,
+        "clipboard_content_collection": "disabled",
+    })
+}
+
+fn screen_capture_dir(config: &Config) -> PathBuf {
+    absolute_path_lossy(workspace_dir(config).join("screenshots"))
+}
+
+fn capture_screenshot(config: &Config, filename: Option<&str>) -> Result<Value, String> {
+    ensure_desktop_session_ready()?;
+    let active = active_context_snapshot(config);
+    ensure_context_observable(&active)?;
+
+    let output_dir = screen_capture_dir(config);
+    fs::create_dir_all(&output_dir).map_err(|err| err.to_string())?;
+    let filename = filename
+        .map(safe_capture_filename)
+        .unwrap_or_else(|| format!("screenshot-{}.png", Uuid::new_v4()));
+    let path = absolute_path(output_dir.join(filename))?;
+    if !path.starts_with(&output_dir) {
+        return Err("refusing to write screenshot outside the capture workspace".to_string());
+    }
+
+    let backend = capture_screenshot_to(&path)?;
+    let metadata = fs::metadata(&path).map_err(|err| err.to_string())?;
+    if metadata.len() == 0 {
+        return Err("screenshot backend wrote an empty file".to_string());
+    }
+    Ok(json!({
+        "captured": true,
+        "path": path,
+        "bytes": metadata.len(),
+        "backend": backend,
+        "active_context": active_context_json(&active),
+    }))
+}
+
+fn capture_screenshot_to(path: &Path) -> Result<String, String> {
+    let output = path.to_string_lossy().to_string();
+    if find_command("grim").is_some() {
+        run_command_owned("grim", std::slice::from_ref(&output))?;
+        return Ok("grim".to_string());
+    }
+    if find_command("gnome-screenshot").is_some() {
+        run_command_owned("gnome-screenshot", &["-f".to_string(), output.clone()])?;
+        return Ok("gnome-screenshot".to_string());
+    }
+    if find_command("spectacle").is_some() {
+        run_command_owned(
+            "spectacle",
+            &[
+                "-b".to_string(),
+                "-n".to_string(),
+                "-o".to_string(),
+                output.clone(),
+            ],
+        )?;
+        return Ok("spectacle".to_string());
+    }
+    if find_command("scrot").is_some() {
+        run_command_owned("scrot", std::slice::from_ref(&output))?;
+        return Ok("scrot".to_string());
+    }
+    if find_command("import").is_some() {
+        run_command_owned(
+            "import",
+            &["-window".to_string(), "root".to_string(), output],
+        )?;
+        return Ok("import".to_string());
+    }
+    Err("No screenshot backend found; install grim, gnome-screenshot, spectacle, scrot, or ImageMagick import.".to_string())
+}
+
+fn active_context_snapshot(config: &Config) -> ActiveContext {
+    let mut context = if find_command("xdotool").is_some() {
+        active_context_from_xdotool()
+    } else {
+        ActiveContext {
+            backend: None,
+            title: None,
+            pid: None,
+            app: None,
+            is_private: false,
+            privacy_reason: None,
+        }
+    };
+    apply_privacy_policy(config, &mut context);
+    context
+}
+
+fn active_context_from_xdotool() -> ActiveContext {
+    let window_id = command_output("xdotool", &["getactivewindow"]).ok();
+    let title = window_id
+        .as_deref()
+        .and_then(|id| command_output("xdotool", &["getwindowname", id]).ok())
+        .map(|title| title.trim().to_string())
+        .filter(|title| !title.is_empty());
+    let pid = window_id
+        .as_deref()
+        .and_then(|id| command_output("xdotool", &["getwindowpid", id]).ok())
+        .and_then(|pid| pid.trim().parse::<u32>().ok());
+    let app = pid.and_then(process_name);
+    ActiveContext {
+        backend: Some("xdotool".to_string()),
+        title,
+        pid,
+        app,
+        is_private: false,
+        privacy_reason: None,
+    }
+}
+
+fn apply_privacy_policy(config: &Config, context: &mut ActiveContext) {
+    if let Some(title) = &context.title {
+        if let Some(marker) = matches_marker(title, &config.privacy.private_title_markers) {
+            context.is_private = true;
+            context.privacy_reason = Some(format!("active title matched private marker: {marker}"));
+            context.title = Some("<redacted>".to_string());
+            return;
+        }
+        context.title = Some(truncate_text(title, config.privacy.max_context_text_chars));
+    }
+    if let Some(app) = &context.app {
+        if let Some(marker) = matches_marker(app, &config.privacy.private_app_markers) {
+            context.is_private = true;
+            context.privacy_reason = Some(format!("active app matched private marker: {marker}"));
+            context.app = Some("<redacted>".to_string());
+        }
+    }
+}
+
+fn ensure_context_observable(context: &ActiveContext) -> Result<(), String> {
+    if context.is_private {
+        return Err(context
+            .privacy_reason
+            .clone()
+            .unwrap_or_else(|| "active context is excluded by privacy policy".to_string()));
+    }
+    if context.backend.is_none() {
+        return Err(
+            "Active context backend unavailable; refusing confirmed screen capture without privacy context."
+                .to_string(),
+        );
+    }
+    if context.title.is_none() && context.app.is_none() {
+        return Err(
+            "Active context metadata unavailable; refusing confirmed screen capture without privacy context."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+fn active_context_json(context: &ActiveContext) -> Value {
+    json!({
+        "backend": context.backend.clone(),
+        "title": context.title.clone(),
+        "pid": context.pid,
+        "app": context.app.clone(),
+        "is_private": context.is_private,
+        "privacy_reason": context.privacy_reason.clone(),
+    })
+}
+
+fn context_snapshot(config: &Config) -> Value {
+    let active = active_context_snapshot(config);
+    json!({
+        "desktop": desktop_status(),
+        "screen": {
+            "status": screen_status(config),
+        },
+        "active_window": active_context_json(&active),
+        "clipboard": {
+            "available": clipboard_backends()
+                .iter()
+                .any(|backend| backend["available"].as_bool().unwrap_or(false)),
+            "collected": false,
+            "reason": "Clipboard content collection is disabled in Phase 5.",
+        },
+        "privacy": privacy_status(config),
+    })
+}
+
+fn ocr_image(config: &Config, path: &str) -> Result<Value, String> {
+    let value = json!(path);
+    if is_sensitive_path(&value) {
+        return Err("Sensitive paths require a higher-risk capability.".to_string());
+    }
+    let path = resolve_existing_path(path)?;
+    let metadata = fs::metadata(&path).map_err(|err| err.to_string())?;
+    if !metadata.is_file() {
+        return Err(format!(
+            "OCR input is not a regular file: {}",
+            path.display()
+        ));
+    }
+    if metadata.len() > MAX_OCR_IMAGE_BYTES {
+        return Err(format!(
+            "OCR input is too large for Phase 5: {} bytes",
+            metadata.len()
+        ));
+    }
+    if find_command("tesseract").is_none() {
+        return Err("No OCR backend found; install tesseract to use screen.ocr_image.".to_string());
+    }
+    let text = command_output("tesseract", &[path.to_string_lossy().as_ref(), "stdout"])?;
+    Ok(json!({
+        "path": path,
+        "backend": "tesseract",
+        "text": truncate_text(&text, config.privacy.max_context_text_chars),
+        "text_length": text.chars().count(),
+        "truncated": text.chars().count() > config.privacy.max_context_text_chars,
+    }))
+}
+
+fn process_name(pid: u32) -> Option<String> {
+    let path = PathBuf::from("/proc").join(pid.to_string()).join("comm");
+    fs::read_to_string(path)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn matches_marker(value: &str, markers: &[String]) -> Option<String> {
+    let lowered = value.to_ascii_lowercase();
+    markers
+        .iter()
+        .map(|marker| marker.trim().to_ascii_lowercase())
+        .filter(|marker| !marker.is_empty())
+        .find(|marker| lowered.contains(marker))
+}
+
+fn truncate_text(value: &str, max_chars: usize) -> String {
+    let max_chars = max_chars.max(1);
+    let mut text = value.chars().take(max_chars).collect::<String>();
+    if value.chars().count() > max_chars {
+        text.push_str("...");
+    }
+    text
+}
+
+fn safe_capture_filename(value: &str) -> String {
+    let re = SAFE_FILENAME_RE.get_or_init(|| Regex::new(r"[^A-Za-z0-9._-]+").unwrap());
+    let mut stem = re
+        .replace_all(value.trim(), "-")
+        .trim_matches(&['.', '-'][..])
+        .to_lowercase();
+    if stem.is_empty() {
+        stem = format!("screenshot-{}", Uuid::new_v4());
+    }
+    if !stem.ends_with(".png") {
+        stem.push_str(".png");
+    }
+    Path::new(&stem)
+        .file_name()
+        .and_then(OsStr::to_str)
+        .unwrap_or("screenshot.png")
+        .to_string()
 }
 
 fn desktop_entry_dirs() -> Vec<PathBuf> {
@@ -1892,6 +2411,33 @@ fn run_command(command: &str, args: &[&str]) -> Result<(), String> {
     }
 }
 
+fn run_command_owned(command: &str, args: &[String]) -> Result<(), String> {
+    let status = Command::new(command)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|err| format!("failed to start {command}: {err}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{command} exited with status {status}"))
+    }
+}
+
+fn command_output(command: &str, args: &[&str]) -> Result<String, String> {
+    let output = Command::new(command)
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|err| format!("failed to start {command}: {err}"))?;
+    if !output.status.success() {
+        return Err(format!("{command} exited with status {}", output.status));
+    }
+    String::from_utf8(output.stdout).map_err(|_| format!("{command} returned non-UTF-8 output"))
+}
+
 fn validate_desktop_id(app_id: &str) -> Result<(), String> {
     let app_id = app_id.trim();
     if app_id.is_empty() {
@@ -2028,6 +2574,10 @@ fn build_registry() -> BTreeMap<String, Capability> {
         apps_launch_capability(),
         browser_open_url_capability(),
         workspace_mode_plan_capability(),
+        screen_status_capability(),
+        screen_capture_capability(),
+        context_snapshot_capability(),
+        screen_ocr_image_capability(),
     ];
     capabilities
         .into_iter()
@@ -2457,6 +3007,123 @@ fn workspace_mode_plan_capability() -> Capability {
     }
 }
 
+fn screen_status_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "screen.status".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Report screen capture, OCR, context, and privacy readiness.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["screen:readiness".to_string(), "privacy:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| Ok(screen_status(config)),
+        verify: |_, _, data| Verification {
+            ok: data.get("capture").is_some()
+                && data.get("active_context").is_some()
+                && data.get("privacy").is_some(),
+            message: "Screen/context readiness returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn screen_capture_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "screen.capture".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description:
+                "Capture a screenshot through a real desktop backend into the safe workspace."
+                    .to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["screen:capture".to_string(), "privacy:observe".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("filename".to_string(), "string".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: true,
+        },
+        execute: |request, config| {
+            let filename = request.params.get("filename").and_then(Value::as_str);
+            capture_screenshot(config, filename)
+        },
+        verify: |_, _, data| {
+            let ok = data
+                .get("path")
+                .and_then(Value::as_str)
+                .map(Path::new)
+                .is_some_and(Path::exists);
+            Verification {
+                ok,
+                message: if ok {
+                    "Screenshot exists in safe workspace.".to_string()
+                } else {
+                    "Screenshot output was not verified.".to_string()
+                },
+                data: json!({}),
+            }
+        },
+    }
+}
+
+fn context_snapshot_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "context.snapshot".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Return active desktop/window context metadata with privacy redaction."
+                .to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["context:read".to_string(), "privacy:observe".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| Ok(context_snapshot(config)),
+        verify: |_, _, data| Verification {
+            ok: data.get("active_window").is_some() && data.get("privacy").is_some(),
+            message: "Context snapshot returned with privacy state.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn screen_ocr_image_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "screen.ocr_image".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Extract text from a user-approved image through a real OCR backend."
+                .to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["screen:ocr".to_string(), "privacy:observe".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("path".to_string(), "string".to_string())]),
+                vec!["path"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| {
+            let path = string_param(request, "path")?;
+            ocr_image(config, &path)
+        },
+        verify: |_, _, data| Verification {
+            ok: data.get("text").is_some() && data.get("backend").is_some(),
+            message: "OCR output returned from backend.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn object_schema(properties: BTreeMap<String, String>, required: Vec<&str>) -> Value {
     let properties = properties
         .into_iter()
@@ -2696,6 +3363,26 @@ fn validate_capability_request(
                 .and_then(Value::as_str)
                 .ok_or_else(|| "Parameter mode must be a string.".to_string())?;
             validate_workspace_mode(mode).map(|_| ())
+        }
+        "screen.capture" => {
+            if let Some(filename) = params.get("filename").and_then(Value::as_str) {
+                let safe = safe_capture_filename(filename);
+                if safe.trim().is_empty() {
+                    return Err("screen capture filename cannot be empty".to_string());
+                }
+            }
+            Ok(())
+        }
+        "screen.ocr_image" => {
+            let path = params
+                .get("path")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter path must be a string.".to_string())?;
+            if is_sensitive_path(&json!(path)) {
+                Err("Sensitive paths require a higher-risk capability.".to_string())
+            } else {
+                Ok(())
+            }
         }
         _ => Ok(()),
     }
@@ -3050,6 +3737,7 @@ mod tests {
                 state_dir: Some(tmp.path().join("state").to_string_lossy().to_string()),
             },
             ai: AiConfig::default(),
+            privacy: PrivacyConfig::default(),
             features: BTreeMap::new(),
             policy: PolicyConfig::default(),
             config_path: tmp.path().join("defaults.toml"),
@@ -3345,6 +4033,135 @@ Categories=Utility;Development;
         assert_eq!(app_plan.steps[0].params["app_id"], json!("firefox.desktop"));
         assert_eq!(mode_plan.steps[0].capability, "workspace.mode.plan");
         assert_eq!(mode_plan.steps[0].params["mode"], json!("coding"));
+    }
+
+    #[test]
+    fn screen_status_reports_backend_shape() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("screen.status", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert!(result.data.get("capture").is_some());
+        assert!(result.data.get("active_context").is_some());
+        assert!(result.data.get("privacy").is_some());
+    }
+
+    #[test]
+    fn screen_capture_dry_run_does_not_require_backend() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("filename".to_string(), json!("audit-shot.png"));
+        let mut req = request("screen.capture", params);
+        req.dry_run = true;
+
+        let result = execute_capability(&config, &build_registry(), req);
+
+        assert_eq!(result.status, ActionStatus::DryRun);
+        assert!(!screen_capture_dir(&config).join("audit-shot.png").exists());
+    }
+
+    #[test]
+    fn context_snapshot_requires_confirmation() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("context.snapshot", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::ConfirmationRequired);
+    }
+
+    #[test]
+    fn privacy_policy_redacts_private_active_context() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut context = ActiveContext {
+            backend: Some("test".to_string()),
+            title: Some("Password vault".to_string()),
+            pid: None,
+            app: Some("browser".to_string()),
+            is_private: false,
+            privacy_reason: None,
+        };
+
+        apply_privacy_policy(&config, &mut context);
+
+        assert!(context.is_private);
+        assert_eq!(context.title.as_deref(), Some("<redacted>"));
+        assert!(context
+            .privacy_reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("password")));
+    }
+
+    #[test]
+    fn screen_capture_requires_observable_active_context() {
+        let context = ActiveContext {
+            backend: Some("xdotool".to_string()),
+            title: None,
+            pid: None,
+            app: None,
+            is_private: false,
+            privacy_reason: None,
+        };
+
+        let error = ensure_context_observable(&context).unwrap_err();
+        assert!(error.contains("metadata unavailable"));
+    }
+
+    #[test]
+    fn ocr_sensitive_path_is_denied_even_for_dry_run() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("path".to_string(), json!(".env"));
+        let mut req = request("screen.ocr_image", params);
+        req.dry_run = true;
+
+        let result = execute_capability(&config, &build_registry(), req);
+
+        assert_eq!(result.status, ActionStatus::Denied);
+        assert!(result
+            .error
+            .unwrap()
+            .contains("Sensitive paths require a higher-risk capability"));
+    }
+
+    #[test]
+    fn local_planner_maps_phase5_screen_prompts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+
+        let status_plan =
+            build_ai_plan(&config, &registry, "screen status", Some("local.rules")).unwrap();
+        let context_plan =
+            build_ai_plan(&config, &registry, "what is open", Some("local.rules")).unwrap();
+        let capture_plan =
+            build_ai_plan(&config, &registry, "take a screenshot", Some("local.rules")).unwrap();
+        let ocr_plan = build_ai_plan(
+            &config,
+            &registry,
+            "ocr image product/README.md",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert_eq!(status_plan.steps[0].capability, "screen.status");
+        assert_eq!(context_plan.steps[0].capability, "context.snapshot");
+        assert_eq!(capture_plan.steps[0].capability, "screen.capture");
+        assert_eq!(ocr_plan.steps[0].capability, "screen.ocr_image");
+        assert_eq!(ocr_plan.steps[0].params["path"], json!("product/README.md"));
     }
 
     #[test]

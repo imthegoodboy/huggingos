@@ -127,7 +127,7 @@ def product_status(config: dict[str, Any]) -> dict[str, Any]:
         "product": product.get("name", "huggingOS"),
         "version": product.get("version", "unknown"),
         "track": product.get("track", "product"),
-        "phase": product.get("phase", "Product Phase 4"),
+        "phase": product.get("phase", "Product Phase 5"),
         "base_strategy": product.get("base_strategy", "Ubuntu LTS hosted prototype"),
         "host": host_info(),
         "paths": {

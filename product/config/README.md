@@ -5,6 +5,10 @@ capability layer.
 Real API keys, provider tokens, and local machine configuration must not be
 committed.
 
+Phase 5 also reads non-secret privacy defaults from this config. Privacy markers
+are policy hints, not secrets. Keep user-specific exclusions in ignored local
+override files when they reveal private app names, folder names, or workflows.
+
 Allowed tracked files:
 
 - Non-secret defaults.
