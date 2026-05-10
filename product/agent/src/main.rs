@@ -2060,21 +2060,38 @@ fn active_context_from_xdotool() -> ActiveContext {
 }
 
 fn apply_privacy_policy(config: &Config, context: &mut ActiveContext) {
-    if let Some(title) = &context.title {
-        if let Some(marker) = matches_marker(title, &config.privacy.private_title_markers) {
-            context.is_private = true;
-            context.privacy_reason = Some(format!("active title matched private marker: {marker}"));
+    let title_marker = context
+        .title
+        .as_deref()
+        .and_then(|title| matches_marker(title, &config.privacy.private_title_markers));
+    let app_marker = context
+        .app
+        .as_deref()
+        .and_then(|app| matches_marker(app, &config.privacy.private_app_markers));
+
+    if let Some(marker) = title_marker {
+        context.is_private = true;
+        context.privacy_reason = Some(format!("active title matched private marker: {marker}"));
+    } else if let Some(marker) = app_marker {
+        context.is_private = true;
+        context.privacy_reason = Some(format!("active app matched private marker: {marker}"));
+    }
+
+    if context.is_private {
+        if context.title.is_some() {
             context.title = Some("<redacted>".to_string());
-            return;
         }
+        if context.app.is_some() {
+            context.app = Some("<redacted>".to_string());
+        }
+        return;
+    }
+
+    if let Some(title) = &context.title {
         context.title = Some(truncate_text(title, config.privacy.max_context_text_chars));
     }
     if let Some(app) = &context.app {
-        if let Some(marker) = matches_marker(app, &config.privacy.private_app_markers) {
-            context.is_private = true;
-            context.privacy_reason = Some(format!("active app matched private marker: {marker}"));
-            context.app = Some("<redacted>".to_string());
-        }
+        context.app = Some(truncate_text(app, config.privacy.max_context_text_chars));
     }
 }
 
@@ -3555,7 +3572,9 @@ fn summarize_value(value: &Value) -> Value {
                 .collect(),
         ),
         Value::Array(items) => Value::Array(items.iter().map(summarize_value).collect()),
-        Value::String(text) if text.len() > 120 => json!(format!("{}...", &text[..117])),
+        Value::String(text) if text.chars().count() > 120 => {
+            json!(format!("{}...", text.chars().take(117).collect::<String>()))
+        }
         _ => value.clone(),
     }
 }
@@ -3700,7 +3719,6 @@ fn is_sensitive_path(value: &Value) -> bool {
                     | ".kube"
                     | ".password-store"
                     | ".ssh"
-                    | ".env"
                     | ".npmrc"
                     | ".pypirc"
                     | "credentials"
@@ -3709,7 +3727,9 @@ fn is_sensitive_path(value: &Value) -> bool {
                     | "id_ecdsa"
                     | "id_ed25519"
                     | "id_rsa"
-            ) || pattern.is_match(&part)
+            ) || part == ".env"
+                || part.starts_with(".env.")
+                || pattern.is_match(&part)
         })
 }
 
@@ -4098,10 +4118,35 @@ Categories=Utility;Development;
 
         assert!(context.is_private);
         assert_eq!(context.title.as_deref(), Some("<redacted>"));
+        assert_eq!(context.app.as_deref(), Some("<redacted>"));
         assert!(context
             .privacy_reason
             .as_deref()
             .is_some_and(|reason| reason.contains("password")));
+    }
+
+    #[test]
+    fn privacy_policy_redacts_title_when_app_is_private() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut context = ActiveContext {
+            backend: Some("test".to_string()),
+            title: Some("Checking account dashboard".to_string()),
+            pid: None,
+            app: Some("bank-browser".to_string()),
+            is_private: false,
+            privacy_reason: None,
+        };
+
+        apply_privacy_policy(&config, &mut context);
+
+        assert!(context.is_private);
+        assert_eq!(context.title.as_deref(), Some("<redacted>"));
+        assert_eq!(context.app.as_deref(), Some("<redacted>"));
+        assert!(context
+            .privacy_reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("bank")));
     }
 
     #[test]
@@ -4135,6 +4180,36 @@ Categories=Utility;Development;
             .error
             .unwrap()
             .contains("Sensitive paths require a higher-risk capability"));
+    }
+
+    #[test]
+    fn ocr_env_variant_path_is_denied_even_for_dry_run() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("path".to_string(), json!(".env.local"));
+        let mut req = request("screen.ocr_image", params);
+        req.dry_run = true;
+
+        let result = execute_capability(&config, &build_registry(), req);
+
+        assert_eq!(result.status, ActionStatus::Denied);
+        assert!(result
+            .error
+            .unwrap()
+            .contains("Sensitive paths require a higher-risk capability"));
+    }
+
+    #[test]
+    fn audit_summary_truncates_unicode_without_panicking() {
+        let mut params = Map::new();
+        params.insert("title".to_string(), json!("\u{00e9}".repeat(130)));
+
+        let summary = summarize_params(&params);
+
+        let title = summary["title"].as_str().unwrap();
+        assert!(title.ends_with("..."));
+        assert_eq!(title.chars().count(), 120);
     }
 
     #[test]
