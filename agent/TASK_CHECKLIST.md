@@ -38,13 +38,19 @@ Stop and rethink if the task starts to become:
 
 ## Validation Gate
 
-For code changes:
+For product code changes:
+
+- [ ] Product command or smoke test from `product/README.md` or the active issue.
+- [ ] Missing dependency path is documented and fails clearly.
+- [ ] No product runtime, secret, generated image, or local config file is staged.
+- [ ] Product docs are updated.
+
+For kernel-lab code changes:
 
 - [ ] `make clean all iso`
 - [ ] QEMU boot check
 - [ ] `selftest`
 - [ ] Feature-specific manual or scripted test
-- [ ] `git diff --check`
 
 For docs-only changes:
 

@@ -114,7 +114,7 @@ This is the main path for building the AI-native OS.
 
 ## Phase 0: Product Direction
 
-Status: in progress.
+Status: complete in PR #20.
 
 Delivered:
 
@@ -124,6 +124,8 @@ Delivered:
 - ADR template and kernel strategy ADR.
 
 ## Phase 1: Linux Product Foundation
+
+Status: ready to start.
 
 Goal: create a bootable/runnable Linux-based huggingOS foundation that future AI
 services can build on.

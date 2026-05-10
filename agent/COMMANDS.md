@@ -14,6 +14,13 @@ gh issue list --label "track:product" --milestone "Product Phase 1: Linux Produc
 Product build and smoke commands live in `product/README.md` and the active
 issue. Add them in Product Phase 1 before relying on them.
 
+Before starting Product Phase 1:
+
+```bash
+git diff --check
+rg -n "[^\x00-\x7F]" product README.md PLAN.md agent .github docs
+```
+
 ## Kernel-Lab Build
 
 ```bash
@@ -65,6 +72,7 @@ gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```bash
 git diff --check
 rg -n "[^\x00-\x7F]" kernel product README.md UPDATE.md PLAN.md agent .github docs
+git ls-files | rg "(^|/)(\\.env(\\..*)?|.*(secret|token).*|.*(api[-_]?key|private[-_]?key).*)$"
 git status -sb
 ```
 

@@ -14,6 +14,8 @@ Completed planning updates:
 - Added GitHub tracking labels and Product Phase 1 milestone/issues.
 - Updated agent rules, commands, checklist, and notes so future agents do not
   add product AI features to the custom kernel by mistake.
+- Added Product Phase 1 kickoff guidance, product-aware issue/PR templates, and
+  local secret/runtime ignore rules before implementation starts.
 
 ## v2.0 Production-Readiness Pass
 
