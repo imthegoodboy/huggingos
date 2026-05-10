@@ -15,13 +15,14 @@ Linux kernel and distro base
   -> huggingOS product CLI
   -> Rust huggingOS agent runtime
   -> provider-neutral AI runtime bridge
+  -> desktop/app/browser capability bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane And Phase 3 AI Bridge
+## Phase 2 Control Plane, Phase 3 AI Bridge, And Phase 4 Desktop Bridge
 
 Product Phase 2 adds the first executable capability control plane:
 
@@ -45,6 +46,11 @@ Product Phase 3 adds the first Rust AI bridge above that control plane. The
 current executable provider is `local.rules`, which can plan supported prompts
 offline and execute them only through policy, audit, and verification.
 
+Product Phase 4 adds the first desktop bridge. The Rust agent can detect desktop
+readiness, list `.desktop` apps, request confirmed app launches, request
+confirmed browser URL opens, and preview workspace modes through the same
+capability path.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -52,6 +58,7 @@ Tracking:
 
 - Epic: [#31 Product Phase 2 capability API and local automation](https://github.com/imthegoodboy/huggingos/issues/31)
 - Phase 3 epic: [#39 Product Phase 3 Epic: AI runtime bridge and secrets](https://github.com/imthegoodboy/huggingos/issues/39)
+- Phase 4 epic: [#56 Product Phase 4 Epic: Desktop command center and app control](https://github.com/imthegoodboy/huggingos/issues/56)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -75,19 +82,22 @@ permissioned, testable, and reversible where possible.
 - Keep CLI commands usable without root.
 - Do not add cloud AI provider calls until provider clients, budgets, consent,
   retries, and secret storage are ready.
+- Do not add screen scraping, global hotkeys, or window manipulation until a
+  desktop service and per-action permission model exist.
 
 ## Readiness Verdict
 
-Phase 1, Phase 2, and Phase 3 are directionally correct:
+Phase 1 through Phase 4 are directionally correct:
 
 - It uses Linux as the real OS foundation.
 - It does not copy or fork the Linux kernel before there is a need.
 - It creates a runnable hosted product slice that works in WSL and CI.
 - It keeps secrets and fake cloud AI out of the product.
 - It routes real automated actions through registry, policy, verifier, and
-  audit before later desktop control exists.
+  audit.
 - It adds a real local AI planning bridge without allowing models to mutate the
   OS directly.
+- It adds real desktop/app/browser contracts without fake UI automation.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

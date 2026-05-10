@@ -161,6 +161,8 @@ means Linux userspace services, not custom-kernel shortcuts:
 - Policy layer: permissions, confirmation, audit logs, and rollback.
 - Current production AI path: `product/agent` in Rust, with `local.rules`
   planning and `ai run` execution through capabilities.
+- Current desktop path: `desktop.status`, `apps.list`, `apps.launch`,
+  `browser.open_url`, and `workspace.mode.plan` in the Rust agent.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

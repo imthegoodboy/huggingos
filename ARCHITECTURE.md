@@ -261,6 +261,17 @@ Preferred order:
 Screen capture and audio/video flows should use desktop portals and PipeWire
 where the desktop supports them.
 
+Phase 4 implements the first desktop-control bridge in Rust:
+
+- `desktop.status` detects graphical-session and backend readiness.
+- `apps.list` reads installed `.desktop` entries.
+- `apps.launch` launches a safe desktop ID through `gio` or `gtk-launch` after
+  confirmation.
+- `browser.open_url` opens HTTP/HTTPS URLs through `xdg-open` or `gio open`
+  after confirmation.
+- `workspace.mode.plan` previews workspace modes before full window management
+  exists.
+
 ### 8. Memory System
 
 Memory must be inspectable and deletable.
@@ -308,7 +319,7 @@ Use now:
 - GitHub Actions on Ubuntu for CI.
 - Ubuntu LTS hosted prototype as the current product base.
 
-Use in Phase 2 and Phase 3:
+Use in Phase 2 through Phase 4:
 
 - Dataclasses or typed models for action contracts.
 - Rust structs/enums for production action contracts.
@@ -374,13 +385,25 @@ Complete in the Rust production agent:
 - Offline mode.
 - Safe unavailable-provider errors.
 
-### Phase 4: Desktop Overlay And App Control
+### Phase 4: Desktop Command Center And App Control
 
-- Hotkey command center.
-- App launching.
-- Workspace modes.
-- Browser backend.
-- Desktop portal integration.
+Complete for the first capability-backed desktop slice:
+
+- CLI command center through Rust `ai plan` and `ai run`.
+- Desktop readiness detection.
+- `.desktop` app registry listing.
+- Confirmed app launch.
+- Confirmed browser URL opening through a real desktop backend.
+- Workspace mode previews.
+
+Still later:
+
+- Global hotkey command center.
+- Graphical overlay/sidebar.
+- Window/workspace arrangement.
+- Browser DOM automation.
+- Notification policy controls.
+- Desktop portal integration for capture and richer window context.
 
 ### Phase 5: Screen And Context Engine
 

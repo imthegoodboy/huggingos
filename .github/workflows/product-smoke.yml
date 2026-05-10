@@ -60,3 +60,27 @@ jobs:
       - name: Show redacted AI secret readiness
         run: cargo run -- secrets status --json
         working-directory: product/agent
+
+      - name: Show desktop readiness
+        run: cargo run -- run desktop.status --json
+        working-directory: product/agent
+
+      - name: List desktop applications
+        run: cargo run -- run apps.list --json
+        working-directory: product/agent
+
+      - name: Dry-run browser URL open
+        run: cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+        working-directory: product/agent
+
+      - name: Preview workspace mode
+        run: cargo run -- run workspace.mode.plan --param mode=coding --json
+        working-directory: product/agent
+
+      - name: Plan browser intent through AI runtime
+        run: cargo run -- ai plan "open browser https://example.com" --json
+        working-directory: product/agent
+
+      - name: Run workspace intent through AI runtime
+        run: cargo run -- ai run "switch to coding mode" --json
+        working-directory: product/agent

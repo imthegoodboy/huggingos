@@ -8,7 +8,7 @@ use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode, Stdio};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
@@ -29,7 +29,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 3".to_string(),
+            phase: "Product Phase 4".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -296,6 +296,17 @@ struct AiRunReport {
     summary: String,
     plan: AiPlan,
     results: Vec<ActionResult>,
+}
+
+#[derive(Clone, Debug)]
+struct DesktopEntry {
+    id: String,
+    name: String,
+    exec: Option<String>,
+    path: PathBuf,
+    categories: Vec<String>,
+    no_display: bool,
+    hidden: bool,
 }
 
 fn main() -> ExitCode {
@@ -851,6 +862,7 @@ fn product_status(config: &Config) -> Value {
             "offline_mode": ai_offline_mode(config),
             "cloud_ai_enabled": feature_enabled(config, "cloud_ai_enabled"),
         },
+        "desktop": desktop_status(),
         "paths": {
             "product_root": config.product_root,
             "config_file": config.config_path,
@@ -1139,11 +1151,21 @@ fn build_ai_plan(
 }
 
 fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> AiPlan {
-    let lowered = prompt.trim().to_lowercase();
+    let lowered = prompt.trim().to_ascii_lowercase();
     let mut steps = vec![];
     let mut warnings = vec![];
 
-    if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
+    if let Some(step) = plan_workspace_mode_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_browser_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_app_launch_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_app_list_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_desktop_status_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
         steps.push(step);
@@ -1169,6 +1191,126 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps,
         warnings,
     }
+}
+
+fn plan_workspace_mode_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("workspace mode")
+        || lowered.contains("coding mode")
+        || lowered.contains("study mode")
+        || lowered.contains("deep work")
+        || lowered.contains("deep-work")
+        || lowered.contains("gaming mode")
+        || lowered.contains("travel mode"))
+    {
+        return None;
+    }
+    let mode = extract_workspace_mode(prompt)?;
+    let mut params = Map::new();
+    params.insert("mode".to_string(), json!(mode));
+    Some(plan_step(
+        registry,
+        "workspace.mode.plan",
+        params,
+        "Preview a workspace mode before changing desktop state.".to_string(),
+    ))
+}
+
+fn plan_browser_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("http://") || lowered.contains("https://")) {
+        return None;
+    }
+    if !(lowered.starts_with("open ")
+        || lowered.starts_with("browse ")
+        || lowered.contains("browser"))
+    {
+        return None;
+    }
+    let url = extract_url(prompt)?;
+    let mut params = Map::new();
+    params.insert("url".to_string(), json!(url));
+    Some(plan_step(
+        registry,
+        "browser.open_url",
+        params,
+        "Open a user-requested URL through the desktop browser backend.".to_string(),
+    ))
+}
+
+fn plan_app_launch_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("open app ")
+        || lowered.starts_with("launch app ")
+        || lowered.starts_with("start app "))
+    {
+        return None;
+    }
+    let app_id = extract_path_after(prompt, &["open app ", "launch app ", "start app "])?;
+    let app_id = normalize_desktop_id(&app_id);
+    let mut params = Map::new();
+    params.insert("app_id".to_string(), json!(app_id));
+    Some(plan_step(
+        registry,
+        "apps.launch",
+        params,
+        "Launch a user-requested desktop application after confirmation.".to_string(),
+    ))
+}
+
+fn plan_app_list_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.starts_with("list apps")
+        || lowered.starts_with("show apps")
+        || lowered.starts_with("list applications")
+        || lowered.starts_with("show applications")
+        || lowered.contains("installed apps")
+        || lowered.contains("installed applications"))
+    {
+        return None;
+    }
+    let mut params = Map::new();
+    if let Some(query) = extract_path_after(prompt, &["search apps ", "find apps "]) {
+        params.insert("query".to_string(), json!(query));
+    }
+    Some(plan_step(
+        registry,
+        "apps.list",
+        params,
+        "List installed desktop applications.".to_string(),
+    ))
+}
+
+fn plan_desktop_status_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("desktop status")
+        || lowered.contains("desktop readiness")
+        || lowered.contains("gui status")
+        || lowered.contains("app control status"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "desktop.status",
+        Map::new(),
+        format!("Report desktop readiness for prompt: {prompt}"),
+    ))
 }
 
 fn plan_audit_intent(
@@ -1349,6 +1491,38 @@ fn extract_path_after(prompt: &str, markers: &[&str]) -> Option<String> {
     None
 }
 
+fn extract_url(prompt: &str) -> Option<String> {
+    prompt
+        .split_whitespace()
+        .map(clean_prompt_value)
+        .find(|part| part.starts_with("http://") || part.starts_with("https://"))
+}
+
+fn extract_workspace_mode(prompt: &str) -> Option<String> {
+    let lowered = prompt.to_ascii_lowercase();
+    for mode in [
+        "deep-work",
+        "deep work",
+        "coding",
+        "study",
+        "gaming",
+        "travel",
+    ] {
+        if lowered.contains(mode) {
+            return Some(mode.replace(' ', "-"));
+        }
+    }
+    extract_path_after(prompt, &["workspace mode ", "mode "])
+}
+
+fn normalize_desktop_id(value: &str) -> String {
+    let mut app_id = clean_prompt_value(value).replace(' ', "-");
+    if !app_id.ends_with(".desktop") {
+        app_id.push_str(".desktop");
+    }
+    app_id
+}
+
 fn clean_prompt_value(value: &str) -> String {
     value
         .trim()
@@ -1465,6 +1639,372 @@ fn ai_run_status(results: &[ActionResult]) -> String {
     "succeeded".to_string()
 }
 
+fn desktop_status() -> Value {
+    let wayland_display = env::var("WAYLAND_DISPLAY").ok();
+    let x11_display = env::var("DISPLAY").ok();
+    let has_graphical_session = wayland_display
+        .as_ref()
+        .is_some_and(|value| !value.trim().is_empty())
+        || x11_display
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty());
+    json!({
+        "session": {
+            "current_desktop": env::var("XDG_CURRENT_DESKTOP").ok(),
+            "session_desktop": env::var("XDG_SESSION_DESKTOP").ok(),
+            "session_type": env::var("XDG_SESSION_TYPE").ok(),
+            "wayland_display": wayland_display,
+            "display": x11_display,
+            "dbus_session_bus": env::var("DBUS_SESSION_BUS_ADDRESS").ok().map(|_| "<present>"),
+            "has_graphical_session": has_graphical_session,
+            "is_wsl": env::var("WSL_DISTRO_NAME").ok().is_some()
+                || env::var("WSL_INTEROP").ok().is_some(),
+        },
+        "tools": {
+            "xdg_open": find_command("xdg-open"),
+            "gio": find_command("gio"),
+            "gtk_launch": find_command("gtk-launch"),
+        },
+        "app_registry": {
+            "directories": desktop_entry_dirs(),
+        }
+    })
+}
+
+fn ensure_desktop_session_ready() -> Result<(), String> {
+    let has_display = env::var("WAYLAND_DISPLAY")
+        .ok()
+        .is_some_and(|value| !value.trim().is_empty())
+        || env::var("DISPLAY")
+            .ok()
+            .is_some_and(|value| !value.trim().is_empty());
+    if has_display {
+        Ok(())
+    } else {
+        Err(
+            "No graphical desktop session detected; use --dry-run in headless CI/WSL or run from a Linux desktop."
+                .to_string(),
+        )
+    }
+}
+
+fn desktop_entry_dirs() -> Vec<PathBuf> {
+    let mut dirs = vec![];
+    if let Ok(xdg_data_home) = env::var("XDG_DATA_HOME") {
+        dirs.push(PathBuf::from(xdg_data_home).join("applications"));
+    } else {
+        dirs.push(home_dir().join(".local").join("share").join("applications"));
+    }
+
+    let data_dirs =
+        env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+    for root in data_dirs
+        .split(':')
+        .filter(|value| !value.trim().is_empty())
+    {
+        dirs.push(PathBuf::from(root).join("applications"));
+    }
+    dedupe_paths(dirs)
+}
+
+fn discover_desktop_entries() -> Result<Vec<DesktopEntry>, String> {
+    discover_desktop_entries_in(&desktop_entry_dirs())
+}
+
+fn discover_desktop_entries_in(dirs: &[PathBuf]) -> Result<Vec<DesktopEntry>, String> {
+    let mut entries = BTreeMap::new();
+    for dir in dirs {
+        if !dir.exists() {
+            continue;
+        }
+        collect_desktop_entries(dir, dir, &mut entries)?;
+    }
+    Ok(entries.into_values().collect())
+}
+
+fn collect_desktop_entries(
+    root: &Path,
+    current: &Path,
+    entries: &mut BTreeMap<String, DesktopEntry>,
+) -> Result<(), String> {
+    let Ok(read_dir) = fs::read_dir(current) else {
+        return Ok(());
+    };
+    for entry in read_dir {
+        let Ok(entry) = entry else {
+            continue;
+        };
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_dir() {
+            collect_desktop_entries(root, &path, entries)?;
+        } else if path.extension().and_then(OsStr::to_str) == Some("desktop") {
+            let raw = fs::read_to_string(&path).unwrap_or_default();
+            if let Some(parsed) = parse_desktop_entry(root, &path, &raw) {
+                entries.entry(parsed.id.clone()).or_insert(parsed);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_desktop_entry(root: &Path, path: &Path, raw: &str) -> Option<DesktopEntry> {
+    let mut in_desktop_entry = false;
+    let mut fields = BTreeMap::new();
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line.starts_with('[') && line.ends_with(']') {
+            in_desktop_entry = line == "[Desktop Entry]";
+            continue;
+        }
+        if !in_desktop_entry {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        fields
+            .entry(key.trim().to_string())
+            .or_insert_with(|| value.trim().to_string());
+    }
+
+    if fields.get("Type").map(String::as_str) != Some("Application") {
+        return None;
+    }
+
+    let id = desktop_id_from_path(root, path)?;
+    let name = fields
+        .get("Name")
+        .cloned()
+        .unwrap_or_else(|| id.trim_end_matches(".desktop").to_string());
+    let exec = fields.get("Exec").cloned();
+    let categories = fields
+        .get("Categories")
+        .map(|value| {
+            value
+                .split(';')
+                .filter(|item| !item.trim().is_empty())
+                .map(|item| item.trim().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Some(DesktopEntry {
+        id,
+        name,
+        exec,
+        path: absolute_path_lossy(path),
+        categories,
+        no_display: desktop_bool(fields.get("NoDisplay")),
+        hidden: desktop_bool(fields.get("Hidden")),
+    })
+}
+
+fn desktop_id_from_path(root: &Path, path: &Path) -> Option<String> {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    let text = relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("-");
+    if text.ends_with(".desktop") {
+        Some(text)
+    } else {
+        None
+    }
+}
+
+fn desktop_bool(value: Option<&String>) -> bool {
+    value.is_some_and(|value| value.eq_ignore_ascii_case("true"))
+}
+
+fn desktop_entry_json(entry: &DesktopEntry) -> Value {
+    json!({
+        "id": entry.id,
+        "name": entry.name,
+        "exec": entry.exec,
+        "path": entry.path,
+        "categories": entry.categories,
+        "no_display": entry.no_display,
+        "hidden": entry.hidden,
+    })
+}
+
+fn find_desktop_entry(app_id: &str) -> Result<Option<DesktopEntry>, String> {
+    Ok(discover_desktop_entries()?
+        .into_iter()
+        .find(|entry| entry.id == app_id))
+}
+
+fn launch_desktop_entry(entry: &DesktopEntry) -> Result<String, String> {
+    if find_command("gio").is_some() {
+        run_command("gio", &["launch", entry.path.to_string_lossy().as_ref()])?;
+        return Ok("gio launch".to_string());
+    }
+    if find_command("gtk-launch").is_some() {
+        let launcher_id = entry.id.trim_end_matches(".desktop");
+        run_command("gtk-launch", &[launcher_id])?;
+        return Ok("gtk-launch".to_string());
+    }
+    Err("No desktop launch backend found; install gio or gtk-launch.".to_string())
+}
+
+fn open_browser_url(url: &str) -> Result<String, String> {
+    if find_command("xdg-open").is_some() {
+        run_command("xdg-open", &[url])?;
+        return Ok("xdg-open".to_string());
+    }
+    if find_command("gio").is_some() {
+        run_command("gio", &["open", url])?;
+        return Ok("gio open".to_string());
+    }
+    Err("No browser open backend found; install xdg-open or gio.".to_string())
+}
+
+fn run_command(command: &str, args: &[&str]) -> Result<(), String> {
+    let status = Command::new(command)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|err| format!("failed to start {command}: {err}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{command} exited with status {status}"))
+    }
+}
+
+fn validate_desktop_id(app_id: &str) -> Result<(), String> {
+    let app_id = app_id.trim();
+    if app_id.is_empty() {
+        return Err("desktop app id cannot be empty".to_string());
+    }
+    if !app_id.ends_with(".desktop") {
+        return Err("desktop app id must end with .desktop".to_string());
+    }
+    if app_id
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
+    {
+        Ok(())
+    } else {
+        Err(
+            "desktop app id may only contain letters, numbers, dots, dashes, and underscores"
+                .to_string(),
+        )
+    }
+}
+
+fn validate_browser_url(url: &str) -> Result<(), String> {
+    let url = url.trim();
+    if url.starts_with("http://") || url.starts_with("https://") {
+        if url.len() <= 2048 && !url.chars().any(char::is_whitespace) {
+            return Ok(());
+        }
+        return Err("browser URL must be at most 2048 characters with no whitespace".to_string());
+    }
+    Err("browser.open_url only accepts http:// or https:// URLs".to_string())
+}
+
+fn workspace_mode_plan(mode: &str) -> Result<Value, String> {
+    let mode = validate_workspace_mode(mode)?;
+    let (summary, suggested_apps, policy) = match mode {
+        "coding" => (
+            "Prepare a focused development workspace.",
+            vec![
+                "code.desktop",
+                "org.gnome.Terminal.desktop",
+                "firefox.desktop",
+            ],
+            "Open editor, terminal, and browser after user confirmation.",
+        ),
+        "study" => (
+            "Prepare a reading and notes workspace.",
+            vec![
+                "org.gnome.Evince.desktop",
+                "org.gnome.TextEditor.desktop",
+                "firefox.desktop",
+            ],
+            "Open reading, note-taking, and research tools after user confirmation.",
+        ),
+        "deep-work" => (
+            "Prepare a low-distraction workspace.",
+            vec!["org.gnome.TextEditor.desktop", "org.gnome.Terminal.desktop"],
+            "Prefer local tools and keep browser launch optional.",
+        ),
+        "gaming" => (
+            "Prepare a gaming workspace.",
+            vec!["steam.desktop"],
+            "Launch game clients only with explicit confirmation.",
+        ),
+        "travel" => (
+            "Prepare a travel workspace.",
+            vec!["firefox.desktop", "org.gnome.Maps.desktop"],
+            "Open browser and maps only with explicit confirmation.",
+        ),
+        _ => unreachable!(),
+    };
+    Ok(json!({
+        "mode": mode,
+        "summary": summary,
+        "suggested_apps": suggested_apps,
+        "policy": policy,
+        "steps": [
+            {
+                "capability": "desktop.status",
+                "params": {},
+                "reason": "Check desktop readiness before changing workspace state."
+            },
+            {
+                "capability": "apps.list",
+                "params": {},
+                "reason": "Inspect available desktop entries before choosing app launches."
+            },
+            {
+                "capability": "apps.launch",
+                "params": { "app_id": "<chosen-app.desktop>" },
+                "reason": "Launch selected apps with confirmation after the user reviews the plan."
+            }
+        ]
+    }))
+}
+
+fn validate_workspace_mode(mode: &str) -> Result<&'static str, String> {
+    match mode.trim().to_ascii_lowercase().replace('_', "-").as_str() {
+        "coding" | "code" | "development" | "dev" => Ok("coding"),
+        "study" | "learning" | "learn" => Ok("study"),
+        "deep-work" | "deepwork" | "focus" | "focused" => Ok("deep-work"),
+        "gaming" | "game" => Ok("gaming"),
+        "travel" | "trip" => Ok("travel"),
+        _ => Err(
+            "workspace mode must be one of: coding, study, deep-work, gaming, travel".to_string(),
+        ),
+    }
+}
+
+fn find_command(name: &str) -> Option<PathBuf> {
+    let path_var = env::var_os("PATH")?;
+    env::split_paths(&path_var)
+        .map(|dir| dir.join(name))
+        .find(|path| path.is_file())
+}
+
+fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen = BTreeMap::new();
+    for path in paths {
+        seen.entry(path.to_string_lossy().to_string())
+            .or_insert(path);
+    }
+    seen.into_values().collect()
+}
+
 fn build_registry() -> BTreeMap<String, Capability> {
     let capabilities = [
         product_status_capability(),
@@ -1472,6 +2012,11 @@ fn build_registry() -> BTreeMap<String, Capability> {
         fs_read_text_capability(),
         notes_create_capability(),
         audit_list_capability(),
+        desktop_status_capability(),
+        apps_list_capability(),
+        apps_launch_capability(),
+        browser_open_url_capability(),
+        workspace_mode_plan_capability(),
     ];
     capabilities
         .into_iter()
@@ -1701,6 +2246,205 @@ fn audit_list_capability() -> Capability {
     }
 }
 
+fn desktop_status_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "desktop.status".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Report Linux desktop session and backend readiness.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["desktop:read".to_string()],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, _| Ok(desktop_status()),
+        verify: |_, _, data| Verification {
+            ok: data.get("session").is_some() && data.get("tools").is_some(),
+            message: "Desktop status returned host session readiness.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn apps_list_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "apps.list".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "List installed Linux desktop applications from .desktop entries."
+                .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["desktop:read".to_string(), "apps:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("query".to_string(), "string".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, _| {
+            let query = request
+                .params
+                .get("query")
+                .and_then(Value::as_str)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .filter(|value| !value.is_empty());
+            let mut apps = discover_desktop_entries()?
+                .into_iter()
+                .filter(|entry| !entry.hidden && !entry.no_display)
+                .filter(|entry| match &query {
+                    Some(query) => {
+                        entry.id.to_ascii_lowercase().contains(query)
+                            || entry.name.to_ascii_lowercase().contains(query)
+                            || entry
+                                .categories
+                                .iter()
+                                .any(|category| category.to_ascii_lowercase().contains(query))
+                    }
+                    None => true,
+                })
+                .map(|entry| desktop_entry_json(&entry))
+                .collect::<Vec<_>>();
+            apps.sort_by_key(|entry| entry["name"].as_str().unwrap_or("").to_ascii_lowercase());
+            let app_count = apps.len();
+            Ok(json!({
+                "apps": apps,
+                "app_count": app_count,
+                "query": query,
+                "desktop": desktop_status(),
+            }))
+        },
+        verify: |_, _, data| Verification {
+            ok: data.get("apps").is_some(),
+            message: "Desktop application registry loaded.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn apps_launch_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "apps.launch".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Launch an installed desktop application by .desktop ID.".to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["desktop:control".to_string(), "apps:launch".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("app_id".to_string(), "string".to_string())]),
+                vec!["app_id"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, _| {
+            let app_id = string_param(request, "app_id")?;
+            validate_desktop_id(&app_id)?;
+            let entry = find_desktop_entry(&app_id)?
+                .ok_or_else(|| format!("desktop app not found: {app_id}"))?;
+            ensure_desktop_session_ready()?;
+            let backend = launch_desktop_entry(&entry)?;
+            Ok(json!({
+                "launched": true,
+                "app": desktop_entry_json(&entry),
+                "backend": backend,
+            }))
+        },
+        verify: |_, _, data| {
+            let ok = data.get("launched") == Some(&json!(true));
+            Verification {
+                ok,
+                message: if ok {
+                    "Desktop launch command completed.".to_string()
+                } else {
+                    "Desktop launch was not confirmed.".to_string()
+                },
+                data: json!({}),
+            }
+        },
+    }
+}
+
+fn browser_open_url_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "browser.open_url".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Open an HTTP or HTTPS URL through the Linux desktop browser backend."
+                .to_string(),
+            risk: RiskLevel::Medium,
+            permissions: vec!["desktop:control".to_string(), "browser:open".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("url".to_string(), "string".to_string())]),
+                vec!["url"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, _| {
+            let url = string_param(request, "url")?;
+            validate_browser_url(&url)?;
+            ensure_desktop_session_ready()?;
+            let backend = open_browser_url(&url)?;
+            Ok(json!({
+                "opened": true,
+                "url": url,
+                "backend": backend,
+            }))
+        },
+        verify: |_, _, data| {
+            let ok = data.get("opened") == Some(&json!(true));
+            Verification {
+                ok,
+                message: if ok {
+                    "Browser open command completed.".to_string()
+                } else {
+                    "Browser open was not confirmed.".to_string()
+                },
+                data: json!({}),
+            }
+        },
+    }
+}
+
+fn workspace_mode_plan_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "workspace.mode.plan".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Preview a workspace mode as explicit future capability steps."
+                .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["workspace:plan".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("mode".to_string(), "string".to_string())]),
+                vec!["mode"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, _| {
+            let mode = string_param(request, "mode")?;
+            let plan = workspace_mode_plan(&mode)?;
+            Ok(plan)
+        },
+        verify: |_, _, data| {
+            let ok = data.get("mode").is_some() && data.get("steps").is_some();
+            Verification {
+                ok,
+                message: "Workspace mode plan is inspectable.".to_string(),
+                data: json!({}),
+            }
+        },
+    }
+}
+
 fn object_schema(properties: BTreeMap<String, String>, required: Vec<&str>) -> Value {
     let properties = properties
         .into_iter()
@@ -1735,6 +2479,21 @@ fn execute_capability(
     };
 
     if let Err(error) = validate_params(&capability.metadata.input_schema, &request.params) {
+        let outcome = PolicyOutcome {
+            decision: PolicyDecision::Deny,
+            reason: error,
+        };
+        let result = base_result(
+            &request,
+            ActionStatus::Denied,
+            &started_at,
+            "Capability request denied.",
+            &outcome.reason,
+        );
+        return record_audit(config, &request, &outcome, result);
+    }
+
+    if let Err(error) = validate_capability_request(&capability.metadata.name, &request.params) {
         let outcome = PolicyOutcome {
             decision: PolicyDecision::Deny,
             reason: error,
@@ -1898,6 +2657,36 @@ fn validate_params(schema: &Value, params: &Map<String, Value>) -> Result<(), St
         }
     }
     Ok(())
+}
+
+fn validate_capability_request(
+    capability_name: &str,
+    params: &Map<String, Value>,
+) -> Result<(), String> {
+    match capability_name {
+        "apps.launch" => {
+            let app_id = params
+                .get("app_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter app_id must be a string.".to_string())?;
+            validate_desktop_id(app_id)
+        }
+        "browser.open_url" => {
+            let url = params
+                .get("url")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter url must be a string.".to_string())?;
+            validate_browser_url(url)
+        }
+        "workspace.mode.plan" => {
+            let mode = params
+                .get("mode")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Parameter mode must be a string.".to_string())?;
+            validate_workspace_mode(mode).map(|_| ())
+        }
+        _ => Ok(()),
+    }
 }
 
 fn decide(capability: &Capability, request: &ActionRequest) -> PolicyOutcome {
@@ -2402,6 +3191,130 @@ mod tests {
         assert_eq!(report.status, "succeeded");
         assert_eq!(report.results[0].status, ActionStatus::Succeeded);
         assert!(audit_log_path(&config).exists());
+    }
+
+    #[test]
+    fn desktop_status_reports_session_shape() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("desktop.status", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert!(result.data.get("session").is_some());
+        assert!(result.data.get("tools").is_some());
+    }
+
+    #[test]
+    fn desktop_entry_parser_reads_application_metadata() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("applications");
+        let nested = root.join("org").join("example");
+        fs::create_dir_all(&nested).unwrap();
+        let desktop_file = nested.join("Demo.desktop");
+        let raw = r#"
+[Desktop Entry]
+Type=Application
+Name=Demo App
+Exec=demo --flag
+Categories=Utility;Development;
+"#;
+
+        let entry = parse_desktop_entry(&root, &desktop_file, raw).unwrap();
+
+        assert_eq!(entry.id, "org-example-Demo.desktop");
+        assert_eq!(entry.name, "Demo App");
+        assert_eq!(entry.categories, vec!["Utility", "Development"]);
+    }
+
+    #[test]
+    fn browser_url_validation_denies_non_web_schemes_even_for_dry_run() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("url".to_string(), json!("file:///etc/passwd"));
+        let mut req = request("browser.open_url", params);
+        req.dry_run = true;
+
+        let result = execute_capability(&config, &build_registry(), req);
+
+        assert_eq!(result.status, ActionStatus::Denied);
+        assert!(result.error.unwrap().contains("http:// or https://"));
+    }
+
+    #[test]
+    fn medium_desktop_actions_require_confirmation_before_launch() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("app_id".to_string(), json!("firefox.desktop"));
+
+        let result = execute_capability(&config, &build_registry(), request("apps.launch", params));
+
+        assert_eq!(result.status, ActionStatus::ConfirmationRequired);
+    }
+
+    #[test]
+    fn workspace_mode_plan_is_read_only_and_inspectable() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("mode".to_string(), json!("coding"));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("workspace.mode.plan", params),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert_eq!(result.data["mode"], json!("coding"));
+        assert!(result.data["steps"]
+            .as_array()
+            .is_some_and(|steps| !steps.is_empty()));
+    }
+
+    #[test]
+    fn local_planner_maps_phase4_desktop_prompts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+
+        let browser_plan = build_ai_plan(
+            &config,
+            &registry,
+            "open browser https://example.com",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let app_plan = build_ai_plan(
+            &config,
+            &registry,
+            "launch app firefox",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let mode_plan = build_ai_plan(
+            &config,
+            &registry,
+            "switch to coding mode",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert_eq!(browser_plan.steps[0].capability, "browser.open_url");
+        assert_eq!(
+            browser_plan.steps[0].params["url"],
+            json!("https://example.com")
+        );
+        assert_eq!(app_plan.steps[0].capability, "apps.launch");
+        assert_eq!(app_plan.steps[0].params["app_id"], json!("firefox.desktop"));
+        assert_eq!(mode_plan.steps[0].capability, "workspace.mode.plan");
+        assert_eq!(mode_plan.steps[0].params["mode"], json!("coding"));
     }
 
     #[test]

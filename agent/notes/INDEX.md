@@ -26,6 +26,7 @@ in PR descriptions.
 - [Root architecture document](root-architecture-document.md)
 - [Product Phase 2 capability layer](product-phase2-capability-layer.md)
 - [Product Phase 3 AI runtime](product-phase3-ai-runtime.md)
+- [Product Phase 4 desktop control](product-phase4-desktop-control.md)
 
 ## Knowledge Capture Rule
 

@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-smoke smoke
+.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-smoke smoke
 
 status:
 	$(PYTHON) cli/huggingos.py status
@@ -28,6 +28,18 @@ agent-ai-run:
 
 agent-secrets:
 	cd agent && cargo run -- secrets status --json
+
+agent-desktop-status:
+	cd agent && cargo run -- run desktop.status --json
+
+agent-apps-list:
+	cd agent && cargo run -- run apps.list --json
+
+agent-browser-dry-run:
+	cd agent && cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+
+agent-workspace-plan:
+	cd agent && cargo run -- run workspace.mode.plan --param mode=coding --json
 
 agent-smoke:
 	cd agent && cargo test

@@ -259,19 +259,36 @@ Goal: make the AI OS feel integrated with the Linux desktop.
 
 Core features:
 
-- Global hotkey command center.
-- Desktop overlay/sidebar.
-- App launching and workspace arrangement through desktop APIs.
-- Browser automation through a real browser automation layer.
-- Notification policy controls.
-- Workspace modes: coding, study, deep work, gaming, travel.
+- CLI command center through the Rust AI planner. Done through `ai plan` and
+  `ai run` mappings for desktop intents.
+- Desktop/session readiness detection. Done through `desktop.status`.
+- App listing and launch through desktop APIs. Done for `.desktop` registry
+  listing and confirmed `gio`/`gtk-launch` app launch.
+- Browser opening through a real desktop backend. Done for confirmed HTTP/HTTPS
+  URL opening via `xdg-open`/`gio open`; DOM automation remains later.
+- Workspace modes: coding, study, deep work, gaming, travel. Done as
+  inspectable `workspace.mode.plan` previews.
+- Global hotkey command center, graphical overlay/sidebar, window arrangement,
+  notification policy controls. Deferred until `huggingosd` desktop service
+  work.
 
 Acceptance criteria:
 
-- User can invoke the command center from a hotkey or CLI.
-- AI can open and arrange real apps through permissioned capabilities.
-- Browser actions use a real browser automation backend, not fake responses.
-- Every action is logged and reversible when possible.
+- User can invoke the command center from a CLI.
+- AI can plan app/browser desktop actions through permissioned capabilities.
+- Browser URL opening uses a real desktop backend, not fake responses.
+- Every desktop action is logged and reversible status is explicit where
+  rollback is not possible.
+
+Tracking:
+
+- Milestone: [Product Phase 4: Desktop Command Center And App Control](https://github.com/imthegoodboy/huggingos/milestone/5)
+- Epic: [#56 Product Phase 4 Epic: Desktop command center and app control](https://github.com/imthegoodboy/huggingos/issues/56)
+- Desktop status: [#57](https://github.com/imthegoodboy/huggingos/issues/57)
+- App listing/launch: [#54](https://github.com/imthegoodboy/huggingos/issues/54)
+- Browser URL open: [#58](https://github.com/imthegoodboy/huggingos/issues/58)
+- Workspace mode planning: [#53](https://github.com/imthegoodboy/huggingos/issues/53)
+- Smoke tests and docs: [#51](https://github.com/imthegoodboy/huggingos/issues/51)
 
 ## Phase 5: Screen Understanding And Context Engine
 
@@ -449,20 +466,20 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 4
+## Next Sprint: Product Phase 5
 
-Start here next after Product Phase 3 is merged:
+Start here next after Product Phase 4 is merged:
 
-1. Add a Linux desktop command-center entrypoint around the Rust agent.
-2. Add permissioned app-launch and window/workspace capability contracts.
-3. Add browser-control architecture using a real browser backend behind policy
-   and audit.
-4. Add workspace modes as explicit, reversible capability plans.
-5. Keep all desktop actions behind the same planner -> capability -> policy ->
-   audit -> verifier path.
+1. Add permissioned screenshot capture using XDG Desktop Portal/PipeWire where
+   available.
+2. Add active-window/app context through desktop-native APIs.
+3. Add clipboard/context snapshot capabilities with privacy controls.
+4. Add OCR/accessibility-tree adapters behind read-only capabilities.
+5. Keep all observation actions behind the same policy, audit, and redaction
+   path.
 
-Product Phase 3 gives AI features a real planning bridge. Phase 4 should make
-that bridge visible in the desktop without adding broad, untracked OS control.
+Product Phase 4 gives AI a real desktop action surface. Phase 5 should add
+screen/context understanding without silent capture or private-app leakage.
 
 ## Things We Will Not Fake
 

@@ -97,6 +97,21 @@ Completed the first production AI planning bridge in the Rust agent:
   outbound model calls or committed keys.
 - Added Phase 3 docs, Make targets, CI smoke commands, and Rust tests.
 
+## Product Phase 4 Desktop Command Center And App Control
+
+Completed the first permissioned Linux desktop slice in the Rust agent:
+
+- Added `desktop.status` for graphical-session and backend readiness.
+- Added `apps.list` for installed `.desktop` application discovery.
+- Added confirmed `apps.launch` through `gio`/`gtk-launch`.
+- Added confirmed `browser.open_url` through `xdg-open`/`gio open` with
+  HTTP/HTTPS validation.
+- Added `workspace.mode.plan` for coding, study, deep-work, gaming, and travel
+  mode previews.
+- Extended the local AI planner to map desktop, app, browser, and workspace
+  prompts into capability plans.
+- Added Phase 4 docs, ADR, Make targets, CI smoke commands, and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline
