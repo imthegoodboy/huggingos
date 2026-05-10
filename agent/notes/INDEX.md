@@ -18,6 +18,8 @@ in PR descriptions.
 ## Notes
 
 - [Phase 0 baseline lessons](phase-0-baseline-lessons.md)
+- [Linux product strategy](linux-product-strategy.md)
+- [Git metadata corruption](git-metadata-corruption.md)
 
 ## Knowledge Capture Rule
 

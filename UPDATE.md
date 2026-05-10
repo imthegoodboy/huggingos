@@ -1,5 +1,20 @@
 # huggingOS Update Log
 
+## Planning: Linux Product Track
+
+The main product roadmap now uses the Linux kernel and Linux userspace for the
+AI-native OS path. The existing custom x86 kernel remains as the kernel-lab
+track for low-level experiments and QEMU validation.
+
+Completed planning updates:
+
+- Added ADR 0001 for the Linux-kernel product strategy.
+- Added `product/README.md` as the product-track entry point.
+- Split roadmap execution into Product and Kernel-Lab tracks.
+- Added GitHub tracking labels and Product Phase 1 milestone/issues.
+- Updated agent rules, commands, checklist, and notes so future agents do not
+  add product AI features to the custom kernel by mistake.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

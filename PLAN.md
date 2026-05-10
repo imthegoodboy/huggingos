@@ -1,36 +1,49 @@
 # huggingOS AI-Native OS Roadmap
 
 This roadmap turns the AI OS vision into buildable phases for this repository.
-The goal is not to fake a chatbot inside a kernel. The goal is to grow
-huggingOS into a reliable OS foundation, then add an AI-native control layer
-that can observe state, plan actions, execute safely, verify results, and keep
-memory over time.
+The goal is not to fake a chatbot inside a kernel. The main product path is now
+a Linux-kernel-based AI operating system layer, because Linux already provides
+the real drivers, filesystems, networking, process isolation, permissions, and
+application ecosystem needed for a normal working OS.
+
+The existing custom x86 kernel remains valuable, but as a kernel-lab track for
+learning and low-level experiments. Product work should not rebuild basic OS
+infrastructure from scratch unless there is a clear reason.
 
 ## Ground Truth
 
-huggingOS is currently a 32-bit x86 hobby OS with GRUB boot, protected mode,
-VGA text output, PS/2 keyboard input, PIT/RTC, RAMFS, a kernel heap, syscalls,
-logging, and an interactive shell.
+huggingOS currently has two tracks:
+
+- Product track: a planned Linux-based AI OS distribution/layer. This is the
+  path for a normal working OS with app control, networking, storage, GUI, and
+  AI services.
+- Kernel-lab track: the existing 32-bit x86 hobby kernel with GRUB boot,
+  protected mode, VGA text output, PS/2 keyboard input, PIT/RTC, RAMFS, a
+  kernel heap, syscalls, logging, and an interactive shell.
 
 Important constraint: external AI APIs, browser control, cloud memory, and
-downloaded models require networking, TLS, secret storage, a process model, and
-userspace services. Those do not belong directly in a fragile early kernel. The
-right path is to build the OS capability layer first, then connect AI runtimes
-through controlled system services.
+downloaded models require networking, TLS, secret storage, a process model,
+userspace services, a GUI/app environment, and permission boundaries. Linux gives
+us those foundations now. AI runtimes should connect through controlled
+userspace services and capability APIs, not kernel shortcuts.
 
 AI-native does not mean "put an LLM in the kernel." The kernel should provide
 isolation, devices, files, networking, timers, graphics, and safe syscalls. AI
 logic should run in userspace services that call explicit OS capabilities.
 
+See [ADR 0001](docs/adr/0001-kernel-strategy.md) for the kernel strategy.
+
 ## Product Principles
 
-- Every phase must leave the OS bootable in QEMU.
+- Every product phase must leave a bootable Linux image or runnable Linux-hosted
+  prototype. Kernel-lab phases must leave the hobby ISO bootable in QEMU.
 - No dummy feature should be marked complete.
 - Kernel changes need a smoke test or in-OS selftest coverage.
 - AI actions must run through permissioned capability APIs, not raw arbitrary
   memory or device access.
 - Dangerous actions need confirmation, audit logs, and rollback where possible.
-- The shell remains the first control plane until a GUI and app model exist.
+- The Linux shell/CLI remains the first product control plane until the desktop
+  overlay and app model exist.
 - Prefer deterministic local behavior first; add cloud AI only after the secure
   runtime and secret model exist.
 - Build the smallest real vertical slice; do not add labels, banners, or command
@@ -40,7 +53,16 @@ logic should run in userspace services that call explicit OS capabilities.
 - Major architecture decisions need a short ADR-style note in docs before the
   implementation becomes large.
 
-## Definition Of Done For Every Phase
+## Definition Of Done For Every Product Phase
+
+- A Linux-hosted prototype or bootable Linux image runs the feature.
+- Tests or smoke checks prove the executable behavior.
+- README or docs describe the new behavior and limitations.
+- GitHub issues for the phase are closed or explicitly carried forward.
+- No secret, token, local machine path, or fake provider is hardcoded.
+- The feature has a failure path that reports what went wrong.
+
+## Definition Of Done For Kernel-Lab Phases
 
 - `make clean all iso` succeeds.
 - QEMU boots to an interactive prompt.
@@ -86,262 +108,165 @@ that will be hard to reverse. Examples:
 - AI runtime provider and secret-storage model.
 - Capability permission model.
 
-## Phase 0: Baseline Hardening
+## Track A: Linux Product Roadmap
 
-Status: complete in PR #2.
+This is the main path for building the AI-native OS.
+
+## Phase 0: Product Direction
+
+Status: in progress.
 
 Delivered:
 
-- Safe low-memory heap after `kernel_end`.
-- Heap split, merge, free, and accounting.
-- RAMFS nested path handling, append, recursive delete, and safer writes.
-- Shell `echo >` and `echo >>` file redirection.
-- Local deterministic `assist` / `ai` command.
-- Built-in `selftest`.
-- Buffered keyboard input.
-- VGA boot dashboard and cursor updates.
-- CPU exception panic path.
-- Safe VESA stub instead of fake framebuffer writes.
-- Updated build scripts and documentation.
+- Decision to use Linux as the production kernel.
+- Custom x86 kernel kept as the kernel-lab track.
+- Agent guardrails and durable notes.
+- ADR template and kernel strategy ADR.
 
-## Phase 1: Reliable Kernel And Shell Foundation
+## Phase 1: Linux Product Foundation
 
-Goal: make the current text-mode OS stable enough to build on every day.
+Goal: create a bootable/runnable Linux-based huggingOS foundation that future AI
+services can build on.
 
 Core features:
 
-- QEMU smoke test target that boots the ISO and can run scripted shell commands.
-- Serial logging option for automated test output.
-- Expanded `selftest` coverage for heap reuse, aligned allocations, RAMFS path
-  edge cases, append/write failure behavior, shell redirection, and command
-  dispatch.
-- Consistent kernel error codes for RAMFS, shell commands, and syscalls.
-- Panic diagnostics that show exception number, error code, and relevant
-  register values.
-- Shell command parser cleanup: quoting, whitespace, redirection, command
-  length limits, and clear failures.
-- Documentation for the syscall ABI and current kernel memory model.
-- CI workflow that builds the kernel and ISO on every PR.
-- First ADRs for memory model, syscall ABI, and test strategy.
+- Choose base approach: Debian/Ubuntu live image, Buildroot, or Yocto.
+- Create `product/` tree for Linux image config, services, and packaging.
+- Produce first bootable Linux image or runnable dev rootfs.
+- Add a `huggingos` CLI entrypoint for local AI OS commands.
+- Add service layout for future daemon work.
+- Add non-secret runtime config layout.
+- Add smoke check for image/prototype startup.
+- Add CI for docs and the initial product build/prototype checks.
 
 Acceptance criteria:
 
-- A single command can build the ISO and run a QEMU smoke script.
-- `selftest` covers heap, RAMFS, and shell behavior.
-- CI rejects build failures.
-- The OS stays interactive after common bad inputs.
-- No repo script depends on a user-specific local path.
+- A fresh checkout can run the Linux product prototype or build the first image
+  using documented commands.
+- No command depends on a user-specific local path.
+- The `huggingos` CLI runs a real command and reports clear errors.
+- Runtime config exists, but no secrets are committed.
+- CI validates the product foundation.
 
 GitHub issue plan:
 
-- Phase 1 epic: reliable kernel and shell foundation.
-- Issue: add QEMU smoke test target and serial test output.
-- Issue: expand in-kernel `selftest`.
-- Issue: harden shell parser and redirection handling.
-- Issue: add panic register diagnostics.
-- Issue: add CI build for kernel and ISO.
+- Milestone: [Product Phase 1: Linux Product Foundation](https://github.com/imthegoodboy/huggingos/milestone/2)
+- Epic: [#13 Product Phase 1 Linux product foundation](https://github.com/imthegoodboy/huggingos/issues/13)
+- [#14 Choose Linux base image strategy](https://github.com/imthegoodboy/huggingos/issues/14)
+- [#15 Create product tree and dev/build commands](https://github.com/imthegoodboy/huggingos/issues/15)
+- [#17 Add first huggingos CLI](https://github.com/imthegoodboy/huggingos/issues/17)
+- [#18 Add runtime config layout and no-secret policy](https://github.com/imthegoodboy/huggingos/issues/18)
+- [#19 Add product smoke test and CI](https://github.com/imthegoodboy/huggingos/issues/19)
 
-Created GitHub tracking:
+## Phase 2: Capability API And Local Automation
 
-- Milestone: [Phase 1: Reliable Kernel And Shell Foundation](https://github.com/imthegoodboy/huggingos/milestone/1)
-- Epic: [#9 Phase 1 reliable kernel and shell foundation](https://github.com/imthegoodboy/huggingos/issues/9)
-- [#3 Add QEMU smoke test target and serial output](https://github.com/imthegoodboy/huggingos/issues/3)
-- [#4 Expand in-kernel selftest coverage](https://github.com/imthegoodboy/huggingos/issues/4)
-- [#5 Harden shell parser and redirection handling](https://github.com/imthegoodboy/huggingos/issues/5)
-- [#6 Add panic register diagnostics](https://github.com/imthegoodboy/huggingos/issues/6)
-- [#7 Add CI build for kernel and ISO](https://github.com/imthegoodboy/huggingos/issues/7)
-- [#8 Document syscall ABI and memory model](https://github.com/imthegoodboy/huggingos/issues/8)
-
-## Phase 2: Process And Userspace Foundation
-
-Goal: support real apps instead of only built-in kernel shell commands.
+Goal: expose safe local OS actions that AI can later call.
 
 Core features:
 
-- Process table and task states.
-- Cooperative scheduler first, then timer-driven preemption.
-- Kernel/user privilege boundary.
-- Page directory setup for kernel and user memory.
-- ELF loader or simpler first user program format.
-- File descriptors for stdin, stdout, stderr, and filesystem objects.
-- Syscalls for process lifecycle, file I/O, time, memory, and logging.
-- `exec`, `wait`, `exit`, and process error reporting.
-- Init process and userspace shell migration path.
-
-Acceptance criteria:
-
-- At least two user tasks can run without corrupting kernel memory.
-- A userspace hello-world app runs through the syscall layer.
-- A crashing userspace app cannot crash the whole kernel.
-
-## Phase 3: Persistent Storage And VFS
-
-Goal: files survive reboot and the OS has a real storage abstraction.
-
-Core features:
-
-- VFS layer over RAMFS and disk-backed filesystems.
-- Initrd support for bundled user programs and config.
-- ATA PIO or virtio block driver, depending on emulator target.
-- Partition and disk image discovery for the supported boot target.
-- Block cache with explicit flush behavior.
-- FAT12/FAT16 first, then consider FAT32.
-- File permissions metadata, timestamps, and basic stat calls.
-- Safe write path with flush and corruption checks.
-
-Acceptance criteria:
-
-- OS can read files from a boot image or disk image.
-- OS can write a test file and read it after reboot in the chosen disk format.
-- RAMFS and disk filesystem share the same VFS command surface.
-
-## Phase 4: Device Model, Networking, And Secure Config
-
-Goal: add normal OS device discovery, real network foundations, and a safe way
-to store configuration before any cloud AI work.
-
-Core features:
-
-- Device manager for discovered hardware and drivers.
-- PCI discovery if the emulator/device target needs it.
-- Network driver target selection, such as e1000, rtl8139, or virtio-net.
-- Ethernet, ARP, IPv4, ICMP, UDP, and TCP roadmap with incremental delivery.
-- DNS resolver and basic HTTP client in userspace after sockets exist.
-- TLS strategy documented before sending secrets over the network.
-- Secure configuration store for user settings.
-- Secret storage design that keeps API keys out of source, docs, and kernel
-  images.
-- Optional host bridge for development only, clearly marked and permissioned.
-
-Acceptance criteria:
-
-- OS can discover at least one supported emulated device without hardcoded host
-  assumptions.
-- OS can perform a real network smoke test for the implemented protocol level,
-  such as ARP/ICMP before TCP exists.
-- Secrets are loaded from a documented runtime store, never from hardcoded source
-  constants.
-- Networking failures report actionable errors instead of pretending success.
-
-## Phase 5: Graphics, Mouse, And Windowing
-
-Goal: move from text-mode shell to a real graphical desktop base.
-
-Core features:
-
-- Real VESA or framebuffer mode initialization through bootloader-provided info.
-- 2D drawing primitives, fonts, double buffering, and damage regions.
-- PS/2 mouse driver.
-- Window manager with focus, move, resize, close, and keyboard routing.
-- Basic UI toolkit: labels, buttons, menus, text fields, panels, and dialogs.
-- System overlay surface reserved for the future AI command center.
-
-Acceptance criteria:
-
-- GUI boots reliably in QEMU.
-- Mouse and keyboard control at least two windows.
-- Text-mode fallback remains available for recovery.
-
-## Phase 6: OS Capability And Automation API
-
-Goal: expose safe, auditable OS actions that an AI can call.
-
-Core features:
-
-- Capability registry for files, windows, apps, settings, shell, and system info.
-- Structured action format: intent, parameters, risk level, permissions, result.
-- Confirmation prompts for destructive or sensitive actions.
+- Capability registry for files, apps, shell commands, windows, browser, system
+  state, notifications, and settings.
+- Structured action schema: intent, parameters, risk level, permissions, result.
+- Confirmation policy for destructive/sensitive actions.
 - Audit log for every automated action.
-- Rollback hooks for reversible file and settings operations.
-- Automation runner for simple event rules.
+- Reversible file operations where possible.
+- Local deterministic planner for simple commands before LLM integration.
 
 Acceptance criteria:
 
-- A local command can execute structured actions like "open app", "create file",
-  "move window", or "clean folder" through the same capability API.
-- Destructive actions require confirmation.
+- CLI can execute real structured actions like list files, open app, create
+  note, or run shell command through the capability layer.
+- Dangerous actions require confirmation.
 - Audit logs show what happened, when, and why.
 
-## Phase 7: Local AI Runtime Bridge
+## Phase 3: AI Runtime Bridge And Secrets
 
-Goal: connect AI planning to OS capabilities without putting model logic inside
-the kernel.
+Goal: connect AI planning to OS capabilities without hardcoded keys or kernel
+shortcuts.
 
 Core features:
 
-- AI service process boundary.
-- Provider abstraction for local deterministic rules, local models, and later
-  cloud models.
-- Secure secret storage design before any API key support.
-- Prompt/action schema that maps user goals to capability calls.
+- Provider abstraction for local rules, local model runtimes, and cloud models.
+- Secret loading from OS keyring or encrypted runtime config.
+- Prompt/action schema mapped to the capability API.
 - Planner, executor, verifier loop.
-- Failure recovery: retry, ask user, or stop safely.
-- Offline mode that still works without cloud providers.
+- Offline mode that keeps local control working without cloud providers.
+- Provider failure handling and user-visible error reporting.
 
 Acceptance criteria:
 
-- Text command center can convert a goal into a plan.
-- Plan steps execute only through capability APIs.
+- API keys are never committed or baked into images.
+- The AI bridge can produce a plan and execute approved capability calls.
 - The verifier checks observable results before reporting success.
-- API keys are never hardcoded into the repo or kernel image.
-- Provider failure does not break local OS control.
+- Provider failures do not break local OS control.
 
-## Phase 8: Screen Understanding And Context Engine
+## Phase 4: Desktop Overlay And App Control
+
+Goal: make the AI OS feel integrated with the Linux desktop.
+
+Core features:
+
+- Global hotkey command center.
+- Desktop overlay/sidebar.
+- App launching and workspace arrangement through desktop APIs.
+- Browser automation through a real browser automation layer.
+- Notification policy controls.
+- Workspace modes: coding, study, deep work, gaming, travel.
+
+Acceptance criteria:
+
+- User can invoke the command center from a hotkey or CLI.
+- AI can open and arrange real apps through permissioned capabilities.
+- Browser actions use a real browser automation backend, not fake responses.
+- Every action is logged and reversible when possible.
+
+## Phase 5: Screen Understanding And Context Engine
 
 Goal: let the OS understand visible state and active work.
 
 Core features:
 
-- Screenshot capture from framebuffer.
-- OCR pipeline in userspace.
-- Accessibility-like semantic UI tree for native apps.
-- Active app, active window, focused control, clipboard, file, and system state.
-- Context snapshot format that the planner can consume.
-- Privacy controls for what screen regions can be observed.
+- Screenshot capture through desktop APIs.
+- OCR pipeline.
+- Accessibility tree integration.
+- Active app/window/control state.
+- Clipboard, file, browser tab, and system context snapshots.
+- Privacy controls for observed apps and screen regions.
 
 Acceptance criteria:
 
-- AI command center can answer "what is open?" from OS state.
-- Native apps expose machine-readable UI metadata.
+- AI command center can answer "what is open?" from real OS state.
 - Screen capture and OCR are permissioned and logged.
+- Private apps/regions are not observed.
 
-## Phase 9: Memory System
+## Phase 6: Memory And Semantic Files
 
-Goal: make the OS remember useful context without becoming unsafe or creepy.
+Goal: add useful memory and semantic file search without unsafe collection.
 
 Core features:
 
 - Short-term session memory.
-- Long-term user preference store.
+- User preference store.
 - Event store for app/file/workflow history.
-- Semantic memory index for files and notes.
-- User controls for view, edit, export, and delete memory.
+- Semantic file index with embeddings.
+- User controls for inspect, edit, export, and delete memory.
 - Retention rules and private mode.
 
 Acceptance criteria:
 
 - "Resume my last workspace" can restore known local state.
 - User can inspect and delete remembered facts.
-- Memory collection is documented and permissioned.
+- Memory collection is documented, permissioned, and testable.
 
-## Phase 10: Multi-Agent Orchestration
+## Phase 7: Multi-Agent Orchestration
 
 Goal: split intelligence into focused agents coordinated by an orchestrator.
-
-Agents:
-
-- System agent: OS settings, hardware state, performance.
-- File agent: search, organize, summarize, and transform files.
-- App agent: launch and control native apps.
-- Browser agent: future web automation after networking and browser support.
-- Coding agent: edit, build, test, and debug projects.
-- Security agent: permissions, suspicious activity, and policy enforcement.
-- Productivity agent: calendar, tasks, workflows, and reminders.
 
 Core features:
 
 - Agent manifest format.
 - Capability permissions per agent.
+- System, file, app, browser, coding, security, productivity agents.
 - Orchestrator that plans, delegates, verifies, and reports.
 - Agent logs and replayable traces.
 
@@ -351,26 +276,7 @@ Acceptance criteria:
 - Agents cannot call capabilities outside their permission scope.
 - User can inspect what each agent did.
 
-## Phase 11: AI Desktop Overlay And Workspace Modes
-
-Goal: make the AI feel like part of the OS, not a separate app.
-
-Core features:
-
-- Global hotkey command center.
-- Floating overlay on top of windows.
-- Contextual suggestions.
-- Workspace modes: coding, study, deep work, gaming, travel.
-- Rules for notifications, app layout, resource priority, and shortcuts.
-- "Resume my day" workflow.
-
-Acceptance criteria:
-
-- User can switch workspace modes through text or UI.
-- Mode changes are visible, reversible, and logged.
-- Overlay can inspect context and call approved capabilities.
-
-## Phase 12: Predictive And Self-Healing OS
+## Phase 8: Predictive And Self-Healing OS
 
 Goal: move from reactive commands to useful proactive help.
 
@@ -388,7 +294,7 @@ Acceptance criteria:
 - OS can detect a simulated app failure and recommend a recovery action.
 - Proactive actions are never destructive without confirmation.
 
-## Phase 13: Plugin SDK And Ecosystem
+## Phase 9: Plugin SDK And Ecosystem
 
 Goal: let new apps and agents integrate cleanly.
 
@@ -406,6 +312,45 @@ Acceptance criteria:
 - Plugin install, disable, and remove paths work.
 - Permission prompts and audit logs include plugin identity.
 
+## Track B: Kernel-Lab Roadmap
+
+This track keeps the existing custom x86 kernel useful without blocking the
+Linux product path.
+
+## Kernel-Lab Phase 1: Reliable Kernel And Shell Foundation
+
+Goal: make the current text-mode hobby OS stable enough for experiments.
+
+Core features:
+
+- QEMU smoke test target that boots the ISO and can run scripted shell commands.
+- Serial logging option for automated test output.
+- Expanded `selftest` coverage for heap reuse, aligned allocations, RAMFS path
+  edge cases, append/write failure behavior, shell redirection, and command
+  dispatch.
+- Panic diagnostics that show exception number, error code, and registers.
+- Shell parser cleanup.
+- CI workflow for the hobby kernel ISO.
+- ADRs for memory model, syscall ABI, and test strategy.
+
+Acceptance criteria:
+
+- A single command can build the ISO and run a QEMU smoke script.
+- `selftest` covers heap, RAMFS, and shell behavior.
+- CI rejects build failures.
+- The OS stays interactive after common bad inputs.
+
+Existing GitHub tracking for this lab track:
+
+- Milestone: [Phase 1: Reliable Kernel And Shell Foundation](https://github.com/imthegoodboy/huggingos/milestone/1)
+- Epic: [#9 Phase 1 reliable kernel and shell foundation](https://github.com/imthegoodboy/huggingos/issues/9)
+- [#3 Add QEMU smoke test target and serial output](https://github.com/imthegoodboy/huggingos/issues/3)
+- [#4 Expand in-kernel selftest coverage](https://github.com/imthegoodboy/huggingos/issues/4)
+- [#5 Harden shell parser and redirection handling](https://github.com/imthegoodboy/huggingos/issues/5)
+- [#6 Add panic register diagnostics](https://github.com/imthegoodboy/huggingos/issues/6)
+- [#7 Add CI build for kernel and ISO](https://github.com/imthegoodboy/huggingos/issues/7)
+- [#8 Document syscall ABI and memory model](https://github.com/imthegoodboy/huggingos/issues/8)
+
 ## Project Management Plan
 
 Use GitHub for execution:
@@ -413,12 +358,16 @@ Use GitHub for execution:
 - One milestone per phase.
 - One epic issue per phase.
 - Implementation issues under the active phase only.
+- Use `track:product` for Linux product work and `track:kernel-lab` for the
+  custom hobby kernel.
 - Labels:
   - `phase:1`, `phase:2`, etc.
+  - `track:product`, `track:kernel-lab`.
   - `type:epic`, `type:feature`, `type:test`, `type:docs`, `type:security`.
   - `area:kernel`, `area:shell`, `area:fs`, `area:drivers`, `area:ai`,
     `area:gui`, `area:automation`, `area:infra`, `area:net`,
-    `area:security`.
+    `area:security`, `area:product`, `area:distro`, `area:cli`,
+    `area:policy`, `area:service`.
 - PRs should mention the issue they close.
 - Each phase ends with a release note in `UPDATE.md`.
 - Future agents should follow [agent/SKILL.md](agent/SKILL.md).
@@ -447,18 +396,18 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Immediate Sprint: Phase 1
+## Immediate Sprint: Product Phase 1
 
 Start here next:
 
-1. Add QEMU smoke automation and serial output.
-2. Expand `selftest`.
-3. Harden shell parser/redirection.
-4. Add panic register diagnostics.
-5. Add CI build.
+1. Choose the Linux base image strategy.
+2. Create the `product/` tree and documented dev/build commands.
+3. Add the first real `huggingos` CLI.
+4. Add runtime config layout with no committed secrets.
+5. Add product smoke checks and CI.
 
-Phase 1 is intentionally boring and important. Once this is solid, the later AI
-features have something real to stand on.
+Product Phase 1 is intentionally boring and important. Once this is solid, the
+later AI features have a real Linux OS foundation to stand on.
 
 ## Things We Will Not Fake
 

@@ -6,7 +6,9 @@ Use this checklist before, during, and after every huggingOS task.
 
 - [ ] Read the active GitHub issue.
 - [ ] Read the matching phase in `PLAN.md`.
+- [ ] Decide the track: Linux product or kernel lab.
 - [ ] Confirm the task belongs to the active phase or explain why it must happen now.
+- [ ] For product work, read `product/README.md` and the kernel strategy ADR.
 - [ ] Inspect the relevant source files before designing the change.
 - [ ] Identify the real user-visible or kernel-visible behavior being added.
 - [ ] Identify the validation command that will prove it works.
@@ -20,6 +22,8 @@ Stop and rethink if the task starts to become:
 - A hardcoded path, token, API key, fake device address, or emulator-only shortcut.
 - A cloud AI feature before networking, TLS, secret storage, and userspace service
   boundaries exist.
+- A product AI feature being added to the custom hobby kernel instead of the
+  Linux product track.
 - A browser automation feature before a browser/app automation layer exists.
 - A large refactor unrelated to the issue.
 
