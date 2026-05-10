@@ -1,0 +1,49 @@
+{
+  "schema_version": "huggingos.plugin.v1",
+  "id": "sample.hello",
+  "name": "Sample Hello Plugin",
+  "version": "1.0.0",
+  "description": "Sample third-party plugin proving the Phase 9 manifest contract.",
+  "permissions": [
+    "plugins:read"
+  ],
+  "capabilities": [
+    {
+      "name": "hello",
+      "description": "Return a static greeting from the sample plugin.",
+      "risk": "read",
+      "permissions": [
+        "plugins:read"
+      ],
+      "response": {
+        "message": "hello from plugin"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "hello-workflow",
+      "description": "Run the sample greeting capability.",
+      "steps": [
+        {
+          "capability": "plugins.capability.run",
+          "params": {
+            "plugin_id": "sample.hello",
+            "capability": "hello"
+          },
+          "reason": "Run the sample plugin greeting."
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "id": "sample.hello.agent",
+      "name": "Sample Hello Agent",
+      "description": "Demonstrates a plugin-declared agent allowlist.",
+      "allowed_capabilities": [
+        "plugins.capability.run"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-workflow-detect agent-proactive-suggest agent-selfheal-diagnose agent-timeline-explain agent-smoke smoke
+.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-workflow-detect agent-proactive-suggest agent-selfheal-diagnose agent-timeline-explain agent-plugin-validate agent-plugin-install agent-plugin-catalog agent-plugin-workflow agent-plugin-run agent-plugin-disable agent-plugin-remove agent-smoke smoke
 
 status:
 	$(PYTHON) cli/huggingos.py status
@@ -94,6 +94,27 @@ agent-selfheal-diagnose:
 
 agent-timeline-explain:
 	cd agent && cargo run -- run timeline.explain --json
+
+agent-plugin-validate:
+	cd agent && cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
+
+agent-plugin-install:
+	cd agent && cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
+
+agent-plugin-catalog:
+	cd agent && cargo run -- run plugins.catalog --json
+
+agent-plugin-workflow:
+	cd agent && cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
+
+agent-plugin-run:
+	cd agent && cargo run -- run plugins.capability.run --param plugin_id=sample.hello --param capability=hello --json
+
+agent-plugin-disable:
+	cd agent && cargo run -- run plugins.disable --param plugin_id=sample.hello --confirm --json
+
+agent-plugin-remove:
+	cd agent && cargo run -- run plugins.remove --param plugin_id=sample.hello --confirm --json
 
 agent-smoke:
 	cd agent && cargo test

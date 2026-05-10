@@ -430,19 +430,51 @@ Tracking:
 
 Goal: let new apps and agents integrate cleanly.
 
+Status: complete for the first declarative manifest slice.
+
 Core features:
 
-- Plugin manifest and permission model.
-- SDK for capability providers.
-- SDK for app UI metadata.
-- SDK for agents and workflows.
-- Versioned API contracts and compatibility tests.
+- Plugin manifest and permission model. Done with
+  `huggingos.plugin.v1` manifests and plugin permissions.
+- SDK for capability providers. Done for declarative read-only plugin
+  capabilities through `plugins.capability.run`.
+- SDK for app UI metadata. Deferred until the desktop overlay exists.
+- SDK for agents and workflows. Done for manifest-declared workflows and agent
+  allowlists; plugin-native agent execution remains later.
+- Versioned API contracts and compatibility tests. Done with manifest
+  validation and Rust tests.
 
 Acceptance criteria:
 
-- A sample third-party plugin can add one capability and one workflow.
-- Plugin install, disable, and remove paths work.
-- Permission prompts and audit logs include plugin identity.
+- A sample third-party plugin can add one capability and one workflow. Done with
+  `product/plugins/hello-assistant/plugin.json`.
+- Plugin install, disable, and remove paths work. Done and covered by Rust tests
+  and CI smoke commands.
+- Permission prompts and audit logs include plugin identity. Done through
+  `plugin_identity` in plugin lifecycle and run audit records.
+
+Tracking:
+
+- Epic: [#77 Product Phase 9 Epic: Plugin SDK and ecosystem](https://github.com/imthegoodboy/huggingos/issues/77)
+
+## Phase 10: Plugin Trust, Packaging, And Approval UI
+
+Goal: make the plugin ecosystem safe enough for richer integrations.
+
+Core features:
+
+- Signed plugin package metadata.
+- Install-time permission review.
+- Disable/remove rollback metadata.
+- Sandbox design for plugin-provided code execution.
+- UI metadata contract for future desktop overlay approval flows.
+
+Acceptance criteria:
+
+- A plugin package can be validated before install.
+- User-facing permission summaries can be generated from a manifest.
+- Plugin lifecycle audit records include package trust state.
+- Arbitrary plugin code remains disabled until sandboxing exists.
 
 ## Track B: Kernel-Lab Roadmap
 
@@ -528,26 +560,26 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 9
+## Next Sprint: Product Phase 10
 
-Start here next after Product Phase 8 is merged:
+Start here next after Product Phase 9 is merged:
 
-1. Define a plugin manifest and permission model.
-2. Add a sample plugin that contributes one capability and one workflow.
-3. Validate plugin install, disable, and remove paths.
-4. Make plugin identity visible in permission prompts and audit logs.
-5. Add compatibility tests for versioned plugin contracts.
+1. Add signed plugin/package trust metadata.
+2. Add a UI approval model for plugin install, permissions, and workflows.
+3. Add sandbox planning for plugin-provided code execution.
+4. Add plugin update/remove rollback rules.
+5. Extend plugin manifests with UI metadata once the overlay exists.
 
-Product Phase 8 gives AI suggestion-first proactive help. Phase 9 should let
-new integrations extend that capability surface without bypassing policy,
-audit, or confirmation.
+Product Phase 9 gives AI a manifest-based extension surface. The next phase
+should harden trust and packaging before any plugin code execution is allowed.
 
 ## Things We Will Not Fake
 
 - No hardcoded API keys in source code.
 - No fake network-backed AI until networking or a secure host bridge exists.
 - No fake browser automation until a browser/app model exists.
-- No "persistent memory" until storage and retention controls exist.
+- No expanded persistent memory beyond explicit local state until retention and
+  private-mode controls exist.
 - No "full OS control" until actions pass through permissioned capability APIs.
 - No hardcoded host paths, local usernames, API keys, fake device addresses, or
   success messages that hide missing implementation.

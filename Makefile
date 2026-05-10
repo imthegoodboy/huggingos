@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-workflow-detect product-agent-proactive-suggest product-agent-selfheal-diagnose product-agent-timeline-explain product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-workflow-detect product-agent-proactive-suggest product-agent-selfheal-diagnose product-agent-timeline-explain product-agent-plugin-validate product-agent-plugin-install product-agent-plugin-catalog product-agent-plugin-workflow product-agent-plugin-run product-agent-plugin-disable product-agent-plugin-remove product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -177,6 +177,27 @@ product-agent-selfheal-diagnose:
 product-agent-timeline-explain:
 	cd product/agent && cargo run -- run timeline.explain --json
 
+product-agent-plugin-validate:
+	cd product/agent && cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
+
+product-agent-plugin-install:
+	cd product/agent && cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
+
+product-agent-plugin-catalog:
+	cd product/agent && cargo run -- run plugins.catalog --json
+
+product-agent-plugin-workflow:
+	cd product/agent && cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
+
+product-agent-plugin-run:
+	cd product/agent && cargo run -- run plugins.capability.run --param plugin_id=sample.hello --param capability=hello --json
+
+product-agent-plugin-disable:
+	cd product/agent && cargo run -- run plugins.disable --param plugin_id=sample.hello --confirm --json
+
+product-agent-plugin-remove:
+	cd product/agent && cargo run -- run plugins.remove --param plugin_id=sample.hello --confirm --json
+
 product-agent-smoke:
 	cd product/agent && cargo test
 
@@ -221,6 +242,13 @@ help:
 	@echo "  product-agent-proactive-suggest - Build safe proactive suggestions"
 	@echo "  product-agent-selfheal-diagnose - Diagnose a simulated recoverable failure"
 	@echo "  product-agent-timeline-explain - Explain recent audited activity"
+	@echo "  product-agent-plugin-validate - Validate the sample plugin manifest"
+	@echo "  product-agent-plugin-install - Install the sample plugin"
+	@echo "  product-agent-plugin-catalog - List installed plugins"
+	@echo "  product-agent-plugin-workflow - Plan the sample plugin workflow"
+	@echo "  product-agent-plugin-run - Run the sample plugin capability"
+	@echo "  product-agent-plugin-disable - Disable the sample plugin"
+	@echo "  product-agent-plugin-remove - Remove the sample plugin"
 	@echo "  product-agent-smoke - Run Rust product agent tests"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"

@@ -496,9 +496,21 @@ Still later:
 
 ### Phase 9: Plugin SDK
 
-- Plugin manifest.
-- Capability provider SDK.
-- Agent/workflow SDK.
+Complete for the first manifest SDK slice:
+
+- Versioned plugin manifest.
+- Declarative read-only plugin capabilities.
+- Plugin workflow planning.
+- Plugin lifecycle install, disable, and remove.
+- Plugin identity in audit records.
+- Sample third-party plugin.
+
+Still later:
+
+- Signed plugin packages.
+- Sandboxed plugin code execution.
+- Plugin marketplace/update flow.
+- Plugin UI metadata and approval screens.
 
 ## Production-Readiness Gates
 
@@ -520,6 +532,7 @@ No phase is complete until:
 - Yocto Project overview: https://www.yoctoproject.org/about/project-overview/
 - Model Context Protocol specification: https://modelcontextprotocol.io/specification/2025-06-18/server/tools
 - ADR 0010: `docs/adr/0010-predictive-self-healing-suggestions.md`
+- ADR 0011: `docs/adr/0011-declarative-plugin-manifests.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

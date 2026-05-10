@@ -31,6 +31,7 @@ in PR descriptions.
 - [Product Phase 6 memory](product-phase6-memory.md)
 - [Product Phase 7 agents](product-phase7-agents.md)
 - [Product Phase 8 predictive healing](product-phase8-predictive-healing.md)
+- [Product Phase 9 plugins](product-phase9-plugins.md)
 
 ## Knowledge Capture Rule
 

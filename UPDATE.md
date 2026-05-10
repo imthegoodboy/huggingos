@@ -164,6 +164,18 @@ Completed the first suggestion-first proactive slice:
 - Added predictive and self-healing agents with explicit allowlists.
 - Added Phase 8 docs, ADR, Make targets, CI smoke commands, and Rust tests.
 
+## Product Phase 9 Plugin SDK And Ecosystem
+
+Completed the first declarative plugin SDK slice:
+
+- Added `huggingos.plugin.v1` manifest validation.
+- Added confirmed plugin install, disable, and remove capabilities.
+- Added plugin catalog, workflow planning, and read-only declarative plugin
+  capability execution.
+- Added plugin identity to audit records.
+- Added the sample `sample.hello` plugin under `product/plugins/`.
+- Added Phase 9 docs, ADR, Make targets, CI smoke commands, and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

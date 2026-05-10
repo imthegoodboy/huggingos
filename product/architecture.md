@@ -20,13 +20,14 @@ Linux kernel and distro base
   -> memory and semantic file bridge
   -> multi-agent orchestration bridge
   -> predictive and self-healing suggestion bridge
+  -> declarative plugin SDK bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane Through Phase 8 Predictive Help
+## Phase 2 Control Plane Through Phase 9 Plugins
 
 Product Phase 2 adds the first executable capability control plane:
 
@@ -74,6 +75,11 @@ detection, proactive suggestions, failure diagnosis, and activity timelines read
 local audit/memory/trace context and return recommended next steps without
 silently executing fixes.
 
+Product Phase 9 adds declarative plugins. Local plugin manifests can declare
+read-only capabilities, workflows, and agent allowlists. Install, disable, and
+remove are confirmed lifecycle capabilities, and plugin identity is written into
+audit records.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -86,6 +92,7 @@ Tracking:
 - Phase 6 epic: [#72 Product Phase 6 Epic: Memory and semantic files](https://github.com/imthegoodboy/huggingos/issues/72)
 - Phase 7 epic: [#73 Product Phase 7 Epic: Multi-agent orchestration](https://github.com/imthegoodboy/huggingos/issues/73)
 - Phase 8 epic: [#75 Product Phase 8 Epic: Predictive and self-healing OS](https://github.com/imthegoodboy/huggingos/issues/75)
+- Phase 9 epic: [#77 Product Phase 9 Epic: Plugin SDK and ecosystem](https://github.com/imthegoodboy/huggingos/issues/77)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -132,6 +139,7 @@ Phase 1 through Phase 4 are directionally correct:
   collection.
 - It adds multi-agent orchestration without letting agents bypass policy.
 - It adds predictive and self-healing help without silent destructive action.
+- It adds plugin extension points without arbitrary native plugin execution.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

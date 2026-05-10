@@ -1,8 +1,8 @@
 [product]
 name = "huggingOS"
-version = "0.8.0-phase8"
+version = "0.9.0-phase9"
 track = "product"
-phase = "Product Phase 8"
+phase = "Product Phase 9"
 base_strategy = "Ubuntu LTS hosted prototype"
 
 [runtime]
@@ -60,6 +60,8 @@ multi_agent_orchestration_enabled = true
 predictive_suggestions_enabled = true
 self_healing_diagnostics_enabled = true
 timeline_explain_enabled = true
+plugin_sdk_enabled = true
+declarative_plugins_enabled = true
 
 [policy]
 audit_log_name = "audit.log"
