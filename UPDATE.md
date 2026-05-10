@@ -28,6 +28,21 @@ Completed the first Linux-hosted product slice:
 - Added product smoke tests and a Product Phase 1 CI workflow.
 - Added product `make` targets for status, doctor, and smoke validation.
 
+## Pre-Phase 2 Architecture Audit
+
+Readiness checks found that the Phase 1 direction is correct, but executable
+scripts needed LF line endings enforced for WSL/Linux execution from Windows
+checkouts.
+
+Completed before Phase 2:
+
+- Added `.gitattributes` for Linux-facing scripts, source, Makefiles, TOML, and
+  workflows.
+- Added ADR 0003 for the capability control plane.
+- Added `product/architecture.md` with the intended agent control architecture.
+- Added Product Phase 2 GitHub milestone and issues for schema, registry,
+  policy, audit, first capabilities, and tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline
