@@ -1,5 +1,8 @@
 # Product Architecture
 
+For the complete project-wide architecture, see
+[`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 huggingOS is a Linux-based AI operating system layer. Linux provides the kernel,
 drivers, process isolation, networking, filesystems, and desktop APIs. The
 huggingOS product code provides the control plane that lets users and agents act

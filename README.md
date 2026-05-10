@@ -15,6 +15,7 @@ The current product work is in Phase 1 planning/foundation. The custom kernel is
 already a working QEMU-bootable lab OS, but it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
+For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Current Status
 

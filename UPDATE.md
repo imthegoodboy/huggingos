@@ -43,6 +43,12 @@ Completed before Phase 2:
 - Added Product Phase 2 GitHub milestone and issues for schema, registry,
   policy, audit, first capabilities, and tests.
 
+## Root Architecture Document
+
+Added `ARCHITECTURE.md` as the project-wide north-star architecture for the
+Linux-based AI OS layer, including component boundaries, agent control flow,
+technology choices, phase roadmap, and production-readiness gates.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

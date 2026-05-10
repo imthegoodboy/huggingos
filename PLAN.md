@@ -32,6 +32,8 @@ isolation, devices, files, networking, timers, graphics, and safe syscalls. AI
 logic should run in userspace services that call explicit OS capabilities.
 
 See [ADR 0001](docs/adr/0001-kernel-strategy.md) for the kernel strategy.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the project-wide production
+architecture.
 
 ## Product Principles
 
