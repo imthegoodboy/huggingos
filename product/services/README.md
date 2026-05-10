@@ -2,8 +2,10 @@
 
 This directory is reserved for Linux userspace daemons and local APIs.
 
-Phase 1 does not start a resident service yet. The first service should be
-added only when there is a real capability API or runtime bridge to expose.
+Phase 2 keeps the capability engine in-process for speed and testability. The
+first resident service should be added when the runtime bridge or desktop
+integration needs long-running state, IPC, subscriptions, or background
+automation.
 
 Service rules:
 

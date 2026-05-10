@@ -33,11 +33,12 @@ class HuggingOsCliTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["product"], "huggingOS")
         self.assertEqual(payload["track"], "product")
-        self.assertEqual(payload["phase"], "Product Phase 1")
+        self.assertEqual(payload["phase"], "Product Phase 2")
         self.assertIn("python", payload["host"])
         self.assertTrue(Path(payload["paths"]["config_file"]).exists())
+        self.assertIn("audit_log", payload["paths"])
 
-    def test_doctor_passes_phase1_foundation(self):
+    def test_doctor_passes_product_foundation(self):
         result = run_cli("doctor", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -78,6 +79,113 @@ confirmation_required_for = ["delete", "secret", "system"]
         self.assertNotIn("should-not-print", result.stdout)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["config"]["policy"]["api_key"], "<redacted>")
+
+    def test_capabilities_list_includes_product_status(self):
+        result = run_cli("capabilities", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        payload = json.loads(result.stdout)
+        names = {capability["name"] for capability in payload["capabilities"]}
+        self.assertIn("product.status", names)
+        self.assertIn("notes.create", names)
+
+    def test_run_product_status_writes_audit(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = run_cli(
+                "run",
+                "product.status",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "succeeded")
+            self.assertEqual(payload["capability"], "product.status")
+            audit_log = Path(tmp_dir) / "audit.log"
+            self.assertTrue(audit_log.exists())
+            self.assertIn("product.status", audit_log.read_text(encoding="utf-8"))
+
+    def test_note_create_dry_run_does_not_write_file(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            workspace = Path(tmp_dir) / "workspace"
+            result = run_cli(
+                "run",
+                "notes.create",
+                "--param",
+                "title=Phase Two",
+                "--param",
+                "content=hello",
+                "--dry-run",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir, "HUGGINGOS_WORKSPACE_DIR": str(workspace)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "dry_run")
+            self.assertFalse((workspace / "phase-two.md").exists())
+            self.assertIn("dry_run", (Path(tmp_dir) / "audit.log").read_text(encoding="utf-8"))
+
+    def test_note_create_writes_only_inside_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            workspace = Path(tmp_dir) / "workspace"
+            result = run_cli(
+                "run",
+                "notes.create",
+                "--param",
+                "title=Phase Two",
+                "--param",
+                "content=hello",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir, "HUGGINGOS_WORKSPACE_DIR": str(workspace)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "succeeded")
+            note_path = Path(payload["data"]["path"])
+            self.assertEqual(note_path, workspace / "phase-two.md")
+            self.assertTrue(note_path.exists())
+
+    def test_unknown_capability_is_denied_and_audited(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = run_cli(
+                "run",
+                "system.delete_everything",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+
+            self.assertEqual(result.returncode, 1)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "denied")
+            audit_log = Path(tmp_dir) / "audit.log"
+            self.assertTrue(audit_log.exists())
+
+    def test_audit_list_returns_recent_entries(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            first = run_cli(
+                "run",
+                "product.status",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+
+            result = run_cli(
+                "run",
+                "audit.list",
+                "--param",
+                "limit=10",
+                "--json",
+                env={"HUGGINGOS_STATE_DIR": tmp_dir},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "succeeded")
+            self.assertGreaterEqual(payload["data"]["entry_count"], 1)
 
 
 if __name__ == "__main__":

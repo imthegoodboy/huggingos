@@ -11,8 +11,9 @@ This repository has two tracks:
 - Kernel-lab track: the existing bootable 32-bit x86 hobby kernel under
   `kernel/`, kept for low-level OS experiments and learning.
 
-The current product work is in Phase 1 planning/foundation. The custom kernel is
-already a working QEMU-bootable lab OS, but it is not the production AI OS path.
+The current product work has completed the Linux foundation and the first
+capability control plane. The custom kernel is already a working QEMU-bootable
+lab OS, but it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -22,8 +23,12 @@ For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 Product track:
 
 - Linux product direction selected.
-- `product/README.md` created as the entry point for the Linux OS layer.
-- Runtime, CLI, service, packaging, and smoke-test structure planned.
+- `product/README.md` is the entry point for the Linux OS layer.
+- Runtime config, CLI, service, packaging, and smoke-test structure exists.
+- Phase 2 capability layer exists for typed, policy-checked, audited local
+  actions.
+- Current capabilities: `product.status`, `fs.list`, `fs.read_text`,
+  `notes.create`, and `audit.list`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -50,13 +55,24 @@ lessons live in [agent/notes/INDEX.md](agent/notes/INDEX.md).
 Start with:
 
 ```bash
-cd product
+python3 product/cli/huggingos.py status
+python3 product/cli/huggingos.py capabilities
+python3 product/cli/huggingos.py run product.status
+python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
-Phase 1 will add the first real Linux product commands, including a reproducible
-dev/build path, a `huggingos` CLI, runtime config layout, smoke tests, and CI.
-Until that lands, `product/README.md` is the product-track contract, not a fake
-implementation.
+Or use the make targets:
+
+```bash
+make product-status
+make product-capabilities
+make product-run-status
+make product-smoke
+```
+
+The product CLI now executes safe local capabilities through registry, policy,
+verification, and audit. AI providers, browser control, and desktop app control
+are intentionally deferred until the secret and desktop integration phases.
 
 ## Kernel-Lab Quick Start
 
@@ -207,8 +223,10 @@ Makefile                    Kernel-lab build system
 Product track:
 
 - No Linux image/rootfs build is implemented yet.
-- No `huggingos` CLI or daemon is implemented yet.
+- No long-running `huggingosd` daemon is implemented yet.
 - No AI provider integration is implemented yet.
+- No desktop overlay, browser automation, app/window control, or screen capture
+  is implemented yet.
 
 Kernel-lab track:
 
@@ -241,8 +259,9 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start in Product Phase 1, not by adding advanced AI
-features to the custom kernel.
+The next product work should start in Product Phase 3, connecting an AI runtime
+and secure secret loading to the Phase 2 capability layer without adding
+advanced AI features to the custom kernel.
 
 ## References
 

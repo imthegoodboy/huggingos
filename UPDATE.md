@@ -49,6 +49,26 @@ Added `ARCHITECTURE.md` as the project-wide north-star architecture for the
 Linux-based AI OS layer, including component boundaries, agent control flow,
 technology choices, phase roadmap, and production-readiness gates.
 
+## Product Phase 2 Capability Layer
+
+Completed the first executable capability control plane for the Linux product
+track:
+
+- Added `product/huggingos_core/` for config, action models, registry, policy,
+  audit logging, capability implementations, and execution orchestration.
+- Added typed action request/result structures, risk levels, statuses,
+  verification, dry-run, and audit references.
+- Added a local capability registry and CLI listing path.
+- Added policy decisions for allow, deny, confirmation-needed, and dry-run.
+- Added append-only JSON Lines audit records for successful, failed, denied, and
+  dry-run capability actions.
+- Added first safe capabilities: `product.status`, `fs.list`, `fs.read_text`,
+  `notes.create`, and `audit.list`.
+- Added CLI execution through `huggingos.py run <capability>`.
+- Expanded product tests and smoke workflow coverage for schema, registry,
+  policy, audit, dry-run, failure, and safe workspace behavior.
+- Documented Phase 2 commands, local state paths, and safety rules.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

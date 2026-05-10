@@ -1,6 +1,7 @@
 # Product Config
 
-`defaults.toml` contains non-secret product defaults used by the Phase 1 CLI.
+`defaults.toml` contains non-secret product defaults used by the product CLI and
+capability layer.
 Real API keys, provider tokens, and local machine configuration must not be
 committed.
 
@@ -18,5 +19,10 @@ Ignored local files:
 - `product/config/*.local.*`
 - Config filenames containing `secret`, `token`, or `key`
 
-The CLI supports `HUGGINGOS_CONFIG_FILE` for testing or local overrides. Keep
-override files outside Git or in ignored local paths.
+The CLI supports these local override environment variables:
+
+- `HUGGINGOS_CONFIG_FILE`: load an alternate non-secret config file.
+- `HUGGINGOS_STATE_DIR`: move local runtime state and the audit log.
+- `HUGGINGOS_WORKSPACE_DIR`: constrain low-risk workspace writes.
+
+Keep override files outside Git or in ignored local paths.

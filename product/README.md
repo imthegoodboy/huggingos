@@ -16,14 +16,15 @@ product AI features to the hobby kernel unless an issue explicitly says to work
 on the kernel-lab track.
 
 For the Product Phase 1 kickoff sequence, see [PHASE1.md](PHASE1.md).
-For the product architecture and Phase 2 control-plane direction, see
-[architecture.md](architecture.md).
+For the Product Phase 2 capability layer, see [PHASE2.md](PHASE2.md).
+For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
 
 ```text
 product/
   README.md              Product-track entry point
+  huggingos_core/        Capability, policy, audit, and config library
   distro/                Base image, package, and rootfs definitions
   services/              huggingOS daemons and local APIs
   cli/                   huggingos command-line entrypoint
@@ -35,23 +36,28 @@ product/
 These folders should be created when the matching implementation issue starts.
 Do not fill them with fake placeholders.
 
-## Phase 1 Target
+## Current Product Slice
 
-Phase 1 should produce the smallest real Linux product foundation:
+The product track currently provides:
 
-- Pick the base image strategy.
-- Add reproducible dev/build commands.
-- Add a real `huggingos` CLI.
-- Add runtime config layout with no committed secrets.
-- Add smoke tests and CI.
+- Ubuntu LTS hosted prototype strategy.
+- Reproducible dev and smoke commands.
+- A real `huggingos` CLI.
+- Runtime config layout with no committed secrets.
+- Product smoke tests and CI.
+- Phase 2 in-process capability control plane.
+- First safe capabilities for product status, file listing, small text reads,
+  safe workspace note creation, and audit listing.
 
-## Phase 1 Commands
+## Product Commands
 
 From the repository root on Linux or WSL:
 
 ```bash
 python3 product/cli/huggingos.py status
 python3 product/cli/huggingos.py doctor
+python3 product/cli/huggingos.py capabilities
+python3 product/cli/huggingos.py run product.status
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -60,6 +66,8 @@ Or with `make`:
 ```bash
 make product-status
 make product-doctor
+make product-capabilities
+make product-run-status
 make product-smoke
 ```
 
@@ -68,12 +76,30 @@ From inside `product/`:
 ```bash
 make status
 make doctor
+make capabilities
+make run-status
 make smoke
 ```
 
-The CLI is intentionally small in Phase 1. It reports real product and host
-state, validates the local product foundation, and reads non-secret config. It
-does not automate apps, call AI providers, or change OS state yet.
+## Capability Examples
+
+All real automated actions should go through the capability control plane:
+
+```bash
+python3 product/cli/huggingos.py capabilities
+python3 product/cli/huggingos.py run fs.list --param path=.
+python3 product/cli/huggingos.py run fs.read_text --param path=product/README.md
+python3 product/cli/huggingos.py run notes.create --param title=PhaseTwo --param content="real note"
+python3 product/cli/huggingos.py run audit.list --param limit=10
+```
+
+Use `HUGGINGOS_STATE_DIR` to move local audit/runtime state, and
+`HUGGINGOS_WORKSPACE_DIR` to constrain low-risk workspace writes. The default
+audit log is JSON Lines at the product state path.
+
+The CLI still does not call AI providers, control browsers, launch arbitrary
+shell commands, or manage desktop apps. Those come after the safe capability,
+secret, and desktop integration phases.
 
 ## Local Files
 

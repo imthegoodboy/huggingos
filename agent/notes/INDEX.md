@@ -24,6 +24,7 @@ in PR descriptions.
 - [Product Phase 1 foundation](product-phase1-foundation.md)
 - [Pre-Phase 2 architecture audit](pre-phase2-architecture-audit.md)
 - [Root architecture document](root-architecture-document.md)
+- [Product Phase 2 capability layer](product-phase2-capability-layer.md)
 
 ## Knowledge Capture Rule
 

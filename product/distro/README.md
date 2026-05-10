@@ -1,8 +1,8 @@
 # Product Distro Strategy
 
-Product Phase 1 uses an Ubuntu LTS hosted prototype instead of building a full
-image immediately. This keeps the first slice runnable in WSL and CI while the
-CLI, config, and policy boundaries are still small.
+Product Phases 1 and 2 use an Ubuntu LTS hosted prototype instead of building a
+full image immediately. This keeps the product slice runnable in WSL and CI
+while the CLI, config, policy, and capability boundaries are still stabilizing.
 
 Reference base:
 

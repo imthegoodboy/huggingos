@@ -1,14 +1,15 @@
 [product]
 name = "huggingOS"
-version = "0.1.0-phase1"
+version = "0.2.0-phase2"
 track = "product"
-phase = "Product Phase 1"
+phase = "Product Phase 2"
 base_strategy = "Ubuntu LTS hosted prototype"
 
 [runtime]
 app_id = "huggingos"
 config_env = "HUGGINGOS_CONFIG_FILE"
 state_dir_env = "HUGGINGOS_STATE_DIR"
+workspace_dir_env = "HUGGINGOS_WORKSPACE_DIR"
 
 [features]
 cloud_ai_enabled = false
