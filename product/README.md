@@ -17,6 +17,7 @@ on the kernel-lab track.
 
 For the Product Phase 1 kickoff sequence, see [PHASE1.md](PHASE1.md).
 For the Product Phase 2 capability layer, see [PHASE2.md](PHASE2.md).
+For the Product Phase 3 AI runtime bridge, see [PHASE3.md](PHASE3.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -50,6 +51,8 @@ The product track currently provides:
 - Rust production agent runtime started under `product/agent/`.
 - First safe capabilities for product status, file listing, small text reads,
   safe workspace note creation, and audit listing.
+- Phase 3 Rust AI bridge with deterministic local planning, redacted provider
+  secret readiness, and plan-execute-verify execution through capabilities.
 
 ## Product Commands
 
@@ -62,6 +65,10 @@ python3 product/cli/huggingos.py capabilities
 python3 product/cli/huggingos.py run product.status
 cd product/agent && cargo run -- status --json
 cd product/agent && cargo run -- run product.status --json
+cd product/agent && cargo run -- ai status --json
+cd product/agent && cargo run -- ai plan "show product status" --json
+cd product/agent && cargo run -- ai run "show product status" --json
+cd product/agent && cargo run -- secrets status --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -72,6 +79,10 @@ make product-status
 make product-doctor
 make product-capabilities
 make product-run-status
+make product-agent-ai-status
+make product-agent-ai-plan
+make product-agent-ai-run
+make product-agent-secrets
 make product-agent-smoke
 make product-smoke
 ```
@@ -83,6 +94,10 @@ make status
 make doctor
 make capabilities
 make run-status
+make agent-ai-status
+make agent-ai-plan
+make agent-ai-run
+make agent-secrets
 make agent-smoke
 make smoke
 ```
@@ -103,13 +118,15 @@ Use `HUGGINGOS_STATE_DIR` to move local audit/runtime state, and
 `HUGGINGOS_WORKSPACE_DIR` to constrain low-risk workspace writes. The default
 audit log is JSON Lines at the product state path.
 
-The CLI still does not call AI providers, control browsers, launch arbitrary
-shell commands, or manage desktop apps. Those come after the safe capability,
-secret, and desktop integration phases.
+The Rust agent can now plan simple natural-language intents through the offline
+`local.rules` provider and execute those plans through the capability control
+plane. It still does not call cloud AI providers, control browsers, launch
+arbitrary shell commands, or manage desktop apps. Those require later provider,
+desktop, and permission work.
 
-The Rust agent currently mirrors the Phase 2 capability safety model and is the
-production path for the future daemon. The Python CLI remains a reference
-control surface until Rust reaches full parity.
+The Rust agent is the production path for AI planning, future daemon work, and
+desktop integration. The Python CLI remains a reference control surface for the
+Phase 2 capability model.
 
 ## Local Files
 

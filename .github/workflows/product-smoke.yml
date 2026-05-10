@@ -21,6 +21,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Show product status
         run: python3 product/cli/huggingos.py status --json
@@ -33,4 +35,28 @@ jobs:
 
       - name: Run Rust agent tests
         run: cargo test
+        working-directory: product/agent
+
+      - name: Check Rust agent formatting
+        run: cargo fmt -- --check
+        working-directory: product/agent
+
+      - name: Lint Rust agent
+        run: cargo clippy -- -D warnings
+        working-directory: product/agent
+
+      - name: Show Rust AI runtime status
+        run: cargo run -- ai status --json
+        working-directory: product/agent
+
+      - name: Plan through local AI runtime
+        run: cargo run -- ai plan "show product status" --json
+        working-directory: product/agent
+
+      - name: Execute local AI plan through capabilities
+        run: cargo run -- ai run "show product status" --json
+        working-directory: product/agent
+
+      - name: Show redacted AI secret readiness
+        run: cargo run -- secrets status --json
         working-directory: product/agent

@@ -159,6 +159,8 @@ means Linux userspace services, not custom-kernel shortcuts:
   workflow engine, and agent orchestration.
 - Capability API: the only path for AI actions that affect OS state.
 - Policy layer: permissions, confirmation, audit logs, and rollback.
+- Current production AI path: `product/agent` in Rust, with `local.rules`
+  planning and `ai run` execution through capabilities.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

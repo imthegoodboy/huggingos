@@ -83,6 +83,20 @@ Follow-up audit and runtime alignment:
   unavailable audit logs.
 - Added CI and make targets for Rust agent tests.
 
+## Product Phase 3 AI Runtime Bridge
+
+Completed the first production AI planning bridge in the Rust agent:
+
+- Added `ai status`, `ai plan`, and `ai run` commands.
+- Added `secrets status` with redacted provider readiness checks.
+- Added the `local.rules` deterministic offline provider.
+- Mapped supported natural-language intents to typed capability plans.
+- Executed AI plans only through the existing policy, audit, executor, and
+  verifier path.
+- Declared local-model and cloud-provider status/failure behavior without fake
+  outbound model calls or committed keys.
+- Added Phase 3 docs, Make targets, CI smoke commands, and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

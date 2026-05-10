@@ -25,6 +25,7 @@ in PR descriptions.
 - [Pre-Phase 2 architecture audit](pre-phase2-architecture-audit.md)
 - [Root architecture document](root-architecture-document.md)
 - [Product Phase 2 capability layer](product-phase2-capability-layer.md)
+- [Product Phase 3 AI runtime](product-phase3-ai-runtime.md)
 
 ## Knowledge Capture Rule
 
