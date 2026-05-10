@@ -80,6 +80,10 @@ read-only capabilities, workflows, and agent allowlists. Install, disable, and
 remove are confirmed lifecycle capabilities, and plugin identity is written into
 audit records.
 
+Product Phase 10 adds plugin trust hardening. Package metadata, permission
+review summaries, sandbox declarations, rollback metadata, and audit trust state
+are now explicit while plugin code execution remains disabled.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -93,6 +97,7 @@ Tracking:
 - Phase 7 epic: [#73 Product Phase 7 Epic: Multi-agent orchestration](https://github.com/imthegoodboy/huggingos/issues/73)
 - Phase 8 epic: [#75 Product Phase 8 Epic: Predictive and self-healing OS](https://github.com/imthegoodboy/huggingos/issues/75)
 - Phase 9 epic: [#77 Product Phase 9 Epic: Plugin SDK and ecosystem](https://github.com/imthegoodboy/huggingos/issues/77)
+- Phase 10 epic: [#79 Product Phase 10 Epic: Plugin trust packaging and approval UI](https://github.com/imthegoodboy/huggingos/issues/79)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -140,6 +145,7 @@ Phase 1 through Phase 4 are directionally correct:
 - It adds multi-agent orchestration without letting agents bypass policy.
 - It adds predictive and self-healing help without silent destructive action.
 - It adds plugin extension points without arbitrary native plugin execution.
+- It adds plugin trust metadata without claiming cryptographic verification.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

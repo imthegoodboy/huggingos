@@ -461,20 +461,33 @@ Tracking:
 
 Goal: make the plugin ecosystem safe enough for richer integrations.
 
+Status: complete for the first trust-metadata slice.
+
 Core features:
 
-- Signed plugin package metadata.
-- Install-time permission review.
-- Disable/remove rollback metadata.
-- Sandbox design for plugin-provided code execution.
-- UI metadata contract for future desktop overlay approval flows.
+- Signed plugin package metadata. Done as validated signature metadata fields;
+  cryptographic verification remains later.
+- Install-time permission review. Done through `plugins.permission.review`.
+- Disable/remove rollback metadata. Done in plugin lifecycle results.
+- Sandbox design for plugin-provided code execution. Done as manifest sandbox
+  declarations with code execution disabled.
+- UI metadata contract for future desktop overlay approval flows. Done through
+  `ui.display_name`, `ui.approval_summary`, and approval summaries.
 
 Acceptance criteria:
 
-- A plugin package can be validated before install.
-- User-facing permission summaries can be generated from a manifest.
-- Plugin lifecycle audit records include package trust state.
-- Arbitrary plugin code remains disabled until sandboxing exists.
+- A plugin package can be validated before install. Done through
+  `plugins.package.validate`.
+- User-facing permission summaries can be generated from a manifest. Done
+  through `plugins.permission.review`.
+- Plugin lifecycle audit records include package trust state. Done through
+  `plugin_trust_state`.
+- Arbitrary plugin code remains disabled until sandboxing exists. Done through
+  sandbox validation and runtime policy.
+
+Tracking:
+
+- Epic: [#79 Product Phase 10 Epic: Plugin trust packaging and approval UI](https://github.com/imthegoodboy/huggingos/issues/79)
 
 ## Track B: Kernel-Lab Roadmap
 
@@ -560,18 +573,18 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 10
+## Next Sprint: Product Phase 11
 
-Start here next after Product Phase 9 is merged:
+Start here next after Product Phase 10 is merged:
 
-1. Add signed plugin/package trust metadata.
-2. Add a UI approval model for plugin install, permissions, and workflows.
-3. Add sandbox planning for plugin-provided code execution.
-4. Add plugin update/remove rollback rules.
-5. Extend plugin manifests with UI metadata once the overlay exists.
+1. Add real cryptographic signature verification for plugin packages.
+2. Define a local signed package archive format.
+3. Add package update channel metadata and rollback manifests.
+4. Add desktop approval UI surfaces for plugin trust and permissions.
+5. Keep plugin-provided code disabled until the sandbox is implemented.
 
-Product Phase 9 gives AI a manifest-based extension surface. The next phase
-should harden trust and packaging before any plugin code execution is allowed.
+Product Phase 10 gives plugin manifests honest trust metadata. Phase 11 should
+turn that into verified package trust before expanding plugin power.
 
 ## Things We Will Not Fake
 

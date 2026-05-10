@@ -176,6 +176,19 @@ Completed the first declarative plugin SDK slice:
 - Added the sample `sample.hello` plugin under `product/plugins/`.
 - Added Phase 9 docs, ADR, Make targets, CI smoke commands, and Rust tests.
 
+## Product Phase 10 Plugin Trust, Packaging, And Approval UI
+
+Completed the first plugin trust-metadata slice:
+
+- Added package metadata, UI approval metadata, and sandbox declarations to
+  plugin manifests.
+- Added `plugins.package.validate` and `plugins.permission.review`.
+- Added permission summaries, approval summaries, trust states, and rollback
+  metadata to plugin lifecycle behavior.
+- Added plugin trust state to audit records.
+- Kept plugin code execution disabled and documented signature metadata as
+  unverified until real cryptographic verification exists.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

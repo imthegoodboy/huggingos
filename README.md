@@ -16,9 +16,9 @@ capability control plane, the first Rust AI planning bridge, the first
 permissioned Linux desktop-control slice, the first screen/context observation
 engine, local memory/semantic file search, and permissioned multi-agent
 orchestration, plus the first predictive/self-healing suggestion layer. The
-first plugin SDK slice is also present for manifest-based third-party
-extensions. The custom kernel is already a working QEMU-bootable lab OS, but it
-is not the production AI OS path.
+first plugin SDK and trust-metadata slice is also present for manifest-based
+third-party extensions. The custom kernel is already a working QEMU-bootable lab
+OS, but it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -50,6 +50,9 @@ Product track:
   activity timelines.
 - Phase 9 plugin capabilities exist for manifest validation, install, catalog,
   workflow planning, read-only plugin capability runs, disable, and remove.
+- Phase 10 plugin trust capabilities exist for package metadata validation,
+  permission review, sandbox declarations, rollback metadata, and audited trust
+  state.
 - Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, `workspace.mode.plan`, `screen.status`,
@@ -62,7 +65,8 @@ Product track:
   `proactive.suggest`, `selfheal.diagnose`, `timeline.explain`,
   `plugins.validate`, `plugins.install`, `plugins.catalog`,
   `plugins.workflow.plan`, `plugins.capability.run`, `plugins.disable`, and
-  `plugins.remove`.
+  `plugins.remove`, plus `plugins.package.validate` and
+  `plugins.permission.review`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -320,8 +324,8 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start after Product Phase 9 by hardening plugin
-trust, packaging, and UI approval flows on top of the manifest SDK.
+The next product work should start after Product Phase 10 by adding real
+signature verification, package archives, and desktop approval UI.
 
 ## References
 

@@ -30,6 +30,8 @@ Current rules:
   confirmation, rollback, and daemon controls exist.
 - Plugins must stay manifest-only and read-only until sandboxing, signatures,
   and rollback controls exist.
+- Plugin signature fields are metadata-only until cryptographic verification is
+  implemented.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe
@@ -37,4 +39,4 @@ workspace, and list audit records. The Rust agent adds AI planning,
 desktop/app/browser capabilities, and the first screen/context observation
 capabilities, local memory/search, multi-agent orchestration, and
 predictive/self-healing suggestions, plus manifest-based plugins. It does not
-call cloud AI providers yet.
+call cloud AI providers yet and does not execute plugin code.

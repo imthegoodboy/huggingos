@@ -189,6 +189,14 @@ jobs:
         run: cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
         working-directory: product/agent
 
+      - name: Validate sample plugin package trust metadata
+        run: cargo run -- run plugins.package.validate --param source=../plugins/hello-assistant --json
+        working-directory: product/agent
+
+      - name: Review sample plugin permissions
+        run: cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
+        working-directory: product/agent
+
       - name: Install sample plugin
         run: cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
         working-directory: product/agent
