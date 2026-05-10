@@ -20,6 +20,7 @@ in PR descriptions.
 - [Phase 0 baseline lessons](phase-0-baseline-lessons.md)
 - [Linux product strategy](linux-product-strategy.md)
 - [Git metadata corruption](git-metadata-corruption.md)
+- [Prebuild readiness audit](prebuild-readiness-audit.md)
 
 ## Knowledge Capture Rule
 

@@ -15,6 +15,8 @@ The existing `kernel/` directory remains the custom kernel-lab track. Do not add
 product AI features to the hobby kernel unless an issue explicitly says to work
 on the kernel-lab track.
 
+For the Product Phase 1 kickoff sequence, see [PHASE1.md](PHASE1.md).
+
 ## Planned Structure
 
 ```text
@@ -40,6 +42,12 @@ Phase 1 should produce the smallest real Linux product foundation:
 - Add a real `huggingos` CLI.
 - Add runtime config layout with no committed secrets.
 - Add smoke tests and CI.
+
+## Local Files
+
+Local runtime files, secrets, and machine-specific config are intentionally not
+tracked. Use documented config examples when they exist, and keep real provider
+keys in the OS keyring or local ignored files only.
 
 ## Rules
 

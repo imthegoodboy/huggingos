@@ -6,6 +6,20 @@ iso/
 *.iso
 *.elf
 
+# Product local runtime and secrets
+.env
+.env.*
+!.env.example
+product/.env
+product/.env.*
+!product/.env.example
+product/runtime/
+product/secrets/
+product/config/*.local.*
+product/config/*secret*
+product/config/*token*
+product/config/*key*
+
 # Editor files
 .vscode/
 .idea/
