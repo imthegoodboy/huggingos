@@ -33,6 +33,8 @@ Current rules:
 - Plugin install requires a verified local package signature.
 - Plugin update metadata is allowed, but auto-update is denied until approval
   flows exist.
+- Plugin approval surfaces are read-only review payloads. Lifecycle actions
+  still require their own confirmed capabilities.
 
 The current CLI can report product status, inspect non-secret config, list
 capabilities, execute safe read-only capabilities, create notes inside the safe

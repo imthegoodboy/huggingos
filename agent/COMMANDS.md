@@ -30,6 +30,7 @@ make product-agent-selfheal-diagnose
 make product-agent-plugin-install
 make product-agent-plugin-package-validate
 make product-agent-plugin-permission-review
+make product-agent-plugin-approval-surface
 make product-agent-plugin-run
 make product-agent-plugin-remove
 make product-smoke
@@ -91,6 +92,7 @@ gh issue list --label "track:product" --search "Phase 8"
 gh issue list --label "track:product" --search "Phase 9"
 gh issue list --label "track:product" --search "Phase 10"
 gh issue list --label "track:product" --search "Phase 11"
+gh issue list --label "track:product" --search "Phase 12"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```

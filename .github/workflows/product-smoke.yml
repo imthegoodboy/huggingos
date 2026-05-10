@@ -197,6 +197,10 @@ jobs:
         run: cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
         working-directory: product/agent
 
+      - name: Build sample plugin approval surface
+        run: cargo run -- run plugins.approval.surface --param source=../plugins/hello-assistant --json
+        working-directory: product/agent
+
       - name: Install sample plugin
         run: cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
         working-directory: product/agent

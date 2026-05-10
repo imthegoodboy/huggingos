@@ -525,6 +525,42 @@ Tracking:
 
 - Epic: [#81 Product Phase 11 Epic: Plugin signature verification](https://github.com/imthegoodboy/huggingos/issues/81)
 
+## Phase 12: Plugin Approval Surface
+
+Goal: make verified plugin trust decisions renderable before adding more plugin
+power.
+
+Status: complete for the first desktop-ready approval contract slice.
+
+Core features:
+
+- Desktop approval UI surfaces for plugin trust, permissions, sandbox
+  declarations, and update metadata. Done as the read-only
+  `plugins.approval.surface` JSON control surface.
+- Surface-level action review. Done with confirmed next-action payloads for
+  install, disable, and remove.
+- Rollback visibility. Done with recent rollback manifest summaries and clear
+  automatic-rollback limitations.
+- Sandbox boundary design for plugin-provided code execution. Deferred to
+  Product Phase 13; Phase 12 keeps plugin code disabled.
+- Signed archive bundles and trusted update feeds. Deferred to Product Phase
+  13.
+
+Acceptance criteria:
+
+- A source plugin approval surface can be generated without installing the
+  plugin. Done through `plugins.approval.surface --param source=...`.
+- An installed plugin approval surface can show lifecycle actions and rollback
+  records. Done through `plugins.approval.surface --param plugin_id=...`.
+- The local planner can map plugin approval prompts. Done through
+  `local.rules`.
+- The approval surface does not mutate plugin state. Done as a read-only
+  capability.
+
+Tracking:
+
+- Epic: [#83 Product Phase 12 Epic: Plugin approval surface readiness](https://github.com/imthegoodboy/huggingos/issues/83)
+
 ## Track B: Kernel-Lab Roadmap
 
 This track keeps the existing custom x86 kernel useful without blocking the
@@ -609,21 +645,20 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 12
+## Next Sprint: Product Phase 13
 
-Start here next after Product Phase 11 is merged:
+Start here next after Product Phase 12 is merged:
 
-1. Add desktop approval UI surfaces for plugin trust, permissions, sandbox
-   declarations, and update metadata.
-2. Design the sandbox boundary for future plugin-provided code execution.
-3. Add a signed archive bundle format beyond manifest-only packages.
-4. Add trusted update feed metadata and manual update approval flow.
-5. Keep plugin-provided code disabled until the sandbox is implemented and
-   audited.
+1. Design the sandbox boundary for future plugin-provided code execution.
+2. Add a signed archive bundle format beyond manifest-only packages.
+3. Add trusted update feed metadata and manual update approval flow.
+4. Add rendered desktop overlay/control-center screens that consume
+   `huggingos.plugin.approval.v1`.
+5. Keep plugin-provided code disabled until the sandbox is implemented,
+   tested, and audited.
 
-Product Phase 11 gives plugin manifests verified local package trust. Phase 12
-should make those trust decisions visible in the desktop control surface before
-expanding plugin power.
+Product Phase 12 gives plugin manifests a reviewable approval contract. Phase
+13 should add sandbox and archive architecture before expanding plugin power.
 
 ## Things We Will Not Fake
 

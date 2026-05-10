@@ -31,4 +31,5 @@ operations.
 - The sample plugin proves the signed-package path end to end.
 - Future archive formats can reuse the digest/signature policy while replacing
   the payload canonicalization.
-- Plugin code execution remains blocked until sandboxing and approval UI exist.
+- Plugin code execution remains blocked until sandboxing and rendered approval
+  UI exist.

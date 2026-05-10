@@ -26,6 +26,7 @@ For the Product Phase 8 predictive layer, see [PHASE8.md](PHASE8.md).
 For the Product Phase 9 plugin SDK, see [PHASE9.md](PHASE9.md).
 For the Product Phase 10 plugin trust layer, see [PHASE10.md](PHASE10.md).
 For the Product Phase 11 plugin signature layer, see [PHASE11.md](PHASE11.md).
+For the Product Phase 12 plugin approval surface, see [PHASE12.md](PHASE12.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -80,6 +81,8 @@ The product track currently provides:
 - Phase 11 plugin signature capabilities for Ed25519 package verification,
   install-time verified-signature enforcement, update channel metadata,
   persisted rollback manifests, and tamper rejection.
+- Phase 12 plugin approval surface capabilities for desktop-ready trust,
+  permission, sandbox, update, rollback, and action-review payloads.
 
 ## Product Commands
 
@@ -117,6 +120,7 @@ cd product/agent && cargo run -- run timeline.explain --json
 cd product/agent && cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
 cd product/agent && cargo run -- run plugins.package.validate --param source=../plugins/hello-assistant --json
 cd product/agent && cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
+cd product/agent && cargo run -- run plugins.approval.surface --param source=../plugins/hello-assistant --json
 cd product/agent && cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
 cd product/agent && cargo run -- run plugins.catalog --json
 cd product/agent && cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
@@ -162,6 +166,7 @@ make product-agent-timeline-explain
 make product-agent-plugin-validate
 make product-agent-plugin-package-validate
 make product-agent-plugin-permission-review
+make product-agent-plugin-approval-surface
 make product-agent-plugin-install
 make product-agent-plugin-catalog
 make product-agent-plugin-workflow
@@ -208,6 +213,7 @@ make agent-timeline-explain
 make agent-plugin-validate
 make agent-plugin-package-validate
 make agent-plugin-permission-review
+make agent-plugin-approval-surface
 make agent-plugin-install
 make agent-plugin-catalog
 make agent-plugin-workflow
@@ -242,11 +248,12 @@ screen/context readiness, capture screenshots through discovered Linux backends,
 snapshot active-window context, OCR local images when `tesseract` exists, store
 user-controlled memory, search opt-in text file indexes, and delegate work
 through permissioned built-in agents. It can also install and run declarative
-read-only plugin manifests with explicit permission review and cryptographically
-verified local package signatures. It still does not call cloud AI providers,
-automate browser DOMs, launch arbitrary shell commands, read clipboard contents
-by default, extract accessibility trees, execute arbitrary plugin code, run
-plugin daemons, auto-update plugins, or arrange windows.
+read-only plugin manifests with explicit permission review, cryptographically
+verified local package signatures, and desktop-ready approval surfaces. It
+still does not call cloud AI providers, automate browser DOMs, launch arbitrary
+shell commands, read clipboard contents by default, extract accessibility
+trees, execute arbitrary plugin code, render a desktop overlay, run plugin
+daemons, auto-update plugins, or arrange windows.
 
 The Rust agent is the production path for AI planning, future daemon work, and
 desktop integration. The Python CLI remains a reference control surface for the

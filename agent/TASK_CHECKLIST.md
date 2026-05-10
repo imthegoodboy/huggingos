@@ -37,6 +37,8 @@ Stop and rethink if the task starts to become:
   execution.
 - Plugin trust UI or docs that imply sandboxed code execution, marketplace
   trust, or automatic updates before those controls exist.
+- Plugin UI code that hardcodes trust state instead of consuming
+  `plugins.approval.surface`.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

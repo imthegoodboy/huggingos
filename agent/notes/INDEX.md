@@ -34,6 +34,7 @@ in PR descriptions.
 - [Product Phase 9 plugins](product-phase9-plugins.md)
 - [Product Phase 10 plugin trust](product-phase10-plugin-trust.md)
 - [Product Phase 11 plugin signatures](product-phase11-plugin-signatures.md)
+- [Product Phase 12 plugin approval surface](product-phase12-plugin-approval-surface.md)
 
 ## Knowledge Capture Rule
 
