@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-workflow-detect product-agent-proactive-suggest product-agent-selfheal-diagnose product-agent-timeline-explain product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -165,6 +165,18 @@ product-agent-agents-orchestrate:
 product-agent-agents-trace-list:
 	cd product/agent && cargo run -- run agents.trace.list --json
 
+product-agent-workflow-detect:
+	cd product/agent && cargo run -- run proactive.workflow.detect --json
+
+product-agent-proactive-suggest:
+	cd product/agent && cargo run -- run proactive.suggest --json
+
+product-agent-selfheal-diagnose:
+	cd product/agent && cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
+
+product-agent-timeline-explain:
+	cd product/agent && cargo run -- run timeline.explain --json
+
 product-agent-smoke:
 	cd product/agent && cargo test
 
@@ -205,6 +217,10 @@ help:
 	@echo "  product-agent-agents-plan - Preview a multi-agent plan"
 	@echo "  product-agent-agents-orchestrate - Run a confirmed multi-agent plan"
 	@echo "  product-agent-agents-trace-list - List multi-agent traces"
+	@echo "  product-agent-workflow-detect - Detect repeated audited workflows"
+	@echo "  product-agent-proactive-suggest - Build safe proactive suggestions"
+	@echo "  product-agent-selfheal-diagnose - Diagnose a simulated recoverable failure"
+	@echo "  product-agent-timeline-explain - Explain recent audited activity"
 	@echo "  product-agent-smoke - Run Rust product agent tests"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"

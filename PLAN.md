@@ -399,19 +399,32 @@ Tracking:
 
 Goal: move from reactive commands to useful proactive help.
 
+Status: complete for the first suggestion-first slice.
+
 Core features:
 
-- Detect repeated workflows and suggest automations.
-- Monitor crashes, failed services, memory pressure, and slow operations.
-- Recommend cleanup or optimization actions.
-- Safe auto-fix rules for low-risk actions.
-- Explain-what-happened timeline.
+- Detect repeated workflows and suggest automations. Done through
+  `proactive.workflow.detect` over audited capability events.
+- Monitor crashes, failed services, memory pressure, and slow operations. Done
+  for simulated or user-reported symptoms through `selfheal.diagnose`.
+- Recommend cleanup or optimization actions. Done as suggestion-only outputs
+  through `proactive.suggest`.
+- Safe auto-fix rules for low-risk actions. Deferred until rollback, daemon
+  controls, and approval UI exist.
+- Explain-what-happened timeline. Done through `timeline.explain`.
 
 Acceptance criteria:
 
-- OS can detect and summarize at least one repeated workflow.
-- OS can detect a simulated app failure and recommend a recovery action.
-- Proactive actions are never destructive without confirmation.
+- OS can detect and summarize at least one repeated workflow. Done and covered
+  by Rust tests.
+- OS can detect a simulated app failure and recommend a recovery action. Done
+  and covered by Rust tests.
+- Proactive actions are never destructive without confirmation. Done by making
+  Phase 8 capabilities read-only and suggestion-first.
+
+Tracking:
+
+- Epic: [#75 Product Phase 8 Epic: Predictive and self-healing OS](https://github.com/imthegoodboy/huggingos/issues/75)
 
 ## Phase 9: Plugin SDK And Ecosystem
 
@@ -515,22 +528,19 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 8
+## Next Sprint: Product Phase 9
 
-Start here next after Product Phase 7 is merged:
+Start here next after Product Phase 8 is merged:
 
-1. Detect repeated audited workflows and suggest user-approved automations.
-2. Add low-risk self-healing checks for failed services, resource pressure, and
-   slow operations.
-3. Add explain-what-happened timelines using audit events, memory, and agent
-   traces.
-4. Keep proactive actions suggestion-first until confirmation, rollback, and
-   daemon controls are stronger.
-5. Add tests that simulate at least one repeated workflow and one recoverable
-   failure.
+1. Define a plugin manifest and permission model.
+2. Add a sample plugin that contributes one capability and one workflow.
+3. Validate plugin install, disable, and remove paths.
+4. Make plugin identity visible in permission prompts and audit logs.
+5. Add compatibility tests for versioned plugin contracts.
 
-Product Phase 7 gives AI a permissioned agent layer. Phase 8 should use it for
-proactive help without silent or destructive automation.
+Product Phase 8 gives AI suggestion-first proactive help. Phase 9 should let
+new integrations extend that capability surface without bypassing policy,
+audit, or confirmation.
 
 ## Things We Will Not Fake
 

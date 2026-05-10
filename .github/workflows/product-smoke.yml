@@ -160,3 +160,27 @@ jobs:
       - name: Plan Phase 7 agent intent through AI runtime
         run: cargo run -- ai plan "daily brief" --json
         working-directory: product/agent
+
+      - name: Detect repeated workflows
+        run: cargo run -- run proactive.workflow.detect --json
+        working-directory: product/agent
+
+      - name: Build proactive suggestions
+        run: cargo run -- run proactive.suggest --json
+        working-directory: product/agent
+
+      - name: Diagnose simulated app failure
+        run: cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
+        working-directory: product/agent
+
+      - name: Explain recent activity timeline
+        run: cargo run -- run timeline.explain --json
+        working-directory: product/agent
+
+      - name: Plan Phase 8 workflow intent through AI runtime
+        run: cargo run -- ai plan "detect repeated workflow" --json
+        working-directory: product/agent
+
+      - name: Plan Phase 8 healing intent through AI runtime
+        run: cargo run -- ai plan "app crashed, self heal it" --json
+        working-directory: product/agent

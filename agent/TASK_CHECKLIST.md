@@ -29,6 +29,9 @@ Stop and rethink if the task starts to become:
   policy, confirmation, privacy rules, and audit.
 - Silent memory collection, semantic indexing outside an opt-in root, or agents
   executing capabilities outside their allowlist.
+- Proactive or self-healing behavior that silently launches apps, restarts
+  services, deletes files, or performs cleanup without confirmation and
+  rollback design.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

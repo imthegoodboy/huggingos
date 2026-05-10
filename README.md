@@ -15,8 +15,9 @@ The current product work has completed the Linux foundation, the first
 capability control plane, the first Rust AI planning bridge, the first
 permissioned Linux desktop-control slice, the first screen/context observation
 engine, local memory/semantic file search, and permissioned multi-agent
-orchestration. The custom kernel is already a working QEMU-bootable lab OS, but
-it is not the production AI OS path.
+orchestration, plus the first predictive/self-healing suggestion layer. The
+custom kernel is already a working QEMU-bootable lab OS, but it is not the
+production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -43,6 +44,9 @@ Product track:
   planning.
 - Phase 7 agent capabilities exist for a built-in agent catalog, delegation
   plans, confirmed orchestration, and trace listing.
+- Phase 8 predictive/self-healing capabilities exist for repeated workflow
+  detection, proactive suggestions, recoverable failure diagnosis, and recent
+  activity timelines.
 - Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, `workspace.mode.plan`, `screen.status`,
@@ -51,7 +55,8 @@ Product track:
   `memory.preference.list`, `memory.delete`, `memory.export`,
   `memory.event.list`, `files.semantic.index`, `files.semantic.search`,
   `workspace.resume.plan`, `agents.catalog`, `agents.plan`,
-  `agents.orchestrate`, and `agents.trace.list`.
+  `agents.orchestrate`, `agents.trace.list`, `proactive.workflow.detect`,
+  `proactive.suggest`, `selfheal.diagnose`, and `timeline.explain`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -309,8 +314,8 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start in Product Phase 8, adding predictive and
-self-healing behavior on top of the now-audited memory and agent layers.
+The next product work should start in Product Phase 9, adding a plugin SDK and
+ecosystem contracts on top of the now-audited agent and predictive layers.
 
 ## References
 
