@@ -32,7 +32,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 9".to_string(),
+            phase: "Product Phase 10".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -370,6 +370,12 @@ struct PluginManifest {
     version: String,
     description: String,
     #[serde(default)]
+    package: Option<PluginPackageMetadata>,
+    #[serde(default)]
+    ui: Option<PluginUiMetadata>,
+    #[serde(default)]
+    sandbox: Option<PluginSandboxMetadata>,
+    #[serde(default)]
     permissions: Vec<String>,
     #[serde(default)]
     capabilities: Vec<PluginCapabilityManifest>,
@@ -377,6 +383,37 @@ struct PluginManifest {
     workflows: Vec<PluginWorkflowManifest>,
     #[serde(default)]
     agents: Vec<PluginAgentManifest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginPackageMetadata {
+    format: String,
+    source: String,
+    sha256: String,
+    #[serde(default)]
+    signature: Option<PluginSignatureMetadata>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginSignatureMetadata {
+    algorithm: String,
+    key_id: String,
+    signature: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginUiMetadata {
+    display_name: String,
+    approval_summary: String,
+    #[serde(default)]
+    icon: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct PluginSandboxMetadata {
+    code_execution: String,
+    network: bool,
+    filesystem: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -3059,7 +3096,49 @@ fn validate_plugin_manifest_capability(
     Ok(json!({
         "valid": true,
         "manifest": plugin_manifest_summary(&manifest, false),
+        "permission_summary": plugin_permission_summary(&manifest),
+        "plugin_trust_state": plugin_trust_state(&manifest),
         "source": source,
+    }))
+}
+
+fn validate_plugin_package(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let source = string_param(request, "source")?;
+    let manifest = read_plugin_manifest_from_source(&source)?;
+    validate_plugin_manifest(&manifest)?;
+    Ok(json!({
+        "valid": true,
+        "source": source,
+        "package": manifest.package,
+        "plugin": plugin_manifest_summary(&manifest, false),
+        "permission_summary": plugin_permission_summary(&manifest),
+        "approval": plugin_approval_summary(&manifest),
+        "sandbox": plugin_sandbox_summary(&manifest),
+        "plugin_trust_state": plugin_trust_state(&manifest),
+        "install_preview": {
+            "destination": plugin_install_dir(config, &manifest.id),
+            "requires_confirmation": true,
+            "arbitrary_code_execution": false
+        }
+    }))
+}
+
+fn review_plugin_permissions(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let manifest = if let Some(source) = request.params.get("source").and_then(Value::as_str) {
+        read_plugin_manifest_from_source(source)?
+    } else if let Some(plugin_id) = request.params.get("plugin_id").and_then(Value::as_str) {
+        read_installed_plugin(config, &safe_plugin_id(plugin_id))?
+    } else {
+        return Err("plugins.permission.review requires source or plugin_id".to_string());
+    };
+    validate_plugin_manifest(&manifest)?;
+    Ok(json!({
+        "plugin_id": manifest.id,
+        "plugin_name": manifest.name,
+        "permission_summary": plugin_permission_summary(&manifest),
+        "approval": plugin_approval_summary(&manifest),
+        "sandbox": plugin_sandbox_summary(&manifest),
+        "plugin_trust_state": plugin_trust_state(&manifest),
     }))
 }
 
@@ -3073,8 +3152,16 @@ fn install_plugin(config: &Config, request: &ActionRequest) -> Result<Value, Str
     let manifest = read_plugin_manifest_from_source(&source)?;
     validate_plugin_manifest(&manifest)?;
     let plugin_id = safe_plugin_id(&manifest.id);
+    let trust_state = plugin_trust_state(&manifest);
+    let permission_summary = plugin_permission_summary(&manifest);
+    let approval = plugin_approval_summary(&manifest);
     let destination = plugin_install_dir(config, &plugin_id);
     ensure_plugin_dir_is_scoped(config, &destination)?;
+    let previous_manifest = if destination.exists() {
+        fs::read_to_string(destination.join("plugin.json")).ok()
+    } else {
+        None
+    };
     if destination.exists() {
         if !force {
             return Err(format!(
@@ -3091,6 +3178,15 @@ fn install_plugin(config: &Config, request: &ActionRequest) -> Result<Value, Str
         "plugin": plugin_manifest_summary(&read_installed_plugin(config, &plugin_id)?, true),
         "path": destination,
         "plugin_identity": plugin_id,
+        "plugin_trust_state": trust_state,
+        "permission_summary": permission_summary,
+        "approval": approval,
+        "rollback": {
+            "type": if previous_manifest.is_some() { "replace" } else { "remove" },
+            "previous_manifest_present": previous_manifest.is_some(),
+            "disable_capability": "plugins.disable",
+            "remove_capability": "plugins.remove"
+        },
     }))
 }
 
@@ -3098,6 +3194,7 @@ fn disable_plugin(config: &Config, request: &ActionRequest) -> Result<Value, Str
     let plugin_id = safe_plugin_id(&string_param(request, "plugin_id")?);
     validate_plugin_id(&plugin_id)?;
     let manifest = read_installed_plugin(config, &plugin_id)?;
+    let trust_state = plugin_trust_state(&manifest);
     let disabled_path = plugin_disabled_path(config, &plugin_id);
     ensure_plugin_dir_is_scoped(config, &plugin_install_dir(config, &plugin_id))?;
     if let Some(parent) = disabled_path.parent() {
@@ -3109,6 +3206,12 @@ fn disable_plugin(config: &Config, request: &ActionRequest) -> Result<Value, Str
         "plugin": plugin_manifest_summary(&manifest, false),
         "path": disabled_path,
         "plugin_identity": plugin_id,
+        "plugin_trust_state": trust_state,
+        "rollback": {
+            "type": "enable",
+            "manual_remove_disabled_marker": true,
+            "path": disabled_path,
+        },
     }))
 }
 
@@ -3120,12 +3223,21 @@ fn remove_plugin(config: &Config, request: &ActionRequest) -> Result<Value, Stri
     if !destination.exists() {
         return Err(format!("plugin is not installed: {plugin_id}"));
     }
+    let manifest = read_installed_plugin(config, &plugin_id)?;
+    let trust_state = plugin_trust_state(&manifest);
+    let rollback_manifest_path = destination.join("plugin.json");
     fs::remove_dir_all(&destination).map_err(|err| err.to_string())?;
     Ok(json!({
         "removed": true,
         "plugin_id": plugin_id,
         "path": destination,
         "plugin_identity": plugin_id,
+        "plugin_trust_state": trust_state,
+        "rollback": {
+            "type": "reinstall",
+            "manifest_path_before_remove": rollback_manifest_path,
+            "source_required": true
+        },
     }))
 }
 
@@ -3213,6 +3325,7 @@ fn run_plugin_capability(config: &Config, request: &ActionRequest) -> Result<Val
         "capability": capability.name,
         "description": capability.description,
         "permissions": capability.permissions,
+        "plugin_trust_state": plugin_trust_state(&manifest),
         "response": capability.response,
         "policy": "declarative read-only plugin capability executed through huggingOS policy and audit",
     }))
@@ -3281,6 +3394,9 @@ fn validate_plugin_manifest(manifest: &PluginManifest) -> Result<(), String> {
     if manifest.capabilities.is_empty() && manifest.workflows.is_empty() {
         return Err("plugin must declare at least one capability or workflow".to_string());
     }
+    validate_plugin_package_metadata(manifest)?;
+    validate_plugin_ui_metadata(manifest)?;
+    validate_plugin_sandbox_metadata(manifest)?;
     for permission in &manifest.permissions {
         validate_plugin_permission(permission)?;
     }
@@ -3319,6 +3435,62 @@ fn validate_plugin_manifest(manifest: &PluginManifest) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_plugin_package_metadata(manifest: &PluginManifest) -> Result<(), String> {
+    let Some(package) = &manifest.package else {
+        return Ok(());
+    };
+    if package.format.trim() != "huggingos.plugin.package.v1" {
+        return Err("plugin package format must be huggingos.plugin.package.v1".to_string());
+    }
+    if package.source.trim().is_empty() {
+        return Err("plugin package source is required".to_string());
+    }
+    let sha = package.sha256.trim();
+    if sha.len() != 64 || !sha.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return Err("plugin package sha256 must be a 64-character hex digest".to_string());
+    }
+    if let Some(signature) = &package.signature {
+        if signature.algorithm.trim() != "ed25519" {
+            return Err("plugin package signature algorithm must be ed25519".to_string());
+        }
+        if signature.key_id.trim().is_empty() || signature.signature.trim().is_empty() {
+            return Err("plugin package signature key_id and signature are required".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn validate_plugin_ui_metadata(manifest: &PluginManifest) -> Result<(), String> {
+    let Some(ui) = &manifest.ui else {
+        return Ok(());
+    };
+    if ui.display_name.trim().is_empty() || ui.approval_summary.trim().is_empty() {
+        return Err("plugin ui display_name and approval_summary are required".to_string());
+    }
+    if let Some(icon) = &ui.icon {
+        if icon.contains("://") || icon.contains('\\') || icon.contains('/') {
+            return Err("plugin ui icon must be a local icon name, not a path or URL".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn validate_plugin_sandbox_metadata(manifest: &PluginManifest) -> Result<(), String> {
+    let Some(sandbox) = &manifest.sandbox else {
+        return Ok(());
+    };
+    if sandbox.code_execution.trim() != "disabled" {
+        return Err("plugin sandbox code_execution must be disabled in Phase 10".to_string());
+    }
+    if sandbox.network {
+        return Err("plugin sandbox network must be false in Phase 10".to_string());
+    }
+    match sandbox.filesystem.trim() {
+        "none" | "state_read" => Ok(()),
+        _ => Err("plugin sandbox filesystem must be none or state_read".to_string()),
+    }
+}
+
 fn plugin_manifest_summary(manifest: &PluginManifest, enabled: bool) -> Value {
     json!({
         "id": manifest.id,
@@ -3326,6 +3498,10 @@ fn plugin_manifest_summary(manifest: &PluginManifest, enabled: bool) -> Value {
         "version": manifest.version,
         "description": manifest.description,
         "enabled": enabled,
+        "package": manifest.package,
+        "ui": manifest.ui,
+        "sandbox": plugin_sandbox_summary(manifest),
+        "plugin_trust_state": plugin_trust_state(manifest),
         "permissions": manifest.permissions,
         "capabilities": manifest.capabilities.iter().map(|capability| json!({
             "name": capability.name,
@@ -3339,6 +3515,73 @@ fn plugin_manifest_summary(manifest: &PluginManifest, enabled: bool) -> Value {
             "step_count": workflow.steps.len(),
         })).collect::<Vec<_>>(),
         "agents": manifest.agents,
+    })
+}
+
+fn plugin_permission_summary(manifest: &PluginManifest) -> Value {
+    let capability_permissions = manifest
+        .capabilities
+        .iter()
+        .map(|capability| {
+            json!({
+                "capability": capability.name,
+                "risk": capability.risk,
+                "permissions": capability.permissions,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "plugin_id": manifest.id,
+        "plugin_permissions": manifest.permissions,
+        "capability_permissions": capability_permissions,
+        "workflow_count": manifest.workflows.len(),
+        "agent_count": manifest.agents.len(),
+        "requires_install_confirmation": true,
+        "arbitrary_code_execution": false,
+        "network_access": manifest.sandbox.as_ref().map(|sandbox| sandbox.network).unwrap_or(false),
+    })
+}
+
+fn plugin_approval_summary(manifest: &PluginManifest) -> Value {
+    json!({
+        "title": manifest.ui.as_ref().map(|ui| ui.display_name.as_str()).unwrap_or(manifest.name.as_str()),
+        "summary": manifest.ui.as_ref().map(|ui| ui.approval_summary.as_str()).unwrap_or(manifest.description.as_str()),
+        "risk": "medium_install_read_runtime",
+        "requires_confirmation": true,
+        "review_items": [
+            "Plugin manifest identity",
+            "Declared permissions",
+            "Read-only capabilities",
+            "Workflow steps",
+            "Package trust metadata",
+            "Sandbox declaration"
+        ],
+    })
+}
+
+fn plugin_sandbox_summary(manifest: &PluginManifest) -> Value {
+    match &manifest.sandbox {
+        Some(sandbox) => json!(sandbox),
+        None => json!({
+            "code_execution": "disabled",
+            "network": false,
+            "filesystem": "none",
+        }),
+    }
+}
+
+fn plugin_trust_state(manifest: &PluginManifest) -> Value {
+    let state = match &manifest.package {
+        Some(package) if package.signature.is_some() => "signed_metadata_present_unverified",
+        Some(_) => "package_metadata_unsigned",
+        None => "manifest_only_unsigned",
+    };
+    json!({
+        "state": state,
+        "package_metadata_present": manifest.package.is_some(),
+        "signature_present": manifest.package.as_ref().and_then(|package| package.signature.as_ref()).is_some(),
+        "verified": false,
+        "note": "Phase 10 validates package metadata shape but does not verify signatures cryptographically.",
     })
 }
 
@@ -4608,6 +4851,8 @@ fn build_registry() -> BTreeMap<String, Capability> {
         selfheal_diagnose_capability(),
         timeline_explain_capability(),
         plugins_validate_capability(),
+        plugins_package_validate_capability(),
+        plugins_permission_review_capability(),
         plugins_install_capability(),
         plugins_disable_capability(),
         plugins_remove_capability(),
@@ -5665,6 +5910,59 @@ fn plugins_validate_capability() -> Capability {
     }
 }
 
+fn plugins_package_validate_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.package.validate".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Validate plugin package trust metadata before install.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string(), "plugins:trust".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("source".to_string(), "string".to_string())]),
+                vec!["source"],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| validate_plugin_package(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("valid") == Some(&json!(true)) && data.get("plugin_trust_state").is_some(),
+            message: "Plugin package metadata validated.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn plugins_permission_review_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "plugins.permission.review".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Generate a user-facing plugin permission review.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["plugins:read".to_string(), "plugins:review".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("source".to_string(), "string".to_string()),
+                    ("plugin_id".to_string(), "string".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| review_plugin_permissions(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("permission_summary").is_some() && data.get("approval").is_some(),
+            message: "Plugin permission review returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn plugins_install_capability() -> Capability {
     Capability {
         metadata: CapabilityMetadata {
@@ -6157,13 +6455,29 @@ fn validate_capability_request(
             }
             Ok(())
         }
-        "plugins.validate" | "plugins.install" => {
+        "plugins.validate" | "plugins.package.validate" | "plugins.install" => {
             let source = params
                 .get("source")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "Parameter source must be a string.".to_string())?;
             if is_sensitive_path(&json!(source)) {
                 return Err("plugin source path is sensitive".to_string());
+            }
+            Ok(())
+        }
+        "plugins.permission.review" => {
+            let source = params.get("source").and_then(Value::as_str);
+            let plugin_id = params.get("plugin_id").and_then(Value::as_str);
+            if source.is_none() && plugin_id.is_none() {
+                return Err("plugins.permission.review requires source or plugin_id".to_string());
+            }
+            if let Some(source) = source {
+                if is_sensitive_path(&json!(source)) {
+                    return Err("plugin source path is sensitive".to_string());
+                }
+            }
+            if let Some(plugin_id) = plugin_id {
+                validate_plugin_id(&safe_plugin_id(plugin_id))?;
             }
             Ok(())
         }
@@ -6294,6 +6608,7 @@ fn append_audit(
         "actor": request.actor,
         "capability": request.capability,
         "plugin_identity": request.params.get("plugin_id"),
+        "plugin_trust_state": result.data.get("plugin_trust_state"),
         "input_summary": summarize_params(&request.params),
         "policy": outcome,
         "status": result.status,
@@ -6584,6 +6899,26 @@ mod tests {
                 "name": "Sample Hello Plugin",
                 "version": "1.0.0",
                 "description": "Sample third-party plugin for tests.",
+                "package": {
+                    "format": "huggingos.plugin.package.v1",
+                    "source": "test-fixture",
+                    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    "signature": {
+                        "algorithm": "ed25519",
+                        "key_id": "test-key",
+                        "signature": "metadata-only"
+                    }
+                },
+                "ui": {
+                    "display_name": "Sample Hello Plugin",
+                    "approval_summary": "Adds one read-only greeting capability and one workflow.",
+                    "icon": "plugin-sample"
+                },
+                "sandbox": {
+                    "code_execution": "disabled",
+                    "network": false,
+                    "filesystem": "none"
+                },
                 "permissions": ["plugins:read"],
                 "capabilities": [
                     {
@@ -7395,6 +7730,37 @@ Categories=Utility;Development;
         );
         assert_eq!(validate.status, ActionStatus::Succeeded);
         assert_eq!(validate.data["manifest"]["id"], json!("sample.hello"));
+        assert_eq!(
+            validate.data["plugin_trust_state"]["state"],
+            json!("signed_metadata_present_unverified")
+        );
+
+        let mut package_params = Map::new();
+        package_params.insert("source".to_string(), json!(source));
+        let package = execute_capability(
+            &config,
+            &registry,
+            request("plugins.package.validate", package_params),
+        );
+        assert_eq!(package.status, ActionStatus::Succeeded);
+        assert_eq!(
+            package.data["install_preview"]["requires_confirmation"],
+            json!(true)
+        );
+        assert_eq!(package.data["sandbox"]["code_execution"], json!("disabled"));
+
+        let mut review_params = Map::new();
+        review_params.insert("source".to_string(), json!(source));
+        let review = execute_capability(
+            &config,
+            &registry,
+            request("plugins.permission.review", review_params),
+        );
+        assert_eq!(review.status, ActionStatus::Succeeded);
+        assert_eq!(
+            review.data["permission_summary"]["arbitrary_code_execution"],
+            json!(false)
+        );
 
         let mut install_params = Map::new();
         install_params.insert("source".to_string(), json!(source));
@@ -7403,6 +7769,11 @@ Categories=Utility;Development;
         let install = execute_capability(&config, &registry, install_request);
         assert_eq!(install.status, ActionStatus::Succeeded);
         assert_eq!(install.data["plugin_identity"], json!("sample.hello"));
+        assert_eq!(
+            install.data["plugin_trust_state"]["state"],
+            json!("signed_metadata_present_unverified")
+        );
+        assert_eq!(install.data["rollback"]["type"], json!("remove"));
 
         let catalog =
             execute_capability(&config, &registry, request("plugins.catalog", Map::new()));
@@ -7435,6 +7806,8 @@ Categories=Utility;Development;
         assert!(audit.iter().any(|entry| {
             entry["capability"] == json!("plugins.capability.run")
                 && entry["plugin_identity"] == json!("sample.hello")
+                && entry["plugin_trust_state"]["state"]
+                    == json!("signed_metadata_present_unverified")
         }));
 
         let mut disable_params = Map::new();

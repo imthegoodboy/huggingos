@@ -4,6 +4,26 @@
   "name": "Sample Hello Plugin",
   "version": "1.0.0",
   "description": "Sample third-party plugin proving the Phase 9 manifest contract.",
+  "package": {
+    "format": "huggingos.plugin.package.v1",
+    "source": "local-sample",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "signature": {
+      "algorithm": "ed25519",
+      "key_id": "sample-dev-key",
+      "signature": "sample-signature-metadata-only"
+    }
+  },
+  "ui": {
+    "display_name": "Sample Hello Plugin",
+    "approval_summary": "Adds one read-only greeting capability and one workflow.",
+    "icon": "plugin-sample"
+  },
+  "sandbox": {
+    "code_execution": "disabled",
+    "network": false,
+    "filesystem": "none"
+  },
   "permissions": [
     "plugins:read"
   ],

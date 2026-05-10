@@ -34,6 +34,8 @@ Stop and rethink if the task starts to become:
   rollback design.
 - Plugin behavior that executes arbitrary native code, downloads packages, or
   starts background services without sandboxing, signatures, and rollback.
+- Plugin trust UI or docs that imply signature verification before real
+  cryptographic verification exists.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

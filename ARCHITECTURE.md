@@ -512,6 +512,23 @@ Still later:
 - Plugin marketplace/update flow.
 - Plugin UI metadata and approval screens.
 
+### Phase 10: Plugin Trust, Packaging, And Approval UI
+
+Complete for the first trust-metadata slice:
+
+- Package trust metadata fields.
+- Permission review summaries.
+- Sandbox declarations with code execution disabled.
+- Rollback metadata for plugin lifecycle actions.
+- Plugin trust state in audit records.
+
+Still later:
+
+- Real cryptographic signature verification.
+- Signed package archives.
+- Desktop approval UI.
+- Sandboxed plugin-provided code execution.
+
 ## Production-Readiness Gates
 
 No phase is complete until:
@@ -533,6 +550,7 @@ No phase is complete until:
 - Model Context Protocol specification: https://modelcontextprotocol.io/specification/2025-06-18/server/tools
 - ADR 0010: `docs/adr/0010-predictive-self-healing-suggestions.md`
 - ADR 0011: `docs/adr/0011-declarative-plugin-manifests.md`
+- ADR 0012: `docs/adr/0012-plugin-trust-before-code-execution.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

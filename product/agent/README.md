@@ -38,6 +38,8 @@ cargo run -- run proactive.suggest --json
 cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
 cargo run -- run timeline.explain --json
 cargo run -- run plugins.validate --param source=../plugins/hello-assistant --json
+cargo run -- run plugins.package.validate --param source=../plugins/hello-assistant --json
+cargo run -- run plugins.permission.review --param source=../plugins/hello-assistant --json
 cargo run -- run plugins.install --param source=../plugins/hello-assistant --param force=true --confirm --json
 cargo run -- run plugins.catalog --json
 cargo run -- run plugins.workflow.plan --param plugin_id=sample.hello --json
@@ -138,6 +140,19 @@ Plugins are declarative manifests in this slice:
 The sample plugin lives at `product/plugins/hello-assistant/plugin.json`.
 Arbitrary plugin code execution is not enabled yet.
 
+## Phase 10 Plugin Trust
+
+Plugin trust and approval metadata are explicit:
+
+- `plugins.package.validate` validates package metadata shape before install.
+- `plugins.permission.review` returns a user-facing permission and approval
+  summary.
+- Plugin lifecycle actions include rollback metadata.
+- Audit records include plugin trust state.
+
+Signature metadata can be present, but signatures are not cryptographically
+verified yet. The runtime reports that as `signed_metadata_present_unverified`.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -151,4 +166,5 @@ Arbitrary plugin code execution is not enabled yet.
 - Agents delegate only through capability permissions, policy, audit, and traces.
 - Predictive and self-healing features are suggestion-first and read-only.
 - Plugins are manifest-only and read-only until sandboxing and signing exist.
+- Plugin signatures are metadata-only until real verification exists.
 - Capabilities fail closed when audit logging is unavailable.

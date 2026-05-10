@@ -28,6 +28,8 @@ make product-agent-agents-orchestrate
 make product-agent-workflow-detect
 make product-agent-selfheal-diagnose
 make product-agent-plugin-install
+make product-agent-plugin-package-validate
+make product-agent-plugin-permission-review
 make product-agent-plugin-run
 make product-agent-plugin-remove
 make product-smoke
@@ -87,6 +89,7 @@ gh issue list --label "track:product" --search "Phase 6"
 gh issue list --label "track:product" --search "Phase 7"
 gh issue list --label "track:product" --search "Phase 8"
 gh issue list --label "track:product" --search "Phase 9"
+gh issue list --label "track:product" --search "Phase 10"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```

@@ -42,7 +42,7 @@ Before changing code, read only what is needed:
 - Do not fake hardware, networking, AI, persistence, browser automation, or GUI
   support. Stub code must fail safely and be documented as a stub.
 - Do not execute arbitrary plugin code. Product Phase 9 plugins are declarative
-  manifests until sandboxing, signatures, and rollback exist.
+  manifests until sandboxing, verified signatures, and rollback exist.
 - Keep the OS bootable after every phase.
 - Prefer small, reviewable PRs tied to GitHub issues.
 - Add tests or `selftest` coverage for risky kernel behavior.
@@ -162,7 +162,7 @@ means Linux userspace services, not custom-kernel shortcuts:
   self-healing diagnostics.
 - Capability API: the only path for AI actions that affect OS state.
 - Plugin SDK: declarative manifests first; plugin code execution must wait for
-  sandboxing and package trust.
+  sandboxing and verified package trust.
 - Policy layer: permissions, confirmation, audit logs, and rollback.
 - Current production AI path: `product/agent` in Rust, with `local.rules`
   planning and `ai run` execution through capabilities.
