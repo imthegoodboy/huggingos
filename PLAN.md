@@ -292,22 +292,46 @@ Tracking:
 
 ## Phase 5: Screen Understanding And Context Engine
 
+Status: complete.
+
 Goal: let the OS understand visible state and active work.
 
 Core features:
 
-- Screenshot capture through desktop APIs.
-- OCR pipeline.
-- Accessibility tree integration.
-- Active app/window/control state.
-- Clipboard, file, browser tab, and system context snapshots.
-- Privacy controls for observed apps and screen regions.
+- Screenshot capture through desktop APIs. Done for discovered Linux capture
+  backends with confirmation, audit, safe workspace output, and active-context
+  privacy checks. XDG Desktop Portal/PipeWire capture remains later.
+- OCR pipeline. Done for provided local image paths through `tesseract` when it
+  is installed.
+- Accessibility tree integration. Deferred until the desktop service and richer
+  permission model exist.
+- Active app/window/control state. Done for active app/window metadata through a
+  discovered context backend. Fine-grained control state remains later.
+- Clipboard, file, browser tab, and system context snapshots. Done for desktop
+  status, active-window metadata, screen readiness, privacy status, and
+  clipboard readiness. Clipboard contents, browser tab context, and semantic
+  file context remain later.
+- Privacy controls for observed apps and screen regions. Done for app/window
+  marker redaction and capture denial on private active contexts. Region-level
+  redaction remains later.
 
 Acceptance criteria:
 
-- AI command center can answer "what is open?" from real OS state.
+- AI command center can answer "what is open?" from real OS state through
+  `context.snapshot`.
 - Screen capture and OCR are permissioned and logged.
-- Private apps/regions are not observed.
+- Private apps/windows are redacted and capture-denied. Region-level privacy is
+  explicitly carried forward.
+
+Tracking:
+
+- Milestone: [Product Phase 5: Screen And Context Engine](https://github.com/imthegoodboy/huggingos/milestone/6)
+- Epic: [#65 Product Phase 5 Epic: Screen and context engine](https://github.com/imthegoodboy/huggingos/issues/65)
+- Screen readiness: [#62](https://github.com/imthegoodboy/huggingos/issues/62)
+- Screen capture: [#66](https://github.com/imthegoodboy/huggingos/issues/66)
+- Active context snapshot: [#61](https://github.com/imthegoodboy/huggingos/issues/61)
+- Privacy exclusions: [#67](https://github.com/imthegoodboy/huggingos/issues/67)
+- Smoke tests and docs: [#68](https://github.com/imthegoodboy/huggingos/issues/68)
 
 ## Phase 6: Memory And Semantic Files
 
@@ -466,20 +490,20 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 5
+## Next Sprint: Product Phase 6
 
-Start here next after Product Phase 4 is merged:
+Start here next after Product Phase 5 is merged:
 
-1. Add permissioned screenshot capture using XDG Desktop Portal/PipeWire where
-   available.
-2. Add active-window/app context through desktop-native APIs.
-3. Add clipboard/context snapshot capabilities with privacy controls.
-4. Add OCR/accessibility-tree adapters behind read-only capabilities.
-5. Keep all observation actions behind the same policy, audit, and redaction
-   path.
+1. Add short-term session memory for the current AI command session.
+2. Add a user preference store with inspect, edit, export, and delete commands.
+3. Add an event store that indexes audited app/file/workflow activity without
+   collecting private contexts.
+4. Add semantic file indexing behind opt-in roots, retention rules, and
+   deletion controls.
+5. Add "resume my last workspace" as the first memory-backed workflow.
 
-Product Phase 4 gives AI a real desktop action surface. Phase 5 should add
-screen/context understanding without silent capture or private-app leakage.
+Product Phase 5 gives AI a real observation surface. Phase 6 should make that
+context useful over time without unsafe or invisible memory collection.
 
 ## Things We Will Not Fake
 

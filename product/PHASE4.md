@@ -60,7 +60,9 @@ AI prompt -> local planner -> capability request -> policy -> executor -> verifi
 - Window placement and workspace arrangement.
 - Browser DOM automation.
 - Notification controls.
-- Screen capture, OCR, and accessibility-tree context.
+- Rich screen understanding beyond the Phase 5 first slice, including portal
+  capture, accessibility-tree context, browser tab context, and region-level
+  redaction.
 
 Those require a long-running desktop service and stronger per-action permission
 rules. The Phase 4 slice creates the safe contracts they will use.

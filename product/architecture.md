@@ -16,13 +16,14 @@ Linux kernel and distro base
   -> Rust huggingOS agent runtime
   -> provider-neutral AI runtime bridge
   -> desktop/app/browser capability bridge
+  -> screen/context observation bridge
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Control Plane, Phase 3 AI Bridge, And Phase 4 Desktop Bridge
+## Phase 2 Control Plane Through Phase 5 Context Bridge
 
 Product Phase 2 adds the first executable capability control plane:
 
@@ -51,6 +52,12 @@ readiness, list `.desktop` apps, request confirmed app launches, request
 confirmed browser URL opens, and preview workspace modes through the same
 capability path.
 
+Product Phase 5 adds the first screen/context bridge. The Rust agent can report
+screen readiness, dry-run or confirm screenshot capture, snapshot active-window
+context with privacy redaction, and OCR local images through discovered host
+backends. Clipboard content, accessibility trees, browser tab context, and
+portal/PipeWire capture remain later.
+
 The production agent runtime lives in `product/agent/` as a Rust crate. Future
 daemon and desktop integration work should move there first.
 
@@ -59,6 +66,7 @@ Tracking:
 - Epic: [#31 Product Phase 2 capability API and local automation](https://github.com/imthegoodboy/huggingos/issues/31)
 - Phase 3 epic: [#39 Product Phase 3 Epic: AI runtime bridge and secrets](https://github.com/imthegoodboy/huggingos/issues/39)
 - Phase 4 epic: [#56 Product Phase 4 Epic: Desktop command center and app control](https://github.com/imthegoodboy/huggingos/issues/56)
+- Phase 5 epic: [#65 Product Phase 5 Epic: Screen and context engine](https://github.com/imthegoodboy/huggingos/issues/65)
 - Schema: [#23](https://github.com/imthegoodboy/huggingos/issues/23)
 - Registry: [#24](https://github.com/imthegoodboy/huggingos/issues/24)
 - Policy: [#26](https://github.com/imthegoodboy/huggingos/issues/26)
@@ -82,8 +90,9 @@ permissioned, testable, and reversible where possible.
 - Keep CLI commands usable without root.
 - Do not add cloud AI provider calls until provider clients, budgets, consent,
   retries, and secret storage are ready.
-- Do not add screen scraping, global hotkeys, or window manipulation until a
-  desktop service and per-action permission model exist.
+- Do not add silent screen scraping, global hotkeys, clipboard content reads, or
+  window manipulation until a desktop service and per-action permission model
+  exist.
 
 ## Readiness Verdict
 
@@ -98,6 +107,8 @@ Phase 1 through Phase 4 are directionally correct:
 - It adds a real local AI planning bridge without allowing models to mutate the
   OS directly.
 - It adds real desktop/app/browser contracts without fake UI automation.
+- It adds real screen/context observation contracts without fake pixels, fake
+  OCR, or silent private-window capture.
 
 Executable scripts must keep LF line endings. `.gitattributes` enforces that for
 scripts, source, Makefiles, TOML, and workflows.

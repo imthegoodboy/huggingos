@@ -12,7 +12,18 @@ gh issue list --label "track:product" --milestone "Product Phase 1: Linux Produc
 ```
 
 Product build and smoke commands live in `product/README.md` and the active
-issue. Add them in Product Phase 1 before relying on them.
+issue. Use the Rust agent commands there for Phase 2+ product work.
+
+Current product checks:
+
+```bash
+make product-agent-smoke
+make product-agent-ai-run
+make product-agent-desktop-status
+make product-agent-screen-status
+make product-agent-screen-capture-dry-run
+make product-smoke
+```
 
 Before starting Product Phase 1:
 
@@ -62,6 +73,7 @@ gh issue view <issue-number>
 gh issue list --label "track:product"
 gh issue list --label "track:kernel-lab"
 gh issue list --milestone "Product Phase 1: Linux Product Foundation"
+gh issue list --milestone "Product Phase 5: Screen And Context Engine"
 gh issue list --milestone "Phase 1: Reliable Kernel And Shell Foundation"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup

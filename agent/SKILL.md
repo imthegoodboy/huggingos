@@ -163,6 +163,9 @@ means Linux userspace services, not custom-kernel shortcuts:
   planning and `ai run` execution through capabilities.
 - Current desktop path: `desktop.status`, `apps.list`, `apps.launch`,
   `browser.open_url`, and `workspace.mode.plan` in the Rust agent.
+- Current screen/context path: `screen.status`, `screen.capture`,
+  `context.snapshot`, and `screen.ocr_image` in the Rust agent, with privacy
+  redaction and no silent clipboard reads.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

@@ -112,6 +112,24 @@ Completed the first permissioned Linux desktop slice in the Rust agent:
   prompts into capability plans.
 - Added Phase 4 docs, ADR, Make targets, CI smoke commands, and Rust tests.
 
+## Product Phase 5 Screen And Context Engine
+
+Completed the first permissioned screen/context observation slice in the Rust
+agent:
+
+- Added `screen.status` for capture, OCR, active-context, clipboard, and privacy
+  readiness.
+- Added confirmed `screen.capture` through discovered Linux backends with safe
+  workspace output.
+- Added confirmed `context.snapshot` with active-window metadata and privacy
+  redaction.
+- Added confirmed `screen.ocr_image` through `tesseract` with sensitive-path
+  denial.
+- Extended the local AI planner to map screen status, current-context,
+  screenshot, and OCR prompts into capability plans.
+- Added Phase 5 docs, ADR, Make targets, CI smoke commands, privacy defaults,
+  and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

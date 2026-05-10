@@ -25,6 +25,8 @@ Stop and rethink if the task starts to become:
 - A product AI feature being added to the custom hobby kernel instead of the
   Linux product track.
 - A browser automation feature before a browser/app automation layer exists.
+- Silent screen, clipboard, or OCR observation that does not pass through
+  policy, confirmation, privacy rules, and audit.
 - A large refactor unrelated to the issue.
 
 ## Implementation Gate

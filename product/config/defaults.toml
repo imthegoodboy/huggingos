@@ -1,8 +1,8 @@
 [product]
 name = "huggingOS"
-version = "0.4.0-phase4"
+version = "0.5.0-phase5"
 track = "product"
-phase = "Product Phase 4"
+phase = "Product Phase 5"
 base_strategy = "Ubuntu LTS hosted prototype"
 
 [runtime]
@@ -20,6 +20,28 @@ openai_api_key_env = "HUGGINGOS_OPENAI_API_KEY"
 anthropic_api_key_env = "HUGGINGOS_ANTHROPIC_API_KEY"
 local_model_endpoint_env = "HUGGINGOS_LOCAL_MODEL_ENDPOINT"
 
+[privacy]
+private_title_markers = [
+  "password",
+  "secret",
+  "token",
+  "credential",
+  "private",
+  "incognito",
+  "bank",
+  "vault",
+  "2fa",
+  "otp",
+]
+private_app_markers = [
+  "password",
+  "secret",
+  "credential",
+  "vault",
+  "bank",
+]
+max_context_text_chars = 240
+
 [features]
 cloud_ai_enabled = false
 desktop_control_enabled = true
@@ -27,6 +49,10 @@ browser_control_enabled = false
 desktop_overlay_enabled = false
 memory_index_enabled = false
 workspace_modes_enabled = true
+screen_context_enabled = true
+screen_capture_enabled = true
+privacy_exclusions_enabled = true
+ocr_enabled = false
 
 [policy]
 audit_log_name = "audit.log"

@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -123,6 +123,18 @@ product-agent-browser-dry-run:
 product-agent-workspace-plan:
 	cd product/agent && cargo run -- run workspace.mode.plan --param mode=coding --json
 
+product-agent-screen-status:
+	cd product/agent && cargo run -- run screen.status --json
+
+product-agent-screen-capture-dry-run:
+	cd product/agent && cargo run -- run screen.capture --dry-run --json
+
+product-agent-context-snapshot:
+	cd product/agent && cargo run -- run context.snapshot --confirm --json
+
+product-agent-ocr-dry-run:
+	cd product/agent && cargo run -- run screen.ocr_image --param path=../../README.md --dry-run --json
+
 product-agent-smoke:
 	cd product/agent && cargo test
 
@@ -149,6 +161,10 @@ help:
 	@echo "  product-agent-apps-list - List installed desktop applications"
 	@echo "  product-agent-browser-dry-run - Dry-run browser URL opening"
 	@echo "  product-agent-workspace-plan - Preview a workspace mode plan"
+	@echo "  product-agent-screen-status - Show screen/context readiness"
+	@echo "  product-agent-screen-capture-dry-run - Dry-run screenshot capture"
+	@echo "  product-agent-context-snapshot - Capture active context metadata"
+	@echo "  product-agent-ocr-dry-run - Dry-run OCR over a local file path"
 	@echo "  product-agent-smoke - Run Rust product agent tests"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"

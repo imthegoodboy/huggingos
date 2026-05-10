@@ -12,9 +12,10 @@ This repository has two tracks:
   `kernel/`, kept for low-level OS experiments and learning.
 
 The current product work has completed the Linux foundation, the first
-capability control plane, the first Rust AI planning bridge, and the first
-permissioned Linux desktop-control slice. The custom kernel is already a working
-QEMU-bootable lab OS, but it is not the production AI OS path.
+capability control plane, the first Rust AI planning bridge, the first
+permissioned Linux desktop-control slice, and the first screen/context
+observation engine. The custom kernel is already a working QEMU-bootable lab
+OS, but it is not the production AI OS path.
 For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
 [docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 For the full system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -33,8 +34,13 @@ Product track:
 - Phase 4 desktop capabilities exist for desktop readiness, app listing,
   confirmed app launch, confirmed browser URL opening, and workspace mode
   planning.
-- Current capabilities: `product.status`, `fs.list`, `fs.read_text`,
-  `notes.create`, and `audit.list`.
+- Phase 5 screen/context capabilities exist for screen readiness, permissioned
+  screenshot capture, active-context snapshots, OCR image reads, and privacy
+  redaction.
+- Current capabilities include `product.status`, `fs.list`, `fs.read_text`,
+  `notes.create`, `audit.list`, `desktop.status`, `apps.list`, `apps.launch`,
+  `browser.open_url`, `workspace.mode.plan`, `screen.status`,
+  `screen.capture`, `context.snapshot`, and `screen.ocr_image`.
 - No committed API keys, provider secrets, or fake AI integrations.
 
 Kernel-lab track:
@@ -68,6 +74,10 @@ cd product/agent && cargo run -- run product.status --json
 cd product/agent && cargo run -- ai run "show product status" --json
 cd product/agent && cargo run -- run desktop.status --json
 cd product/agent && cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+cd product/agent && cargo run -- run screen.status --json
+cd product/agent && cargo run -- run screen.capture --dry-run --json
+cd product/agent && cargo run -- run context.snapshot --confirm --json
+cd product/agent && cargo run -- ai run "what is open" --confirm --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -80,15 +90,19 @@ make product-run-status
 make product-agent-ai-run
 make product-agent-desktop-status
 make product-agent-browser-dry-run
+make product-agent-screen-status
+make product-agent-screen-capture-dry-run
+make product-agent-context-snapshot
 make product-agent-smoke
 make product-smoke
 ```
 
 The Rust product agent now plans simple local AI intents and executes them
 through registry, policy, verification, and audit. It also has real desktop
-session/app/browser contracts. Cloud AI provider execution, browser DOM
-automation, global hotkeys, overlays, and window arrangement remain intentionally
-deferred until their backends and permission models exist.
+session/app/browser contracts plus the first permissioned screen/context
+observation contracts. Cloud AI provider execution, browser DOM automation,
+global hotkeys, overlays, accessibility-tree extraction, and window arrangement
+remain intentionally deferred until their backends and permission models exist.
 
 ## Kernel-Lab Quick Start
 
@@ -241,8 +255,9 @@ Product track:
 - No Linux image/rootfs build is implemented yet.
 - No long-running `huggingosd` daemon is implemented yet.
 - No cloud AI provider execution is implemented yet.
-- No desktop overlay, browser DOM automation, window arrangement, or screen
-  capture is implemented yet.
+- No XDG Desktop Portal/PipeWire capture path, accessibility tree, desktop
+  overlay, browser DOM automation, browser tab context, window arrangement, or
+  persistent memory is implemented yet.
 
 Kernel-lab track:
 
@@ -275,9 +290,9 @@ starts after the linked kernel image in low memory, supports split/merge reuse,
 and is bounded by the reported memory size. RAMFS and shell file redirection now
 use that allocator instead of relying on dummy or unsafe behavior.
 
-The next product work should start in Product Phase 5, adding screen and context
-understanding behind permissioned capture, privacy controls, policy, audit, and
-redaction.
+The next product work should start in Product Phase 6, adding user-controlled
+memory and semantic file search behind retention, deletion, and private-mode
+controls.
 
 ## References
 

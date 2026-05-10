@@ -163,6 +163,8 @@ Later capability families:
 - `browser.open`
 - `browser.click`
 - `screen.capture`
+- `context.snapshot`
+- `screen.ocr_image`
 - `settings.set`
 - `workflow.run`
 
@@ -272,6 +274,18 @@ Phase 4 implements the first desktop-control bridge in Rust:
 - `workspace.mode.plan` previews workspace modes before full window management
   exists.
 
+Phase 5 implements the first screen/context bridge in Rust:
+
+- `screen.status` detects capture, OCR, active-context, clipboard, and privacy
+  readiness.
+- `screen.capture` captures screenshots through discovered Linux backends after
+  confirmation and active-context privacy checks.
+- `context.snapshot` reports active-window and desktop context with privacy
+  redaction.
+- `screen.ocr_image` runs OCR through `tesseract` for approved local image paths.
+- Clipboard content, accessibility trees, browser tab context, and portal-based
+  capture remain later.
+
 ### 8. Memory System
 
 Memory must be inspectable and deletable.
@@ -319,12 +333,15 @@ Use now:
 - GitHub Actions on Ubuntu for CI.
 - Ubuntu LTS hosted prototype as the current product base.
 
-Use in Phase 2 through Phase 4:
+Use in Phase 2 through Phase 5:
 
 - Dataclasses or typed models for action contracts.
 - Rust structs/enums for production action contracts.
 - systemd user service for `huggingosd` once daemon state exists.
 - D-Bus for Linux service/app integration where appropriate.
+- `xdotool`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, ImageMagick
+  `import`, and `tesseract` as discovered optional host backends for the first
+  screen/context slice.
 - SQLite for audit indexes, event history, and local metadata when JSON Lines is
   no longer enough.
 - OS keyring/libsecret for provider secrets.
@@ -407,10 +424,21 @@ Still later:
 
 ### Phase 5: Screen And Context Engine
 
-- Active app/window state.
-- Permissioned screen capture.
-- OCR and accessibility tree.
-- Privacy controls.
+Complete for the first capability-backed observation slice:
+
+- Screen readiness and backend discovery.
+- Permissioned screen capture with active-context privacy checks.
+- Active app/window context snapshots.
+- OCR over provided local images through `tesseract`.
+- Privacy markers and redaction.
+
+Still later:
+
+- XDG Desktop Portal/PipeWire capture.
+- Accessibility tree extraction.
+- Browser tab and DOM context.
+- Clipboard content reads with explicit consent.
+- Region-level redaction.
 
 ### Phase 6: Memory And Semantic Files
 
