@@ -13,6 +13,7 @@ on that OS safely.
 ```text
 Linux kernel and distro base
   -> huggingOS product CLI
+  -> Rust huggingOS agent runtime
   -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
@@ -33,8 +34,11 @@ Intent
   -> result
 ```
 
-Current implementation lives in `product/huggingos_core/` and is called by
-`product/cli/huggingos.py run ...`.
+Current Python reference implementation lives in `product/huggingos_core/` and
+is called by `product/cli/huggingos.py run ...`.
+
+The production agent runtime starts in `product/agent/` as a Rust crate. Future
+daemon, planner, and desktop integration work should move there first.
 
 Tracking:
 

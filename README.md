@@ -27,6 +27,7 @@ Product track:
 - Runtime config, CLI, service, packaging, and smoke-test structure exists.
 - Phase 2 capability layer exists for typed, policy-checked, audited local
   actions.
+- Rust production agent runtime is started under `product/agent/`.
 - Current capabilities: `product.status`, `fs.list`, `fs.read_text`,
   `notes.create`, and `audit.list`.
 - No committed API keys, provider secrets, or fake AI integrations.
@@ -58,6 +59,7 @@ Start with:
 python3 product/cli/huggingos.py status
 python3 product/cli/huggingos.py capabilities
 python3 product/cli/huggingos.py run product.status
+cd product/agent && cargo run -- run product.status --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -67,6 +69,7 @@ Or use the make targets:
 make product-status
 make product-capabilities
 make product-run-status
+make product-agent-smoke
 make product-smoke
 ```
 

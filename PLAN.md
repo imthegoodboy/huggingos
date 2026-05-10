@@ -180,6 +180,9 @@ Core features:
   `audit.list`.
 - Structured action schema: intent, parameters, risk level, permissions, result.
   Done in `product/huggingos_core/models.py`.
+- Production agent runtime language selected. Done in
+  [ADR 0004](docs/adr/0004-agent-runtime-language.md), with the first Rust crate
+  under `product/agent/`.
 - Confirmation policy for destructive/sensitive actions. Done with allow, deny,
   confirm, and dry-run decisions.
 - Audit log for every automated action. Done with append-only JSON Lines audit
@@ -436,12 +439,13 @@ Future-useful discoveries should be captured in `agent/notes/` using
 Start here next after Product Phase 2 is merged:
 
 1. Add a provider-neutral AI runtime interface.
-2. Add secure secret loading through OS keyring or ignored encrypted local
+2. Move planner/executor work into the Rust agent runtime.
+3. Add secure secret loading through OS keyring or ignored encrypted local
    config.
-3. Add a deterministic local planner that maps simple natural-language commands
+4. Add a deterministic local planner that maps simple natural-language commands
    to capability calls.
-4. Add the plan-execute-verify loop using the Phase 2 capability engine.
-5. Preserve offline local control when no cloud model or API key exists.
+5. Add the plan-execute-verify loop using the Phase 2 capability engine.
+6. Preserve offline local control when no cloud model or API key exists.
 
 Product Phase 2 gives AI features a permissioned action surface. Phase 3 should
 connect planning to that surface without hardcoded providers, committed keys, or

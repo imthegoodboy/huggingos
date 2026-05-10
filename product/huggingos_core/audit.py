@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
 from .config import audit_log_path
 from .models import ActionRequest, ActionResult, utc_now
 from .policy import PolicyOutcome
+
+
+SENSITIVE_KEY_MARKERS = ("secret", "token", "key", "password")
+MAX_SUMMARY_TEXT = 120
 
 
 @dataclass
@@ -17,6 +22,11 @@ class AuditLogger:
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> "AuditLogger":
         return cls(audit_log_path(config))
+
+    def ensure_ready(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a", encoding="utf-8"):
+            pass
 
     def append(
         self,
@@ -52,18 +62,36 @@ class AuditLogger:
                 line = line.strip()
                 if not line:
                     continue
-                entries.append(json.loads(line))
+                try:
+                    entries.append(json.loads(line))
+                except JSONDecodeError:
+                    continue
         return entries[-limit:]
 
 
 def summarize_params(params: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     for key, value in params.items():
-        lowered = key.lower()
-        if any(marker in lowered for marker in ("secret", "token", "key", "password")):
+        if is_sensitive_key(key):
             summary[key] = "<redacted>"
-        elif isinstance(value, str) and len(value) > 120:
-            summary[key] = value[:117] + "..."
         else:
-            summary[key] = value
+            summary[key] = summarize_value(value)
     return summary
+
+
+def summarize_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "<redacted>" if is_sensitive_key(str(key)) else summarize_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [summarize_value(item) for item in value]
+    if isinstance(value, str) and len(value) > MAX_SUMMARY_TEXT:
+        return value[: MAX_SUMMARY_TEXT - 3] + "..."
+    return value
+
+
+def is_sensitive_key(key: str) -> bool:
+    lowered = key.lower()
+    return any(marker in lowered for marker in SENSITIVE_KEY_MARKERS)

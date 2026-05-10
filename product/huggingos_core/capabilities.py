@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -127,7 +128,10 @@ def fs_read_text_capability() -> Capability:
         path = resolve_existing_path(str(request.params["path"]))
         if not path.is_file():
             raise CapabilityError(f"Path is not a file: {path}")
-        size = path.stat().st_size
+        file_stat = path.stat()
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise CapabilityError(f"Path is not a regular file: {path}")
+        size = file_stat.st_size
         if size > MAX_TEXT_BYTES:
             raise CapabilityError(f"File is too large for Phase 2 text read: {size} bytes.")
         try:
@@ -171,19 +175,22 @@ def notes_create_capability() -> Capability:
     def execute(request: ActionRequest, config: dict[str, Any]) -> dict[str, Any]:
         workspace = workspace_dir(config).resolve()
         workspace.mkdir(parents=True, exist_ok=True)
-        filename = safe_note_filename(
-            str(request.params.get("filename") or request.params["title"])
-        )
+        title = str(request.params["title"]).strip()
+        if not title:
+            raise CapabilityError("Note title cannot be empty.")
+
+        filename = safe_note_filename(str(request.params.get("filename") or title))
         path = (workspace / filename).resolve()
         if not is_relative_to(path, workspace):
             raise CapabilityError("Refusing to create a note outside the configured workspace.")
-        if path.exists():
-            raise CapabilityError(f"Refusing to overwrite existing note: {path}")
 
-        title = str(request.params["title"]).strip()
         content = str(request.params.get("content", ""))
         note_text = f"# {title}\n\n{content.rstrip()}\n"
-        path.write_text(note_text, encoding="utf-8")
+        try:
+            with path.open("x", encoding="utf-8") as note_file:
+                note_file.write(note_text)
+        except FileExistsError as exc:
+            raise CapabilityError(f"Refusing to overwrite existing note: {path}") from exc
         return {"path": str(path), "workspace": str(workspace), "bytes": len(note_text.encode("utf-8"))}
 
     def verify(

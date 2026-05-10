@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Show product status
         run: python3 product/cli/huggingos.py status --json
 
@@ -27,3 +30,7 @@ jobs:
 
       - name: Run product smoke tests
         run: python3 -m unittest discover -s product/tests -p "test_*.py"
+
+      - name: Run Rust agent tests
+        run: cargo test
+        working-directory: product/agent

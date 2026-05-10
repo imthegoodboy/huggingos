@@ -7,12 +7,16 @@ Current rules:
 
 - No action may require root unless the command documents why.
 - Read-only actions are allowed when scoped and audited.
+- Read-only file capabilities must still deny obvious secret path names such as
+  `.env`, `.ssh`, `credentials`, API keys, tokens, and private keys.
 - Low-risk write actions must be constrained to a safe workspace.
 - Medium-risk actions require confirmation.
 - High-risk or destructive actions are denied by default until a stronger
   approval path exists.
 - Dry-run actions must not mutate state.
 - Every capability decision and result must be audited.
+- Audit input summaries must recursively redact secret-like keys.
+- If the audit path cannot be written, capabilities fail closed.
 - AI provider calls must wait for config, secret loading, audit, and policy.
 - Browser, shell, network, and system actions must go through capability APIs in
   later phases.

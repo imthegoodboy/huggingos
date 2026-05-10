@@ -10,11 +10,17 @@ CLI entrypoint is `product/cli/huggingos.py`.
 
 - Register OS actions as typed capabilities with metadata, risk, permissions,
   input schema, executor, and verifier.
+- Build new production runtime work in Rust under `product/agent/`; keep the
+  Python layer as a reference until Rust reaches full parity.
 - Execute actions through `CapabilityEngine`, not by directly calling capability
   functions from product commands.
 - Keep every action auditable, including denied, failed, and dry-run actions.
 - Use `HUGGINGOS_STATE_DIR` for runtime state tests and
   `HUGGINGOS_WORKSPACE_DIR` for low-risk write tests.
+- Keep read-only file capabilities away from obvious secret paths. Secret access
+  needs a separate higher-risk capability and stronger approval path.
+- Use exclusive create semantics for low-risk file writes so capabilities do not
+  overwrite or race an existing file.
 - Keep high-risk app, browser, shell, network, screen, and secret actions
   deferred until their policy and permission model exists.
 
