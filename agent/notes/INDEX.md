@@ -21,6 +21,7 @@ in PR descriptions.
 - [Linux product strategy](linux-product-strategy.md)
 - [Git metadata corruption](git-metadata-corruption.md)
 - [Prebuild readiness audit](prebuild-readiness-audit.md)
+- [Product Phase 1 foundation](product-phase1-foundation.md)
 
 ## Knowledge Capture Rule
 

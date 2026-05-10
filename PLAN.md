@@ -125,21 +125,26 @@ Delivered:
 
 ## Phase 1: Linux Product Foundation
 
-Status: ready to start.
+Status: complete.
 
 Goal: create a bootable/runnable Linux-based huggingOS foundation that future AI
 services can build on.
 
 Core features:
 
-- Choose base approach: Debian/Ubuntu live image, Buildroot, or Yocto.
-- Create `product/` tree for Linux image config, services, and packaging.
-- Produce first bootable Linux image or runnable dev rootfs.
-- Add a `huggingos` CLI entrypoint for local AI OS commands.
-- Add service layout for future daemon work.
-- Add non-secret runtime config layout.
-- Add smoke check for image/prototype startup.
-- Add CI for docs and the initial product build/prototype checks.
+- Choose base approach: Debian/Ubuntu live image, Buildroot, or Yocto. Done in
+  [ADR 0002](docs/adr/0002-linux-base-strategy.md).
+- Create `product/` tree for Linux image config, services, and packaging. Done
+  for CLI, config, distro, policy, services, and tests.
+- Produce first bootable Linux image or runnable dev rootfs. Done as a runnable
+  Ubuntu LTS hosted prototype; full image is deferred by ADR 0002.
+- Add a `huggingos` CLI entrypoint for local AI OS commands. Done with Phase 1
+  `status`, `doctor`, and `config` commands.
+- Add service layout for future daemon work. Done with `product/services`.
+- Add non-secret runtime config layout. Done with `product/config`.
+- Add smoke check for image/prototype startup. Done with product tests.
+- Add CI for docs and the initial product build/prototype checks. Done with the
+  Product Phase 1 workflow.
 
 Acceptance criteria:
 
@@ -398,18 +403,19 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Immediate Sprint: Product Phase 1
+## Next Sprint: Product Phase 2
 
-Start here next:
+Start here next after Product Phase 1 is merged:
 
-1. Choose the Linux base image strategy.
-2. Create the `product/` tree and documented dev/build commands.
-3. Add the first real `huggingos` CLI.
-4. Add runtime config layout with no committed secrets.
-5. Add product smoke checks and CI.
+1. Create a Product Phase 2 milestone and issues.
+2. Define the capability action schema and risk levels.
+3. Add the first local capability registry.
+4. Add audit log structure for product actions.
+5. Wire the CLI through the capability executor for safe read-only actions.
 
-Product Phase 1 is intentionally boring and important. Once this is solid, the
-later AI features have a real Linux OS foundation to stand on.
+Product Phase 1 gives later AI features a real Linux OS foundation to stand on.
+Phase 2 should now add the permissioned capability layer before any app control
+or AI provider integration.
 
 ## Things We Will Not Fake
 

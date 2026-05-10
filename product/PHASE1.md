@@ -14,11 +14,15 @@ first implementation work small, real, and reviewable.
 
 ## Build Order
 
-1. Decide and document the Linux base strategy in #14.
-2. Add only the product folders needed by the first runnable slice in #15.
-3. Add a real `huggingos` CLI command in #17.
-4. Add runtime config and secret rules before any AI provider work in #18.
-5. Add local smoke tests and CI in #19.
+1. Decide and document the Linux base strategy in #14. Done in ADR 0002.
+2. Add only the product folders needed by the first runnable slice in #15. Done
+   for CLI, config, distro, policy, services, and tests.
+3. Add a real `huggingos` CLI command in #17. Done with `status`, `doctor`, and
+   `config`.
+4. Add runtime config and secret rules before any AI provider work in #18. Done
+   with `product/config/defaults.toml`, `.env.example`, and ignore rules.
+5. Add local smoke tests and CI in #19. Done with `product/tests` and the
+   Product Phase 1 workflow.
 
 ## First Slice Rule
 
@@ -33,6 +37,22 @@ Minimum acceptable first slice:
 - No root permission is required unless the action truly needs it.
 - No API key, token, username, absolute host path, generated image, or private
   artifact is committed.
+
+## Validation Commands
+
+From the repository root:
+
+```bash
+python3 product/cli/huggingos.py status
+python3 product/cli/huggingos.py doctor
+python3 -m unittest discover -s product/tests -p "test_*.py"
+```
+
+With `make`:
+
+```bash
+make product-smoke
+```
 
 ## Not Yet
 

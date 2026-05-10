@@ -17,6 +17,17 @@ Completed planning updates:
 - Added Product Phase 1 kickoff guidance, product-aware issue/PR templates, and
   local secret/runtime ignore rules before implementation starts.
 
+## Product Phase 1 Foundation
+
+Completed the first Linux-hosted product slice:
+
+- Added ADR 0002 for the Ubuntu LTS hosted prototype base strategy.
+- Added a Python standard-library-only `huggingos` product CLI.
+- Added non-secret product config defaults and local override rules.
+- Added the initial product service boundary documentation.
+- Added product smoke tests and a Product Phase 1 CI workflow.
+- Added product `make` targets for status, doctor, and smoke validation.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

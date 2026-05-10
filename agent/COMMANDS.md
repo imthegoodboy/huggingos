@@ -72,7 +72,7 @@ gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```bash
 git diff --check
 rg -n "[^\x00-\x7F]" kernel product README.md UPDATE.md PLAN.md agent .github docs
-git ls-files | rg "(^|/)(\\.env(\\..*)?|.*(secret|token).*|.*(api[-_]?key|private[-_]?key).*)$"
+git ls-files | rg "(^|/)(\\.env(\\..*)?|.*(secret|token).*|.*(api[-_]?key|private[-_]?key).*)$" | rg -v "(^|/)\\.env\\.example$"
 git status -sb
 ```
 

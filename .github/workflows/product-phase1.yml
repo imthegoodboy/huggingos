@@ -1,0 +1,29 @@
+name: Product Phase 1
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  product-smoke:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show product status
+        run: python3 product/cli/huggingos.py status --json
+
+      - name: Run product doctor
+        run: python3 product/cli/huggingos.py doctor --json
+
+      - name: Run product smoke tests
+        run: python3 -m unittest discover -s product/tests -p "test_*.py"

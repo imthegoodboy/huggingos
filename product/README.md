@@ -43,6 +43,36 @@ Phase 1 should produce the smallest real Linux product foundation:
 - Add runtime config layout with no committed secrets.
 - Add smoke tests and CI.
 
+## Phase 1 Commands
+
+From the repository root on Linux or WSL:
+
+```bash
+python3 product/cli/huggingos.py status
+python3 product/cli/huggingos.py doctor
+python3 -m unittest discover -s product/tests -p "test_*.py"
+```
+
+Or with `make`:
+
+```bash
+make product-status
+make product-doctor
+make product-smoke
+```
+
+From inside `product/`:
+
+```bash
+make status
+make doctor
+make smoke
+```
+
+The CLI is intentionally small in Phase 1. It reports real product and host
+state, validates the local product foundation, and reads non-secret config. It
+does not automate apps, call AI providers, or change OS state yet.
+
 ## Local Files
 
 Local runtime files, secrets, and machine-specific config are intentionally not
