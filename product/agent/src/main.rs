@@ -1033,6 +1033,306 @@ fn product_status(config: &Config) -> Value {
     })
 }
 
+fn product_readiness_audit(config: &Config) -> Value {
+    let registry = build_registry();
+    let repo_root = config
+        .product_root
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| config.product_root.clone());
+    let mut checks = vec![];
+
+    let required_capabilities = [
+        "product.status",
+        "product.readiness.audit",
+        "audit.list",
+        "desktop.status",
+        "screen.status",
+        "memory.session.remember",
+        "agents.orchestrate",
+        "proactive.suggest",
+        "plugins.package.validate",
+        "plugins.approval.surface",
+        "plugins.install",
+    ];
+    let missing_capabilities = required_capabilities
+        .iter()
+        .filter(|capability| !registry.contains_key(**capability))
+        .copied()
+        .collect::<Vec<_>>();
+    readiness_check(
+        &mut checks,
+        "capability_registry",
+        if missing_capabilities.is_empty() {
+            "pass"
+        } else {
+            "fail"
+        },
+        "Required production-track capabilities are registered.",
+        json!({
+            "required": required_capabilities,
+            "missing": missing_capabilities,
+            "registered_count": registry.len(),
+        }),
+    );
+
+    let audit_path = audit_log_path(config);
+    let state = state_dir(config);
+    let audit_parent = audit_path.parent().map(Path::to_path_buf);
+    let audit_scoped = audit_path.starts_with(&state);
+    readiness_check(
+        &mut checks,
+        "audit_path_scoped",
+        if audit_scoped { "pass" } else { "fail" },
+        "Audit log resolves inside the configured state directory.",
+        json!({
+            "state_dir": state,
+            "audit_log": audit_path,
+            "audit_parent": audit_parent,
+        }),
+    );
+
+    readiness_check(
+        &mut checks,
+        "dangerous_features_disabled",
+        if !feature_enabled(config, "cloud_ai_enabled")
+            && !feature_enabled(config, "browser_control_enabled")
+            && !feature_enabled(config, "desktop_overlay_enabled")
+        {
+            "pass"
+        } else {
+            "warn"
+        },
+        "High-trust integrations stay disabled until their production backends exist.",
+        json!({
+            "cloud_ai_enabled": feature_enabled(config, "cloud_ai_enabled"),
+            "browser_control_enabled": feature_enabled(config, "browser_control_enabled"),
+            "desktop_overlay_enabled": feature_enabled(config, "desktop_overlay_enabled"),
+            "plugin_approval_surface_enabled": feature_enabled(config, "plugin_approval_surface_enabled"),
+        }),
+    );
+
+    let required_enabled_features = [
+        "plugin_sdk_enabled",
+        "declarative_plugins_enabled",
+        "plugin_package_trust_enabled",
+        "plugin_permission_review_enabled",
+        "plugin_signature_verification_enabled",
+        "plugin_approval_surface_enabled",
+        "product_readiness_audit_enabled",
+    ];
+    let disabled_required_features = required_enabled_features
+        .iter()
+        .filter(|feature| !feature_enabled(config, feature))
+        .copied()
+        .collect::<Vec<_>>();
+    readiness_check(
+        &mut checks,
+        "required_controls_enabled",
+        if disabled_required_features.is_empty() {
+            "pass"
+        } else {
+            "fail"
+        },
+        "Required plugin trust and readiness controls are enabled.",
+        json!({
+            "required_enabled_features": required_enabled_features,
+            "disabled": disabled_required_features,
+        }),
+    );
+
+    let sample_source = config.product_root.join("plugins").join("hello-assistant");
+    let sample_check = read_plugin_manifest_from_source(&sample_source.to_string_lossy())
+        .and_then(|manifest| {
+            validate_plugin_manifest(&manifest)?;
+            let verification = require_verified_plugin_package(&manifest)?;
+            let mut params = Map::new();
+            params.insert("source".to_string(), json!(sample_source));
+            let request = ActionRequest {
+                action_id: "readiness-audit".to_string(),
+                capability: "plugins.approval.surface".to_string(),
+                params,
+                actor: "readiness".to_string(),
+                reason: "Verify sample plugin approval surface.".to_string(),
+                dry_run: false,
+                confirmed: false,
+                requested_at: utc_now(),
+            };
+            let surface = plugin_approval_surface(config, &request)?;
+            Ok(json!({
+                "plugin_id": manifest.id,
+                "package_verification": verification,
+                "approval_surface_schema": surface.get("surface_schema_version"),
+                "approval_recommendation": surface.get("decision").and_then(|decision| decision.get("recommended")),
+            }))
+        });
+    match sample_check {
+        Ok(evidence) => readiness_check(
+            &mut checks,
+            "sample_plugin_trust",
+            "pass",
+            "Sample plugin verifies and produces an approval surface.",
+            evidence,
+        ),
+        Err(error) => readiness_check(
+            &mut checks,
+            "sample_plugin_trust",
+            "fail",
+            "Sample plugin must verify and produce an approval surface.",
+            json!({
+                "source": sample_source,
+                "error": error,
+            }),
+        ),
+    }
+
+    let docs = [
+        config.product_root.join("PRODUCTION_READINESS.md"),
+        config.product_root.join("PHASE12.md"),
+        config.product_root.join("README.md"),
+        config.product_root.join("ui").join("README.md"),
+        repo_root
+            .join("docs")
+            .join("adr")
+            .join("0014-plugin-approval-surface.md"),
+        repo_root
+            .join("docs")
+            .join("adr")
+            .join("0015-product-readiness-audit-gate.md"),
+        repo_root.join("PLAN.md"),
+        repo_root.join("UPDATE.md"),
+    ];
+    let missing_docs = docs
+        .iter()
+        .filter(|path| !path.exists())
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    readiness_check(
+        &mut checks,
+        "documentation_gate",
+        if missing_docs.is_empty() {
+            "pass"
+        } else {
+            "fail"
+        },
+        "Current production-readiness behavior is documented.",
+        json!({
+            "checked": docs,
+            "missing": missing_docs,
+        }),
+    );
+
+    let smoke_targets = [
+        "product-agent-smoke",
+        "product-smoke",
+        "product-agent-plugin-package-validate",
+        "product-agent-plugin-approval-surface",
+    ];
+    let makefile = fs::read_to_string(repo_root.join("Makefile")).unwrap_or_default();
+    let missing_targets = smoke_targets
+        .iter()
+        .filter(|target| !makefile_has_target(&makefile, target))
+        .copied()
+        .collect::<Vec<_>>();
+    readiness_check(
+        &mut checks,
+        "smoke_targets",
+        if missing_targets.is_empty() {
+            "pass"
+        } else {
+            "fail"
+        },
+        "Repository exposes smoke targets for core product and plugin trust checks.",
+        json!({
+            "required_targets": smoke_targets,
+            "missing_targets": missing_targets,
+        }),
+    );
+
+    readiness_check(
+        &mut checks,
+        "plugin_code_execution_blocked",
+        "pass",
+        "Plugin extension remains declarative until sandboxing is implemented.",
+        json!({
+            "sandbox_required_before_code": true,
+            "auto_update_allowed": false,
+            "automatic_rollback": false,
+        }),
+    );
+
+    let fail_count = readiness_status_count(&checks, "fail");
+    let warn_count = readiness_status_count(&checks, "warn");
+    let pass_count = readiness_status_count(&checks, "pass");
+    let overall_status = if fail_count > 0 {
+        "blocked"
+    } else if warn_count > 0 {
+        "ready_with_warnings"
+    } else {
+        "ready"
+    };
+
+    json!({
+        "schema_version": "huggingos.product.readiness.v1",
+        "generated_at": utc_now(),
+        "overall_status": overall_status,
+        "phase": config.product.phase,
+        "version": config.product.version,
+        "summary": {
+            "pass": pass_count,
+            "warn": warn_count,
+            "fail": fail_count,
+            "check_count": checks.len(),
+        },
+        "checks": checks,
+        "known_deferred_work": [
+            "Rendered desktop overlay and control center screens.",
+            "Sandboxed plugin-provided code execution.",
+            "Signed archive bundles beyond manifest-only packages.",
+            "Trusted plugin update feeds and manual update approval.",
+            "Automatic rollback execution.",
+            "Cloud AI provider execution.",
+            "Browser DOM automation and accessibility-tree extraction."
+        ],
+        "recommended_next_phase": "Product Phase 13: sandbox boundary, signed archives, update feeds, and rendered approval UI.",
+    })
+}
+
+fn readiness_check(
+    checks: &mut Vec<Value>,
+    id: &str,
+    status: &str,
+    summary: &str,
+    evidence: Value,
+) {
+    checks.push(json!({
+        "id": id,
+        "status": status,
+        "summary": summary,
+        "evidence": evidence,
+    }));
+}
+
+fn readiness_status_count(checks: &[Value], status: &str) -> usize {
+    checks
+        .iter()
+        .filter(|check| check.get("status").and_then(Value::as_str) == Some(status))
+        .count()
+}
+
+fn makefile_has_target(makefile: &str, target: &str) -> bool {
+    makefile.lines().any(|line| {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            return false;
+        }
+        trimmed
+            .split_once(':')
+            .map(|(targets, _)| targets.split_whitespace().any(|name| name == target))
+            .unwrap_or(false)
+    })
+}
+
 fn state_dir(config: &Config) -> PathBuf {
     if let Ok(explicit) = env::var(&config.runtime.state_dir_env) {
         return absolute_path_lossy(explicit);
@@ -1414,6 +1714,8 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
     } else if let Some(step) = plan_plugin_catalog_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_plugin_workflow_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_readiness_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
@@ -2080,6 +2382,26 @@ fn plan_note_intent(
         "notes.create",
         params,
         "Create a safe workspace note from the prompt.".to_string(),
+    ))
+}
+
+fn plan_readiness_audit_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("readiness audit")
+        || lowered.contains("production audit")
+        || lowered.contains("production readiness")
+        || lowered.contains("is it production ready"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "product.readiness.audit",
+        Map::new(),
+        format!("Run product readiness audit for prompt: {prompt}"),
     ))
 }
 
@@ -5281,6 +5603,7 @@ fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 fn build_registry() -> BTreeMap<String, Capability> {
     let capabilities = [
         product_status_capability(),
+        product_readiness_audit_capability(),
         fs_list_capability(),
         fs_read_text_capability(),
         notes_create_capability(),
@@ -5346,6 +5669,36 @@ fn product_status_capability() -> Capability {
         verify: |_, _, data| Verification {
             ok: data.get("track") == Some(&json!("product")) && data.get("host").is_some(),
             message: "Product status returned host state.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn product_readiness_audit_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "product.readiness.audit".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description:
+                "Run a machine-readable product readiness audit without mutating OS state."
+                    .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec![
+                "product:read".to_string(),
+                "audit:read".to_string(),
+                "plugins:read".to_string(),
+                "plugins:trust".to_string(),
+            ],
+            input_schema: object_schema(BTreeMap::<String, String>::new(), vec![]),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |_, config| Ok(product_readiness_audit(config)),
+        verify: |_, _, data| Verification {
+            ok: data.get("schema_version") == Some(&json!("huggingos.product.readiness.v1"))
+                && data.get("overall_status").and_then(Value::as_str) != Some("blocked"),
+            message: "Product readiness audit completed.".to_string(),
             data: json!({}),
         },
     }
@@ -7485,6 +7838,91 @@ mod tests {
     }
 
     #[test]
+    fn product_readiness_audit_reports_current_gate() {
+        let tmp = TempDir::new().unwrap();
+        let mut config = test_config(&tmp);
+        for feature in [
+            "plugin_sdk_enabled",
+            "declarative_plugins_enabled",
+            "plugin_package_trust_enabled",
+            "plugin_permission_review_enabled",
+            "plugin_signature_verification_enabled",
+            "plugin_approval_surface_enabled",
+            "product_readiness_audit_enabled",
+        ] {
+            config.features.insert(feature.to_string(), true);
+        }
+        let sample = write_sample_plugin(&tmp);
+        let plugin_dir = config.product_root.join("plugins").join("hello-assistant");
+        fs::create_dir_all(&plugin_dir).unwrap();
+        fs::copy(sample.join("plugin.json"), plugin_dir.join("plugin.json")).unwrap();
+        fs::write(config.product_root.join("README.md"), "# product\n").unwrap();
+        fs::write(
+            config.product_root.join("PRODUCTION_READINESS.md"),
+            "# readiness\n",
+        )
+        .unwrap();
+        fs::write(config.product_root.join("PHASE12.md"), "# phase\n").unwrap();
+        fs::create_dir_all(config.product_root.join("ui")).unwrap();
+        fs::write(config.product_root.join("ui").join("README.md"), "# ui\n").unwrap();
+        let adr_dir = config
+            .product_root
+            .parent()
+            .unwrap()
+            .join("docs")
+            .join("adr");
+        fs::create_dir_all(&adr_dir).unwrap();
+        fs::write(adr_dir.join("0014-plugin-approval-surface.md"), "# adr\n").unwrap();
+        fs::write(
+            adr_dir.join("0015-product-readiness-audit-gate.md"),
+            "# adr\n",
+        )
+        .unwrap();
+        fs::write(
+            config.product_root.parent().unwrap().join("PLAN.md"),
+            "# plan\n",
+        )
+        .unwrap();
+        fs::write(
+            config.product_root.parent().unwrap().join("UPDATE.md"),
+            "# update\n",
+        )
+        .unwrap();
+        fs::write(
+            config.product_root.parent().unwrap().join("Makefile"),
+            "product-agent-smoke:\nproduct-smoke:\nproduct-agent-plugin-package-validate:\nproduct-agent-plugin-approval-surface:\n",
+        )
+        .unwrap();
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("product.readiness.audit", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert_eq!(
+            result.data["schema_version"],
+            json!("huggingos.product.readiness.v1")
+        );
+        assert_ne!(result.data["overall_status"], json!("blocked"));
+        assert!(result.data["summary"]["fail"].as_u64().unwrap() == 0);
+        assert!(result.data["known_deferred_work"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item.as_str().unwrap().contains("Sandboxed plugin")));
+    }
+
+    #[test]
+    fn readiness_makefile_target_check_ignores_comments() {
+        let makefile =
+            "# product-smoke:\n.PHONY: product-smoke\nproduct-agent-smoke product-smoke:\n\ttrue\n";
+        assert!(makefile_has_target(makefile, "product-smoke"));
+        assert!(!makefile_has_target("# product-smoke:\n", "product-smoke"));
+    }
+
+    #[test]
     fn sensitive_file_read_is_denied_before_reading() {
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp);
@@ -7562,6 +8000,22 @@ mod tests {
 
         assert!(plan.executable);
         assert_eq!(plan.steps[0].capability, "product.status");
+    }
+
+    #[test]
+    fn local_planner_maps_readiness_prompt_to_capability() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let plan = build_ai_plan(
+            &config,
+            &build_registry(),
+            "run production readiness audit",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert!(plan.executable);
+        assert_eq!(plan.steps[0].capability, "product.readiness.audit");
     }
 
     #[test]

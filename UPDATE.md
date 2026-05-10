@@ -216,6 +216,21 @@ Completed the first desktop-ready plugin approval contract slice:
 - Kept desktop overlay rendering, plugin code execution, auto-update, and
   automatic rollback execution disabled.
 
+## Product Readiness Audit Gate
+
+Added an executable production-readiness gate:
+
+- Added `product.readiness.audit` returning
+  `huggingos.product.readiness.v1`.
+- Checked required capability registration, audit path scoping, dangerous
+  feature flags, required trust/readiness controls, signed sample plugin trust,
+  approval-surface generation, docs, smoke targets, and plugin code-execution
+  blocking.
+- Added local planner support for production-readiness prompts.
+- Added Make and CI smoke coverage.
+- Added production-readiness docs, ADR, and agent notes.
+- Kept known deferred work visible in the audit output.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

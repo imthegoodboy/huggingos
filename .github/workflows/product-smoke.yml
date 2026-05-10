@@ -57,6 +57,10 @@ jobs:
         run: cargo run -- ai run "show product status" --json
         working-directory: product/agent
 
+      - name: Run product readiness audit
+        run: cargo run -- run product.readiness.audit --json
+        working-directory: product/agent
+
       - name: Show redacted AI secret readiness
         run: cargo run -- secrets status --json
         working-directory: product/agent

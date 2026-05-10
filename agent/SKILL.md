@@ -182,6 +182,9 @@ means Linux userspace services, not custom-kernel shortcuts:
   `ed25519-canonical-json-sha256-v1`; `plugins.install` requires
   `signature_verified`; `plugins.approval.surface` exposes a read-only
   desktop-ready approval payload; plugin code execution remains disabled.
+- Current readiness gate: `product.readiness.audit` returns
+  `huggingos.product.readiness.v1` and must stay current when production
+  surfaces change.
 
 Never put model prompts, cloud credentials, provider-specific keys, or network
 API calls directly into the custom kernel image.

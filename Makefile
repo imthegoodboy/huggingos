@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-workflow-detect product-agent-proactive-suggest product-agent-selfheal-diagnose product-agent-timeline-explain product-agent-plugin-validate product-agent-plugin-package-validate product-agent-plugin-permission-review product-agent-plugin-approval-surface product-agent-plugin-install product-agent-plugin-catalog product-agent-plugin-workflow product-agent-plugin-run product-agent-plugin-disable product-agent-plugin-remove product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-readiness-audit product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-screen-status product-agent-screen-capture-dry-run product-agent-context-snapshot product-agent-ocr-dry-run product-agent-memory-remember product-agent-memory-list product-agent-preference-set product-agent-semantic-index product-agent-semantic-search product-agent-resume-plan product-agent-agents-catalog product-agent-agents-plan product-agent-agents-orchestrate product-agent-agents-trace-list product-agent-workflow-detect product-agent-proactive-suggest product-agent-selfheal-diagnose product-agent-timeline-explain product-agent-plugin-validate product-agent-plugin-package-validate product-agent-plugin-permission-review product-agent-plugin-approval-surface product-agent-plugin-install product-agent-plugin-catalog product-agent-plugin-workflow product-agent-plugin-run product-agent-plugin-disable product-agent-plugin-remove product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -98,6 +98,9 @@ product-capabilities:
 
 product-run-status:
 	python3 product/cli/huggingos.py run product.status
+
+product-agent-readiness-audit:
+	cd product/agent && cargo run -- run product.readiness.audit --json
 
 product-agent-ai-status:
 	cd product/agent && cargo run -- ai status --json
@@ -225,6 +228,7 @@ help:
 	@echo "  product-doctor - Run Linux product environment checks"
 	@echo "  product-capabilities - List product capability APIs"
 	@echo "  product-run-status - Run product.status through policy and audit"
+	@echo "  product-agent-readiness-audit - Run Rust product readiness audit"
 	@echo "  product-agent-ai-status - Show Rust AI runtime/provider readiness"
 	@echo "  product-agent-ai-plan - Build a deterministic local AI plan"
 	@echo "  product-agent-ai-run - Execute a local AI plan through capabilities"

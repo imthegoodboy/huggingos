@@ -55,6 +55,7 @@ Stop and rethink if the task starts to become:
 For product code changes:
 
 - [ ] Product command or smoke test from `product/README.md` or the active issue.
+- [ ] `product.readiness.audit` still passes or documents any real blocker.
 - [ ] Missing dependency path is documented and fails clearly.
 - [ ] No product runtime, secret, generated image, or local config file is staged.
 - [ ] Product docs are updated.

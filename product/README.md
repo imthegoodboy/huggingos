@@ -27,6 +27,8 @@ For the Product Phase 9 plugin SDK, see [PHASE9.md](PHASE9.md).
 For the Product Phase 10 plugin trust layer, see [PHASE10.md](PHASE10.md).
 For the Product Phase 11 plugin signature layer, see [PHASE11.md](PHASE11.md).
 For the Product Phase 12 plugin approval surface, see [PHASE12.md](PHASE12.md).
+For the executable production gate, see
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -83,6 +85,8 @@ The product track currently provides:
   persisted rollback manifests, and tamper rejection.
 - Phase 12 plugin approval surface capabilities for desktop-ready trust,
   permission, sandbox, update, rollback, and action-review payloads.
+- Product readiness audit capability for a machine-readable gate over the
+  current working product surface and known deferred work.
 
 ## Product Commands
 
@@ -98,6 +102,7 @@ cd product/agent && cargo run -- run product.status --json
 cd product/agent && cargo run -- ai status --json
 cd product/agent && cargo run -- ai plan "show product status" --json
 cd product/agent && cargo run -- ai run "show product status" --json
+cd product/agent && cargo run -- run product.readiness.audit --json
 cd product/agent && cargo run -- secrets status --json
 cd product/agent && cargo run -- run desktop.status --json
 cd product/agent && cargo run -- run apps.list --json
@@ -140,6 +145,7 @@ make product-run-status
 make product-agent-ai-status
 make product-agent-ai-plan
 make product-agent-ai-run
+make product-agent-readiness-audit
 make product-agent-secrets
 make product-agent-desktop-status
 make product-agent-apps-list
@@ -187,6 +193,7 @@ make run-status
 make agent-ai-status
 make agent-ai-plan
 make agent-ai-run
+make agent-readiness-audit
 make agent-secrets
 make agent-desktop-status
 make agent-apps-list
@@ -249,11 +256,12 @@ snapshot active-window context, OCR local images when `tesseract` exists, store
 user-controlled memory, search opt-in text file indexes, and delegate work
 through permissioned built-in agents. It can also install and run declarative
 read-only plugin manifests with explicit permission review, cryptographically
-verified local package signatures, and desktop-ready approval surfaces. It
-still does not call cloud AI providers, automate browser DOMs, launch arbitrary
-shell commands, read clipboard contents by default, extract accessibility
-trees, execute arbitrary plugin code, render a desktop overlay, run plugin
-daemons, auto-update plugins, or arrange windows.
+verified local package signatures, desktop-ready approval surfaces, and a
+machine-readable product readiness audit. It still does not call cloud AI
+providers, automate browser DOMs, launch arbitrary shell commands, read
+clipboard contents by default, extract accessibility trees, execute arbitrary
+plugin code, render a desktop overlay, run plugin daemons, auto-update plugins,
+or arrange windows.
 
 The Rust agent is the production path for AI planning, future daemon work, and
 desktop integration. The Python CLI remains a reference control surface for the
