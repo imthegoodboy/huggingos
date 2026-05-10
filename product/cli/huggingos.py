@@ -1,188 +1,42 @@
 #!/usr/bin/env python3
-"""Phase 1 huggingOS product CLI."""
+"""huggingOS product CLI."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
-import platform
 import sys
 from pathlib import Path
 from typing import Any
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback path
-    tomllib = None
-
 
 PRODUCT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = PRODUCT_ROOT / "config" / "defaults.toml"
-MIN_PYTHON = (3, 11)
+if str(PRODUCT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PRODUCT_ROOT))
+
+from huggingos_core.capabilities import build_registry  # noqa: E402
+from huggingos_core.config import (  # noqa: E402
+    ConfigError,
+    doctor_report,
+    load_config,
+    product_status,
+    redact,
+)
+from huggingos_core.engine import CapabilityEngine  # noqa: E402
+from huggingos_core.models import ActionRequest  # noqa: E402
 
 
 class CliError(Exception):
     """User-visible CLI error."""
 
 
-def load_config() -> dict[str, Any]:
-    if tomllib is None:
-        raise CliError("Python 3.11 or newer is required for TOML config support.")
-
-    config_path = Path(os.environ.get("HUGGINGOS_CONFIG_FILE", DEFAULT_CONFIG))
-    if not config_path.is_absolute():
-        config_path = (Path.cwd() / config_path).resolve()
-
-    if not config_path.exists():
-        raise CliError(f"Config file not found: {config_path}")
-
-    try:
-        with config_path.open("rb") as config_file:
-            config = tomllib.load(config_file)
-    except tomllib.TOMLDecodeError as exc:
-        raise CliError(f"Invalid TOML config in {config_path}: {exc}") from exc
-
-    config["_meta"] = {"config_path": str(config_path)}
-    return config
+def emit_json(payload: dict[str, Any] | list[dict[str, Any]]) -> None:
+    print(json.dumps(payload, indent=2, sort_keys=True))
 
 
-def xdg_state_home() -> Path:
-    explicit = os.environ.get("HUGGINGOS_STATE_DIR")
-    if explicit:
-        return Path(explicit).expanduser()
-
-    xdg_state = os.environ.get("XDG_STATE_HOME")
-    if xdg_state:
-        return Path(xdg_state).expanduser() / "huggingos"
-
-    return Path.home() / ".local" / "state" / "huggingos"
-
-
-def xdg_config_home() -> Path:
-    xdg_config = os.environ.get("XDG_CONFIG_HOME")
-    if xdg_config:
-        return Path(xdg_config).expanduser() / "huggingos"
-
-    return Path.home() / ".config" / "huggingos"
-
-
-def redact(value: Any) -> Any:
-    if isinstance(value, dict):
-        redacted: dict[str, Any] = {}
-        for key, item in value.items():
-            lowered = key.lower()
-            if any(marker in lowered for marker in ("secret", "token", "key", "password")):
-                redacted[key] = "<redacted>"
-            else:
-                redacted[key] = redact(item)
-        return redacted
-    if isinstance(value, list):
-        return [redact(item) for item in value]
-    return value
-
-
-def host_info() -> dict[str, Any]:
-    return {
-        "system": platform.system(),
-        "release": platform.release(),
-        "version": platform.version(),
-        "machine": platform.machine(),
-        "python": platform.python_version(),
-        "is_linux": sys.platform.startswith("linux"),
-        "is_wsl": "microsoft" in platform.release().lower()
-        or "WSL_DISTRO_NAME" in os.environ,
-    }
-
-
-def product_status(config: dict[str, Any]) -> dict[str, Any]:
-    product = config.get("product", {})
-    return {
-        "product": product.get("name", "huggingOS"),
-        "version": product.get("version", "unknown"),
-        "track": product.get("track", "product"),
-        "phase": product.get("phase", "Product Phase 1"),
-        "base_strategy": product.get("base_strategy", "Ubuntu LTS hosted prototype"),
-        "host": host_info(),
-        "paths": {
-            "product_root": str(PRODUCT_ROOT),
-            "config_file": config.get("_meta", {}).get("config_path", str(DEFAULT_CONFIG)),
-            "config_dir": str(xdg_config_home()),
-            "state_dir": str(xdg_state_home()),
-        },
-        "features": config.get("features", {}),
-    }
-
-
-def doctor_report(config: dict[str, Any]) -> dict[str, Any]:
-    checks = []
-
-    def add_check(name: str, ok: bool, message: str, severity: str = "error") -> None:
-        checks.append(
-            {
-                "name": name,
-                "ok": ok,
-                "severity": "info" if ok else severity,
-                "message": message,
-            }
-        )
-
-    add_check(
-        "python",
-        sys.version_info >= MIN_PYTHON,
-        f"Python {platform.python_version()} detected; requires 3.11+.",
-    )
-    add_check(
-        "linux-host",
-        sys.platform.startswith("linux"),
-        (
-            "Linux host detected."
-            if sys.platform.startswith("linux")
-            else "Run product commands on Linux, WSL, or CI."
-        ),
-        severity="warning",
-    )
-    add_check(
-        "default-config",
-        DEFAULT_CONFIG.exists(),
-        f"Default config present at {DEFAULT_CONFIG}.",
-    )
-    add_check("cli", (PRODUCT_ROOT / "cli" / "huggingos.py").exists(), "CLI entrypoint is present.")
-    add_check("tests", (PRODUCT_ROOT / "tests").exists(), "Product tests directory is present.")
-
-    policy = config.get("policy", {})
-    required_actions = set(policy.get("confirmation_required_for", []))
-    add_check(
-        "policy-confirmations",
-        {"delete", "secret", "system"}.issubset(required_actions),
-        "Policy lists high-risk actions that must require confirmation.",
-    )
-
-    errors = [check for check in checks if not check["ok"] and check["severity"] == "error"]
-    warnings = [check for check in checks if not check["ok"] and check["severity"] == "warning"]
-    return {
-        "product": "huggingOS",
-        "status": "pass" if not errors else "fail",
-        "error_count": len(errors),
-        "warning_count": len(warnings),
-        "checks": checks,
-    }
-
-
-def emit(payload: dict[str, Any], as_json: bool) -> None:
+def emit_status(payload: dict[str, Any], as_json: bool) -> None:
     if as_json:
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return
-
-    if "checks" in payload:
-        print(f"huggingOS doctor: {payload['status']}")
-        for check in payload["checks"]:
-            label = "OK" if check["ok"] else check["severity"].upper()
-            print(f"[{label}] {check['name']}: {check['message']}")
-        return
-
-    if "config" in payload:
-        print(json.dumps(payload["config"], indent=2, sort_keys=True))
+        emit_json(payload)
         return
 
     print(f"{payload['product']} {payload['version']}")
@@ -192,6 +46,89 @@ def emit(payload: dict[str, Any], as_json: bool) -> None:
     print(f"host: {payload['host']['system']} {payload['host']['release']} ({payload['host']['machine']})")
     print(f"config: {payload['paths']['config_file']}")
     print(f"state: {payload['paths']['state_dir']}")
+    print(f"workspace: {payload['paths']['workspace_dir']}")
+    print(f"audit: {payload['paths']['audit_log']}")
+
+
+def emit_doctor(payload: dict[str, Any], as_json: bool) -> None:
+    if as_json:
+        emit_json(payload)
+        return
+
+    print(f"huggingOS doctor: {payload['status']}")
+    for check in payload["checks"]:
+        label = "OK" if check["ok"] else check["severity"].upper()
+        print(f"[{label}] {check['name']}: {check['message']}")
+
+
+def emit_capabilities(capabilities: list[dict[str, Any]], as_json: bool) -> None:
+    if as_json:
+        emit_json({"capabilities": capabilities})
+        return
+
+    for capability in capabilities:
+        permissions = ", ".join(capability["permissions"]) or "none"
+        print(
+            f"{capability['name']} "
+            f"v{capability['version']} "
+            f"[{capability['risk']}] "
+            f"{permissions} - {capability['description']}"
+        )
+
+
+def emit_result(result: dict[str, Any], as_json: bool) -> None:
+    if as_json:
+        emit_json(result)
+        return
+
+    print(f"{result['capability']}: {result['status']}")
+    print(result["summary"])
+    if result.get("error"):
+        print(f"error: {result['error']}")
+    if result.get("audit_ref"):
+        print(f"audit: {result['audit_ref']}")
+    data = result.get("data") or {}
+    if data:
+        print(json.dumps(data, indent=2, sort_keys=True))
+
+
+def parse_param(raw: str) -> tuple[str, Any]:
+    if "=" not in raw:
+        raise CliError(f"Parameter must be key=value: {raw}")
+    key, value = raw.split("=", 1)
+    key = key.strip()
+    if not key:
+        raise CliError("Parameter key cannot be empty.")
+    return key, parse_value(value)
+
+
+def parse_value(value: str) -> Any:
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
+def parse_params(param_items: list[str], params_json: str | None) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if params_json:
+        try:
+            decoded = json.loads(params_json)
+        except json.JSONDecodeError as exc:
+            raise CliError(f"Invalid --params-json: {exc}") from exc
+        if not isinstance(decoded, dict):
+            raise CliError("--params-json must decode to an object.")
+        params.update(decoded)
+
+    for item in param_items:
+        key, value = parse_param(item)
+        params[key] = value
+    return params
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -201,11 +138,24 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Show real product and host status.")
     status.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
 
-    doctor = subparsers.add_parser("doctor", help="Run Product Phase 1 environment checks.")
+    doctor = subparsers.add_parser("doctor", help="Run product environment checks.")
     doctor.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
 
     config = subparsers.add_parser("config", help="Show non-secret product config.")
     config.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+
+    capabilities = subparsers.add_parser("capabilities", help="List registered capabilities.")
+    capabilities.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+
+    run = subparsers.add_parser("run", help="Run a capability through policy and audit.")
+    run.add_argument("capability", help="Capability name, for example product.status.")
+    run.add_argument("--param", action="append", default=[], help="Capability parameter as key=value.")
+    run.add_argument("--params-json", help="Capability parameters as a JSON object.")
+    run.add_argument("--actor", default="user", help="Actor requesting the action.")
+    run.add_argument("--reason", default="", help="Reason for the action.")
+    run.add_argument("--dry-run", action="store_true", help="Evaluate without mutating state.")
+    run.add_argument("--confirm", action="store_true", help="Confirm a capability that requires it.")
+    run.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
 
     return parser
 
@@ -217,16 +167,31 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load_config()
         if args.command == "status":
-            emit(product_status(config), args.json)
+            emit_status(product_status(config), args.json)
             return 0
         if args.command == "doctor":
             report = doctor_report(config)
-            emit(report, args.json)
+            emit_doctor(report, args.json)
             return 0 if report["error_count"] == 0 else 1
         if args.command == "config":
-            emit({"config": redact(config)}, args.json)
+            emit_json({"config": redact(config)})
             return 0
-    except CliError as exc:
+        if args.command == "capabilities":
+            emit_capabilities(build_registry().to_dicts(), args.json)
+            return 0
+        if args.command == "run":
+            request = ActionRequest(
+                capability=args.capability,
+                params=parse_params(args.param, args.params_json),
+                actor=args.actor,
+                reason=args.reason,
+                dry_run=args.dry_run,
+                confirmed=args.confirm,
+            )
+            result = CapabilityEngine(config, build_registry()).execute(request)
+            emit_result(result.to_dict(), args.json)
+            return 0 if result.error is None else 1
+    except (CliError, ConfigError) as exc:
         print(f"huggingos: {exc}", file=sys.stderr)
         return 2
 

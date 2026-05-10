@@ -1,4 +1,4 @@
-name: Product Phase 1
+name: Product Smoke
 
 on:
   pull_request:

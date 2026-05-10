@@ -13,14 +13,15 @@ on that OS safely.
 ```text
 Linux kernel and distro base
   -> huggingOS product CLI
+  -> in-process capability control plane
   -> non-secret runtime config
   -> policy and service boundaries
   -> product tests and CI
 ```
 
-## Phase 2 Target
+## Phase 2 Control Plane
 
-Product Phase 2 adds the capability control plane:
+Product Phase 2 adds the first executable capability control plane:
 
 ```text
 Intent
@@ -31,6 +32,9 @@ Intent
   -> audit log
   -> result
 ```
+
+Current implementation lives in `product/huggingos_core/` and is called by
+`product/cli/huggingos.py run ...`.
 
 Tracking:
 
@@ -61,12 +65,14 @@ permissioned, testable, and reversible where possible.
 
 ## Readiness Verdict
 
-Phase 1 is directionally correct:
+Phase 1 and Phase 2 are directionally correct:
 
 - It uses Linux as the real OS foundation.
 - It does not copy or fork the Linux kernel before there is a need.
 - It creates a runnable hosted product slice that works in WSL and CI.
 - It keeps secrets and fake AI out of the product.
+- It routes real automated actions through registry, policy, verifier, and
+  audit before later AI or desktop control exists.
 
-Before Phase 2, executable scripts must keep LF line endings. `.gitattributes`
-enforces that for scripts, source, Makefiles, TOML, and workflows.
+Executable scripts must keep LF line endings. `.gitattributes` enforces that for
+scripts, source, Makefiles, TOML, and workflows.

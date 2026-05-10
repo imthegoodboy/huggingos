@@ -337,7 +337,7 @@ Complete.
 
 ### Phase 2: Capability API And Local Automation
 
-Next.
+Complete.
 
 - Action schema.
 - Capability registry.

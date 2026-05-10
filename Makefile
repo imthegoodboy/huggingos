@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -93,6 +93,12 @@ product-status:
 product-doctor:
 	python3 product/cli/huggingos.py doctor
 
+product-capabilities:
+	python3 product/cli/huggingos.py capabilities
+
+product-run-status:
+	python3 product/cli/huggingos.py run product.status
+
 product-smoke:
 	python3 -m unittest discover -s product/tests -p "test_*.py"
 
@@ -106,6 +112,8 @@ help:
 	@echo "  qemu    - Build the ISO and run it in QEMU"
 	@echo "  product-status - Show Linux product status"
 	@echo "  product-doctor - Run Linux product environment checks"
+	@echo "  product-capabilities - List product capability APIs"
+	@echo "  product-run-status - Run product.status through policy and audit"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"
 	@echo "  run     - Build ISO and provide instructions to run"
@@ -116,4 +124,3 @@ help:
 	@echo "  - NASM assembler"
 	@echo "  - grub-mkrescue and xorriso"
 	@echo "  - QEMU or VirtualBox (for testing)"
-

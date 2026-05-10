@@ -169,20 +169,25 @@ GitHub issue plan:
 
 ## Phase 2: Capability API And Local Automation
 
-Status: architecture ready; implementation not started.
+Status: complete.
 
 Goal: expose safe local OS actions that AI can later call.
 
 Core features:
 
-- Capability registry for files, apps, shell commands, windows, browser, system
-  state, notifications, and settings. Start with read-only and low-risk local
-  capabilities.
+- Capability registry for read-only and low-risk local capabilities. Done with
+  `product.status`, `fs.list`, `fs.read_text`, `notes.create`, and
+  `audit.list`.
 - Structured action schema: intent, parameters, risk level, permissions, result.
-- Confirmation policy for destructive/sensitive actions.
-- Audit log for every automated action.
-- Reversible file operations where possible.
+  Done in `product/huggingos_core/models.py`.
+- Confirmation policy for destructive/sensitive actions. Done with allow, deny,
+  confirm, and dry-run decisions.
+- Audit log for every automated action. Done with append-only JSON Lines audit
+  records.
+- Reversible file operations where possible. Started with constrained
+  workspace-only note creation that refuses overwrites.
 - Local deterministic planner for simple commands before LLM integration.
+  Deferred to Product Phase 3, after the capability contract is stable.
 
 Architecture:
 
@@ -202,9 +207,11 @@ GitHub issue plan:
 
 Acceptance criteria:
 
-- CLI can execute real structured actions like list files, open app, create
-  note, or run shell command through the capability layer.
-- Dangerous actions require confirmation.
+- CLI can list capabilities.
+- Read-only actions execute through registry, policy, executor, verifier, and
+  audit.
+- Low-risk note creation uses a configured safe workspace.
+- Dangerous action classes require confirmation or are denied by default.
 - Audit logs show what happened, when, and why.
 
 ## Phase 3: AI Runtime Bridge And Secrets
@@ -424,19 +431,21 @@ actual source code.
 Future-useful discoveries should be captured in `agent/notes/` using
 `agent/notes/TEMPLATE.md`. Keep those notes concise and evidence-based.
 
-## Next Sprint: Product Phase 2
+## Next Sprint: Product Phase 3
 
-Start here next after Product Phase 1 is merged:
+Start here next after Product Phase 2 is merged:
 
-1. Create a Product Phase 2 milestone and issues.
-2. Define the capability action schema and risk levels.
-3. Add the first local capability registry.
-4. Add audit log structure for product actions.
-5. Wire the CLI through the capability executor for safe read-only actions.
+1. Add a provider-neutral AI runtime interface.
+2. Add secure secret loading through OS keyring or ignored encrypted local
+   config.
+3. Add a deterministic local planner that maps simple natural-language commands
+   to capability calls.
+4. Add the plan-execute-verify loop using the Phase 2 capability engine.
+5. Preserve offline local control when no cloud model or API key exists.
 
-Product Phase 1 gives later AI features a real Linux OS foundation to stand on.
-Phase 2 should now add the permissioned capability layer before any app control
-or AI provider integration.
+Product Phase 2 gives AI features a permissioned action surface. Phase 3 should
+connect planning to that surface without hardcoded providers, committed keys, or
+direct OS mutation.
 
 ## Things We Will Not Fake
 
