@@ -19,6 +19,10 @@ confirmation, audit, and privacy checks.
   only.
 - Do not fake OCR or screen contents. If `tesseract` or a capture backend is
   missing, return a clear backend error.
+- Treat `.env.*` files as sensitive paths too; OCR and observation capabilities
+  must deny them before dry-run or execution.
+- If either active title or app matches a privacy marker, redact both fields so
+  private context does not leak through the non-matching field.
 - Future portal/PipeWire/accessibility/browser-tab work should extend the same
   capability names or add typed sibling capabilities, not bypass the registry.
 
