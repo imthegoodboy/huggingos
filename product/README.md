@@ -22,6 +22,7 @@ For the Product Phase 4 desktop control slice, see [PHASE4.md](PHASE4.md).
 For the Product Phase 5 screen/context engine, see [PHASE5.md](PHASE5.md).
 For the Product Phase 6 memory layer, see [PHASE6.md](PHASE6.md).
 For the Product Phase 7 agent orchestration layer, see [PHASE7.md](PHASE7.md).
+For the Product Phase 8 predictive layer, see [PHASE8.md](PHASE8.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -66,6 +67,8 @@ The product track currently provides:
   planning.
 - Phase 7 agent capabilities for catalog, delegation plans, confirmed
   orchestration, and trace listing.
+- Phase 8 predictive/self-healing capabilities for repeated workflow
+  detection, proactive suggestions, failure diagnosis, and activity timelines.
 
 ## Product Commands
 
@@ -96,6 +99,10 @@ cd product/agent && cargo run -- run memory.preference.set --param key=theme --p
 cd product/agent && cargo run -- run files.semantic.index --param root=../../docs --confirm --json
 cd product/agent && cargo run -- run files.semantic.search --param query=capability --json
 cd product/agent && cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+cd product/agent && cargo run -- run proactive.workflow.detect --json
+cd product/agent && cargo run -- run proactive.suggest --json
+cd product/agent && cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
+cd product/agent && cargo run -- run timeline.explain --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -128,6 +135,10 @@ make product-agent-agents-catalog
 make product-agent-agents-plan
 make product-agent-agents-orchestrate
 make product-agent-agents-trace-list
+make product-agent-workflow-detect
+make product-agent-proactive-suggest
+make product-agent-selfheal-diagnose
+make product-agent-timeline-explain
 make product-agent-smoke
 make product-smoke
 ```
@@ -161,6 +172,10 @@ make agent-agents-catalog
 make agent-agents-plan
 make agent-agents-orchestrate
 make agent-agents-trace-list
+make agent-workflow-detect
+make agent-proactive-suggest
+make agent-selfheal-diagnose
+make agent-timeline-explain
 make agent-smoke
 make smoke
 ```

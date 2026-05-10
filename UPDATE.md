@@ -151,6 +151,19 @@ Completed the first permissioned multi-agent orchestration slice:
   prompts.
 - Added Phase 7 docs, ADR, Make targets, CI smoke commands, and Rust tests.
 
+## Product Phase 8 Predictive And Self-Healing OS
+
+Completed the first suggestion-first proactive slice:
+
+- Added repeated workflow detection from audited capability events.
+- Added proactive suggestions that recommend next steps without executing them.
+- Added simulated/user-reported failure diagnosis for app crashes, service
+  failures, memory pressure, and slow operations.
+- Added explain-what-happened timelines using audit events, memory counts, and
+  agent trace counts.
+- Added predictive and self-healing agents with explicit allowlists.
+- Added Phase 8 docs, ADR, Make targets, CI smoke commands, and Rust tests.
+
 ## v2.0 Production-Readiness Pass
 
 This pass turns the repo into a cleanly building, QEMU-verified hobby OS baseline

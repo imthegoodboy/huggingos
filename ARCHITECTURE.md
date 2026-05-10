@@ -479,9 +479,20 @@ Still later:
 
 ### Phase 8: Predictive And Self-Healing OS
 
-- Repeated workflow detection.
+Complete for the first suggestion-first slice:
+
+- Repeated workflow detection from audit events.
 - Safe proactive suggestions.
-- Crash/service monitoring.
+- Simulated and user-reported failure diagnosis.
+- Explain-what-happened timelines.
+- Predictive and self-healing agents with explicit allowlists.
+
+Still later:
+
+- Long-running proactive daemon.
+- Real service/resource telemetry.
+- Confirmed fix execution with rollback.
+- UI approval flow for suggested automations.
 
 ### Phase 9: Plugin SDK
 
@@ -508,6 +519,7 @@ No phase is complete until:
 - Buildroot manual: https://buildroot.org/downloads/manual/manual.html
 - Yocto Project overview: https://www.yoctoproject.org/about/project-overview/
 - Model Context Protocol specification: https://modelcontextprotocol.io/specification/2025-06-18/server/tools
+- ADR 0010: `docs/adr/0010-predictive-self-healing-suggestions.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

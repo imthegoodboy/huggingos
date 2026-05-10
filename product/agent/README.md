@@ -33,6 +33,10 @@ cargo run -- run files.semantic.index --param root=../../docs --confirm --json
 cargo run -- run files.semantic.search --param query=capability --json
 cargo run -- run agents.catalog --json
 cargo run -- run agents.orchestrate --param "goal=daily brief" --confirm --json
+cargo run -- run proactive.workflow.detect --json
+cargo run -- run proactive.suggest --json
+cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
+cargo run -- run timeline.explain --json
 cargo test
 ```
 
@@ -99,6 +103,19 @@ Agents are permissioned manifests over existing capabilities:
 
 Agents cannot call capabilities outside their catalog permissions.
 
+## Phase 8 Predictive And Self-Healing OS
+
+Predictive and healing features are suggestion-only capabilities:
+
+- `proactive.workflow.detect` finds repeated audited workflows.
+- `proactive.suggest` builds safe proactive recommendations.
+- `selfheal.diagnose` diagnoses simulated or reported recoverable failures.
+- `timeline.explain` summarizes recent activity from audit, memory, and traces.
+
+These capabilities do not launch apps, restart services, delete files, or run
+cleanup. They return recommended next capability steps, which must still pass
+policy and confirmation.
+
 ## Safety Model
 
 - Typed capabilities only.
@@ -110,4 +127,5 @@ Agents cannot call capabilities outside their catalog permissions.
   for private contexts.
 - Memory collection is opt-in and deletable.
 - Agents delegate only through capability permissions, policy, audit, and traces.
+- Predictive and self-healing features are suggestion-first and read-only.
 - Capabilities fail closed when audit logging is unavailable.

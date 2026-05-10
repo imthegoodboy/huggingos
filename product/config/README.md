@@ -9,9 +9,9 @@ Phase 5 also reads non-secret privacy defaults from this config. Privacy markers
 are policy hints, not secrets. Keep user-specific exclusions in ignored local
 override files when they reveal private app names, folder names, or workflows.
 
-Phase 6 and Phase 7 store local memory, semantic indexes, and agent traces under
-the configured state directory. Those runtime files are ignored and should not
-be committed.
+Phase 6 through Phase 8 store local memory, semantic indexes, agent traces, and
+predictive/self-healing audit-derived state under the configured state
+directory. Those runtime files are ignored and should not be committed.
 
 Allowed tracked files:
 

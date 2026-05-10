@@ -156,7 +156,8 @@ means Linux userspace services, not custom-kernel shortcuts:
 
 - Kernel: primitives, isolation, syscalls, device and filesystem support.
 - Userspace services: AI runtime bridge, provider selection, memory index,
-  workflow engine, and agent orchestration.
+  workflow engine, agent orchestration, predictive suggestions, and
+  self-healing diagnostics.
 - Capability API: the only path for AI actions that affect OS state.
 - Policy layer: permissions, confirmation, audit logs, and rollback.
 - Current production AI path: `product/agent` in Rust, with `local.rules`

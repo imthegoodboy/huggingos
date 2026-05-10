@@ -25,6 +25,8 @@ make product-agent-screen-capture-dry-run
 make product-agent-memory-remember
 make product-agent-semantic-index
 make product-agent-agents-orchestrate
+make product-agent-workflow-detect
+make product-agent-selfheal-diagnose
 make product-smoke
 ```
 
@@ -80,6 +82,7 @@ gh issue list --milestone "Product Phase 5: Screen And Context Engine"
 gh issue list --milestone "Phase 1: Reliable Kernel And Shell Foundation"
 gh issue list --label "track:product" --search "Phase 6"
 gh issue list --label "track:product" --search "Phase 7"
+gh issue list --label "track:product" --search "Phase 8"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 ```

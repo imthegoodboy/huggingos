@@ -15,6 +15,7 @@ use uuid::Uuid;
 const MAX_TEXT_BYTES: u64 = 64 * 1024;
 const MAX_OCR_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
 const MAX_SEMANTIC_FILES: usize = 200;
+const MAX_WORKFLOW_EVENTS: usize = 500;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ProductConfig {
@@ -31,7 +32,7 @@ impl Default for ProductConfig {
             name: "huggingOS".to_string(),
             version: "unknown".to_string(),
             track: "product".to_string(),
-            phase: "Product Phase 7".to_string(),
+            phase: "Product Phase 8".to_string(),
             base_strategy: "Ubuntu LTS hosted prototype".to_string(),
         }
     }
@@ -1267,6 +1268,14 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps.push(step);
     } else if let Some(step) = plan_agent_orchestration_intent(registry, prompt, &lowered) {
         steps.push(step);
+    } else if let Some(step) = plan_repeated_workflow_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_proactive_suggestions_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_self_healing_intent(registry, prompt, &lowered) {
+        steps.push(step);
+    } else if let Some(step) = plan_timeline_intent(registry, prompt, &lowered) {
+        steps.push(step);
     } else if let Some(step) = plan_audit_intent(registry, prompt, &lowered) {
         steps.push(step);
     } else if let Some(step) = plan_read_file_intent(registry, prompt, &lowered) {
@@ -1293,6 +1302,100 @@ fn local_rules_plan(registry: &BTreeMap<String, Capability>, prompt: &str) -> Ai
         steps,
         warnings,
     }
+}
+
+fn plan_repeated_workflow_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("repeated workflow")
+        || lowered.contains("detect workflow")
+        || lowered.contains("suggest automation")
+        || lowered.contains("automation suggestion"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "proactive.workflow.detect",
+        Map::new(),
+        format!("Detect repeated workflows for prompt: {prompt}"),
+    ))
+}
+
+fn plan_proactive_suggestions_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("proactive suggestion")
+        || lowered.contains("predictive suggestion")
+        || lowered.contains("optimize my system")
+        || lowered.contains("make my computer faster"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "proactive.suggest",
+        Map::new(),
+        format!("Build safe proactive suggestions for prompt: {prompt}"),
+    ))
+}
+
+fn plan_self_healing_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("self heal")
+        || lowered.contains("self-heal")
+        || lowered.contains("app crashed")
+        || lowered.contains("app failed")
+        || lowered.contains("service failed")
+        || lowered.contains("memory pressure")
+        || lowered.contains("slow operation"))
+    {
+        return None;
+    }
+    let mut params = Map::new();
+    let symptom = if lowered.contains("service failed") {
+        "service_failed"
+    } else if lowered.contains("memory pressure") {
+        "memory_pressure"
+    } else if lowered.contains("slow operation") {
+        "slow_operation"
+    } else {
+        "app_crashed"
+    };
+    params.insert("symptom".to_string(), json!(symptom));
+    Some(plan_step(
+        registry,
+        "selfheal.diagnose",
+        params,
+        format!("Diagnose a recoverable failure for prompt: {prompt}"),
+    ))
+}
+
+fn plan_timeline_intent(
+    registry: &BTreeMap<String, Capability>,
+    prompt: &str,
+    lowered: &str,
+) -> Option<AiPlanStep> {
+    if !(lowered.contains("explain what happened")
+        || lowered.contains("what happened")
+        || lowered.contains("timeline")
+        || lowered.contains("activity summary"))
+    {
+        return None;
+    }
+    Some(plan_step(
+        registry,
+        "timeline.explain",
+        Map::new(),
+        format!("Explain recent local activity for prompt: {prompt}"),
+    ))
 }
 
 fn plan_context_snapshot_intent(
@@ -2591,6 +2694,240 @@ fn list_memory_events(config: &Config, request: &ActionRequest) -> Result<Value,
     }))
 }
 
+fn detect_repeated_workflows(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let limit = bounded_limit(request, 100, MAX_WORKFLOW_EVENTS)?;
+    let min_repetitions = request
+        .params
+        .get("min_repetitions")
+        .and_then(Value::as_u64)
+        .unwrap_or(2);
+    if min_repetitions < 2 {
+        return Err("min_repetitions must be at least 2".to_string());
+    }
+    let entries = list_audit_entries(&audit_log_path(config), limit)?;
+    let capabilities = entries
+        .iter()
+        .filter(|entry| entry.get("status") == Some(&json!("succeeded")))
+        .filter_map(|entry| {
+            entry
+                .get("capability")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect::<Vec<_>>();
+
+    let mut pair_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for pair in capabilities.windows(2) {
+        if pair[0] == pair[1]
+            || pair[0] == "proactive.workflow.detect"
+            || pair[1] == "proactive.workflow.detect"
+        {
+            continue;
+        }
+        let key = format!("{} -> {}", pair[0], pair[1]);
+        *pair_counts.entry(key).or_insert(0) += 1;
+    }
+
+    let mut suggestions = pair_counts
+        .into_iter()
+        .filter(|(_, count)| *count >= min_repetitions as usize)
+        .map(|(sequence, count)| {
+            json!({
+                "kind": "workflow_repetition",
+                "sequence": sequence,
+                "count": count,
+                "confidence": if count >= 4 { "high" } else { "medium" },
+                "suggestion": format!("Offer a user-approved automation for: {sequence}"),
+                "policy": "suggestion_only",
+                "requires_confirmation": true,
+            })
+        })
+        .collect::<Vec<_>>();
+    suggestions.sort_by(|left, right| {
+        right["count"]
+            .as_u64()
+            .cmp(&left["count"].as_u64())
+            .then_with(|| left["sequence"].as_str().cmp(&right["sequence"].as_str()))
+    });
+    let suggestion_count = suggestions.len();
+
+    Ok(json!({
+        "source": audit_log_path(config),
+        "event_count": capabilities.len(),
+        "min_repetitions": min_repetitions,
+        "suggestions": suggestions,
+        "suggestion_count": suggestion_count,
+        "policy": "no proactive action is executed by this capability",
+    }))
+}
+
+fn self_heal_diagnose(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let symptom = request
+        .params
+        .get("symptom")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .trim()
+        .to_ascii_lowercase();
+    let target = request
+        .params
+        .get("target")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("unspecified");
+    let simulated = request
+        .params
+        .get("simulated")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let recent_events = list_audit_entries(&audit_log_path(config), 20)?;
+    let (severity, diagnosis, recovery_steps) = match symptom.as_str() {
+        "app_crashed" | "app_failed" => (
+            "medium",
+            format!("Application failure reported for {target}."),
+            vec![
+                json!({
+                    "capability": "apps.list",
+                    "params": {},
+                    "reason": "Check whether the app is discoverable before restart."
+                }),
+                json!({
+                    "capability": "apps.launch",
+                    "params": { "app_id": "<chosen-app.desktop>" },
+                    "reason": "Relaunch only after the user confirms the exact app."
+                }),
+            ],
+        ),
+        "service_failed" => (
+            "medium",
+            format!("Service failure reported for {target}."),
+            vec![
+                json!({
+                    "capability": "product.status",
+                    "params": {},
+                    "reason": "Check product runtime state before recommending service recovery."
+                }),
+                json!({
+                    "capability": "memory.event.list",
+                    "params": { "limit": 20 },
+                    "reason": "Inspect recent failures before any service action."
+                }),
+            ],
+        ),
+        "memory_pressure" => (
+            "low",
+            "Memory pressure reported or simulated.".to_string(),
+            vec![json!({
+                "capability": "timeline.explain",
+                "params": { "limit": 20 },
+                "reason": "Review recent activity before suggesting cleanup."
+            })],
+        ),
+        "slow_operation" => (
+            "low",
+            "Slow operation reported or simulated.".to_string(),
+            vec![json!({
+                "capability": "proactive.workflow.detect",
+                "params": { "limit": 100 },
+                "reason": "Look for repeated slow workflows that could be streamlined."
+            })],
+        ),
+        _ => (
+            "low",
+            format!("No known self-healing rule matched symptom: {symptom}."),
+            vec![json!({
+                "capability": "memory.event.list",
+                "params": { "limit": 20 },
+                "reason": "Inspect recent local events for clues."
+            })],
+        ),
+    };
+
+    Ok(json!({
+        "symptom": symptom,
+        "target": target,
+        "simulated": simulated,
+        "severity": severity,
+        "diagnosis": diagnosis,
+        "recommended_actions": recovery_steps,
+        "recent_event_count": recent_events.len(),
+        "policy": "diagnosis only; recovery capabilities still require their own policy checks and confirmations",
+    }))
+}
+
+fn proactive_suggestions(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let workflows = detect_repeated_workflows(config, request)?;
+    let mut suggestions = workflows
+        .get("suggestions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let recent_entries = list_audit_entries(&audit_log_path(config), 50)?;
+    let failure_count = recent_entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.get("status").and_then(Value::as_str),
+                Some("failed") | Some("denied") | Some("confirmation_required")
+            )
+        })
+        .count();
+    if failure_count > 0 {
+        suggestions.push(json!({
+            "kind": "recent_failure_review",
+            "count": failure_count,
+            "suggestion": "Review recent failed or blocked actions before retrying.",
+            "capability": "timeline.explain",
+            "params": { "limit": 50 },
+            "policy": "suggestion_only",
+            "requires_confirmation": false,
+        }));
+    }
+    let suggestion_count = suggestions.len();
+
+    Ok(json!({
+        "generated_at": utc_now(),
+        "suggestions": suggestions,
+        "suggestion_count": suggestion_count,
+        "workflow_source": workflows["source"],
+        "policy": "suggestions only; no action is executed automatically",
+    }))
+}
+
+fn explain_timeline(config: &Config, request: &ActionRequest) -> Result<Value, String> {
+    let limit = bounded_limit(request, 25, 100)?;
+    let entries = list_audit_entries(&audit_log_path(config), limit)?;
+    let mut timeline = vec![];
+    for entry in entries {
+        timeline.push(json!({
+            "kind": "capability_event",
+            "recorded_at": entry.get("recorded_at"),
+            "actor": entry.get("actor"),
+            "capability": entry.get("capability"),
+            "status": entry.get("status"),
+            "summary": entry.get("summary"),
+        }));
+    }
+
+    let session_memory_count = read_json_lines(&session_memory_path(config))?.len();
+    let agent_trace_count = read_json_lines(&agent_trace_path(config))?.len();
+    let event_count = timeline.len();
+    Ok(json!({
+        "generated_at": utc_now(),
+        "source": audit_log_path(config),
+        "timeline": timeline,
+        "event_count": event_count,
+        "context": {
+            "session_memory_count": session_memory_count,
+            "agent_trace_count": agent_trace_count,
+            "semantic_index_present": semantic_index_path(config).exists(),
+        },
+        "summary": format!("Found {event_count} recent audited events, {session_memory_count} session memories, and {agent_trace_count} agent traces."),
+    }))
+}
+
 fn index_semantic_files(config: &Config, request: &ActionRequest) -> Result<Value, String> {
     let root_raw = string_param(request, "root")?;
     if is_sensitive_path(&json!(root_raw)) {
@@ -2813,6 +3150,28 @@ fn agent_catalog() -> Vec<AgentDefinition> {
             description: "Creates safe workspace notes.".to_string(),
             allowed_capabilities: vec!["notes.create".to_string()],
         },
+        AgentDefinition {
+            id: "predictive.agent".to_string(),
+            name: "Predictive Agent".to_string(),
+            description: "Detects repeated workflows and builds suggestion-only automations."
+                .to_string(),
+            allowed_capabilities: vec![
+                "proactive.workflow.detect".to_string(),
+                "proactive.suggest".to_string(),
+                "timeline.explain".to_string(),
+            ],
+        },
+        AgentDefinition {
+            id: "healing.agent".to_string(),
+            name: "Self-Healing Agent".to_string(),
+            description: "Diagnoses recoverable failures without taking destructive action."
+                .to_string(),
+            allowed_capabilities: vec![
+                "selfheal.diagnose".to_string(),
+                "timeline.explain".to_string(),
+                "memory.event.list".to_string(),
+            ],
+        },
     ]
 }
 
@@ -2972,6 +3331,43 @@ fn build_agent_delegation_plan(
             "memory.session.list",
             Map::new(),
             "Add session memory context to the file search.",
+        ));
+    } else if lowered.contains("repeated workflow") || lowered.contains("automation") {
+        steps.push(delegated_step(
+            "predictive.agent",
+            "proactive.workflow.detect",
+            map_from_pairs([("limit", json!(100))]),
+            "Detect repeated audited workflows.",
+        ));
+        steps.push(delegated_step(
+            "predictive.agent",
+            "proactive.suggest",
+            map_from_pairs([("limit", json!(100))]),
+            "Turn repeated workflows into suggestion-only automations.",
+        ));
+    } else if lowered.contains("self heal")
+        || lowered.contains("self-heal")
+        || lowered.contains("crash")
+        || lowered.contains("failed")
+    {
+        steps.push(delegated_step(
+            "healing.agent",
+            "selfheal.diagnose",
+            map_from_pairs([("symptom", json!("app_crashed"))]),
+            "Diagnose the recoverable failure.",
+        ));
+        steps.push(delegated_step(
+            "healing.agent",
+            "timeline.explain",
+            map_from_pairs([("limit", json!(20))]),
+            "Explain recent activity around the failure.",
+        ));
+    } else if lowered.contains("timeline") || lowered.contains("what happened") {
+        steps.push(delegated_step(
+            "predictive.agent",
+            "timeline.explain",
+            map_from_pairs([("limit", json!(25))]),
+            "Explain recent local activity.",
         ));
     } else {
         steps.push(delegated_step(
@@ -3182,6 +3578,17 @@ fn validate_memory_delete_scope(scope: &str) -> Result<(), String> {
         "session" | "preferences" | "semantic_index" | "traces" | "all" => Ok(()),
         _ => Err(
             "memory delete scope must be session, preferences, semantic_index, traces, or all"
+                .to_string(),
+        ),
+    }
+}
+
+fn validate_selfheal_symptom(symptom: &str) -> Result<(), String> {
+    match symptom.trim().to_ascii_lowercase().as_str() {
+        "unknown" | "app_crashed" | "app_failed" | "service_failed" | "memory_pressure"
+        | "slow_operation" => Ok(()),
+        _ => Err(
+            "self-healing symptom must be unknown, app_crashed, app_failed, service_failed, memory_pressure, or slow_operation"
                 .to_string(),
         ),
     }
@@ -3705,6 +4112,10 @@ fn build_registry() -> BTreeMap<String, Capability> {
         agents_plan_capability(),
         agents_orchestrate_capability(),
         agents_trace_list_capability(),
+        proactive_workflow_detect_capability(),
+        proactive_suggest_capability(),
+        selfheal_diagnose_capability(),
+        timeline_explain_capability(),
     ];
     capabilities
         .into_iter()
@@ -4619,6 +5030,118 @@ fn agents_trace_list_capability() -> Capability {
     }
 }
 
+fn proactive_workflow_detect_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "proactive.workflow.detect".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Detect repeated audited workflows and suggest automations.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["proactive:read".to_string(), "audit:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("limit".to_string(), "integer".to_string()),
+                    ("min_repetitions".to_string(), "integer".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| detect_repeated_workflows(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("suggestions").is_some(),
+            message: "Repeated workflow detection returned suggestions.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn proactive_suggest_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "proactive.suggest".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Build safe proactive suggestions from local events.".to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["proactive:read".to_string(), "audit:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("limit".to_string(), "integer".to_string()),
+                    ("min_repetitions".to_string(), "integer".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| proactive_suggestions(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("suggestions").is_some(),
+            message: "Proactive suggestions returned without executing actions.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn selfheal_diagnose_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "selfheal.diagnose".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Diagnose recoverable failures and return safe recovery steps."
+                .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["selfheal:read".to_string(), "audit:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([
+                    ("symptom".to_string(), "string".to_string()),
+                    ("target".to_string(), "string".to_string()),
+                    ("simulated".to_string(), "boolean".to_string()),
+                ]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| self_heal_diagnose(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("recommended_actions").is_some(),
+            message: "Self-healing diagnosis returned safe recommendations.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
+fn timeline_explain_capability() -> Capability {
+    Capability {
+        metadata: CapabilityMetadata {
+            name: "timeline.explain".to_string(),
+            version: "1.0.0".to_string(),
+            owner: "huggingos".to_string(),
+            description: "Explain recent activity from audit events, memory, and agent traces."
+                .to_string(),
+            risk: RiskLevel::Read,
+            permissions: vec!["timeline:read".to_string(), "audit:read".to_string()],
+            input_schema: object_schema(
+                BTreeMap::from([("limit".to_string(), "integer".to_string())]),
+                vec![],
+            ),
+            result_schema: json!({ "type": "object" }),
+            reversible: false,
+        },
+        execute: |request, config| explain_timeline(config, request),
+        verify: |_, _, data| Verification {
+            ok: data.get("timeline").is_some(),
+            message: "Timeline explanation returned.".to_string(),
+            data: json!({}),
+        },
+    }
+}
+
 fn object_schema(properties: BTreeMap<String, String>, required: Vec<&str>) -> Value {
     let properties = properties
         .into_iter()
@@ -4944,6 +5467,12 @@ fn validate_capability_request(
                 .ok_or_else(|| "Parameter goal must be a string.".to_string())?;
             if goal.trim().is_empty() {
                 return Err("agent goal cannot be empty".to_string());
+            }
+            Ok(())
+        }
+        "selfheal.diagnose" => {
+            if let Some(symptom) = params.get("symptom").and_then(Value::as_str) {
+                validate_selfheal_symptom(symptom)?;
             }
             Ok(())
         }
@@ -5973,6 +6502,115 @@ Categories=Utility;Development;
         assert_eq!(memory_plan.steps[0].capability, "memory.session.remember");
         assert_eq!(resume_plan.steps[0].capability, "workspace.resume.plan");
         assert_eq!(agent_plan.steps[0].capability, "agents.orchestrate");
+    }
+
+    #[test]
+    fn repeated_workflow_detection_suggests_automation_without_execution() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+        execute_capability(&config, &registry, request("product.status", Map::new()));
+        execute_capability(&config, &registry, request("memory.event.list", Map::new()));
+        execute_capability(&config, &registry, request("product.status", Map::new()));
+        execute_capability(&config, &registry, request("memory.event.list", Map::new()));
+
+        let result = execute_capability(
+            &config,
+            &registry,
+            request("proactive.workflow.detect", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert!(result.data["suggestion_count"].as_u64().unwrap() >= 1);
+        assert_eq!(
+            result.data["suggestions"][0]["requires_confirmation"],
+            json!(true)
+        );
+        assert_eq!(
+            result.data["suggestions"][0]["policy"],
+            json!("suggestion_only")
+        );
+    }
+
+    #[test]
+    fn self_heal_diagnoses_simulated_app_failure() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let mut params = Map::new();
+        params.insert("symptom".to_string(), json!("app_crashed"));
+        params.insert("target".to_string(), json!("editor"));
+        params.insert("simulated".to_string(), json!(true));
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("selfheal.diagnose", params),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert_eq!(result.data["simulated"], json!(true));
+        assert!(result.data["recommended_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|step| step["capability"] == json!("apps.launch")));
+    }
+
+    #[test]
+    fn timeline_explain_combines_recent_events_and_context_counts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        execute_capability(
+            &config,
+            &build_registry(),
+            request("product.status", Map::new()),
+        );
+
+        let result = execute_capability(
+            &config,
+            &build_registry(),
+            request("timeline.explain", Map::new()),
+        );
+
+        assert_eq!(result.status, ActionStatus::Succeeded);
+        assert!(result.data["event_count"].as_u64().unwrap() >= 1);
+        assert!(result.data["context"]["session_memory_count"].is_number());
+    }
+
+    #[test]
+    fn local_planner_maps_phase8_prompts() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let registry = build_registry();
+
+        let workflow_plan = build_ai_plan(
+            &config,
+            &registry,
+            "detect repeated workflow",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let healing_plan = build_ai_plan(
+            &config,
+            &registry,
+            "app crashed, self heal it",
+            Some("local.rules"),
+        )
+        .unwrap();
+        let timeline_plan = build_ai_plan(
+            &config,
+            &registry,
+            "explain what happened",
+            Some("local.rules"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            workflow_plan.steps[0].capability,
+            "proactive.workflow.detect"
+        );
+        assert_eq!(healing_plan.steps[0].capability, "selfheal.diagnose");
+        assert_eq!(timeline_plan.steps[0].capability, "timeline.explain");
     }
 
     #[test]

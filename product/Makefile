@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-smoke smoke
+.PHONY: status doctor config capabilities run-status agent-ai-status agent-ai-plan agent-ai-run agent-secrets agent-desktop-status agent-apps-list agent-browser-dry-run agent-workspace-plan agent-screen-status agent-screen-capture-dry-run agent-context-snapshot agent-ocr-dry-run agent-memory-remember agent-memory-list agent-preference-set agent-semantic-index agent-semantic-search agent-resume-plan agent-agents-catalog agent-agents-plan agent-agents-orchestrate agent-agents-trace-list agent-workflow-detect agent-proactive-suggest agent-selfheal-diagnose agent-timeline-explain agent-smoke smoke
 
 status:
 	$(PYTHON) cli/huggingos.py status
@@ -82,6 +82,18 @@ agent-agents-orchestrate:
 
 agent-agents-trace-list:
 	cd agent && cargo run -- run agents.trace.list --json
+
+agent-workflow-detect:
+	cd agent && cargo run -- run proactive.workflow.detect --json
+
+agent-proactive-suggest:
+	cd agent && cargo run -- run proactive.suggest --json
+
+agent-selfheal-diagnose:
+	cd agent && cargo run -- run selfheal.diagnose --param symptom=app_crashed --param target=editor --param simulated=true --json
+
+agent-timeline-explain:
+	cd agent && cargo run -- run timeline.explain --json
 
 agent-smoke:
 	cd agent && cargo test
