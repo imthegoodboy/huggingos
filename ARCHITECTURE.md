@@ -529,6 +529,25 @@ Still later:
 - Desktop approval UI.
 - Sandboxed plugin-provided code execution.
 
+### Phase 11: Plugin Signature Verification
+
+Complete for the first signed-package slice:
+
+- Ed25519 verification for local plugin packages.
+- SHA-256 digest checks over canonical manifest payloads.
+- Install-time requirement for `signature_verified` trust.
+- Package update channel metadata with auto-update disabled.
+- Persisted rollback manifests for plugin lifecycle actions.
+- Tamper rejection covered by Rust tests.
+
+Still later:
+
+- Signed archive bundles beyond manifest-only packages.
+- Desktop trust and permission approval UI.
+- Sandboxed plugin-provided code execution.
+- Trusted marketplace/update feeds.
+- Automatic rollback execution.
+
 ## Production-Readiness Gates
 
 No phase is complete until:
@@ -551,6 +570,7 @@ No phase is complete until:
 - ADR 0010: `docs/adr/0010-predictive-self-healing-suggestions.md`
 - ADR 0011: `docs/adr/0011-declarative-plugin-manifests.md`
 - ADR 0012: `docs/adr/0012-plugin-trust-before-code-execution.md`
+- ADR 0013: `docs/adr/0013-plugin-signature-verification.md`
 - XDG Desktop Portal documentation: https://flatpak.github.io/xdg-desktop-portal/docs/api-reference
 - PipeWire project: https://pipewire.org/
 - OpenTelemetry documentation: https://opentelemetry.io/docs/

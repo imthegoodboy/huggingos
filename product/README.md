@@ -25,6 +25,7 @@ For the Product Phase 7 agent orchestration layer, see [PHASE7.md](PHASE7.md).
 For the Product Phase 8 predictive layer, see [PHASE8.md](PHASE8.md).
 For the Product Phase 9 plugin SDK, see [PHASE9.md](PHASE9.md).
 For the Product Phase 10 plugin trust layer, see [PHASE10.md](PHASE10.md).
+For the Product Phase 11 plugin signature layer, see [PHASE11.md](PHASE11.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -76,6 +77,9 @@ The product track currently provides:
   workflow planning, read-only capability runs, disable, and remove.
 - Phase 10 plugin trust capabilities for package validation, permission review,
   sandbox declarations, rollback metadata, and audited trust state.
+- Phase 11 plugin signature capabilities for Ed25519 package verification,
+  install-time verified-signature enforcement, update channel metadata,
+  persisted rollback manifests, and tamper rejection.
 
 ## Product Commands
 
@@ -238,11 +242,11 @@ screen/context readiness, capture screenshots through discovered Linux backends,
 snapshot active-window context, OCR local images when `tesseract` exists, store
 user-controlled memory, search opt-in text file indexes, and delegate work
 through permissioned built-in agents. It can also install and run declarative
-read-only plugin manifests with explicit package trust metadata and permission
-review. It still does not call cloud AI providers, automate browser DOMs, launch
-arbitrary shell commands, read clipboard contents by default, extract
-accessibility trees, execute arbitrary plugin code, run plugin daemons, verify
-plugin signatures cryptographically, or arrange windows.
+read-only plugin manifests with explicit permission review and cryptographically
+verified local package signatures. It still does not call cloud AI providers,
+automate browser DOMs, launch arbitrary shell commands, read clipboard contents
+by default, extract accessibility trees, execute arbitrary plugin code, run
+plugin daemons, auto-update plugins, or arrange windows.
 
 The Rust agent is the production path for AI planning, future daemon work, and
 desktop integration. The Python CLI remains a reference control surface for the

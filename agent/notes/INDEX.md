@@ -33,6 +33,7 @@ in PR descriptions.
 - [Product Phase 8 predictive healing](product-phase8-predictive-healing.md)
 - [Product Phase 9 plugins](product-phase9-plugins.md)
 - [Product Phase 10 plugin trust](product-phase10-plugin-trust.md)
+- [Product Phase 11 plugin signatures](product-phase11-plugin-signatures.md)
 
 ## Knowledge Capture Rule
 

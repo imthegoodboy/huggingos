@@ -57,7 +57,8 @@ make product-agent-plugin-install
 
 ## Still Later
 
-- Real cryptographic signature verification.
+- Real cryptographic signature verification. Completed in
+  [PHASE11.md](PHASE11.md) for local manifest packages.
 - Signed plugin package archives.
 - Plugin update channels.
 - Desktop overlay approval UI.

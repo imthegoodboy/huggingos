@@ -7,11 +7,12 @@
   "package": {
     "format": "huggingos.plugin.package.v1",
     "source": "local-sample",
-    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "sha256": "22f09cc5d8f41fd1894cecc6122a5b6f2d64690092dfeef9778e7c9637530b1c",
     "signature": {
-      "algorithm": "ed25519",
+      "algorithm": "ed25519-canonical-json-sha256-v1",
       "key_id": "sample-dev-key",
-      "signature": "sample-signature-metadata-only"
+      "public_key": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+      "signature": "eGwcjeLWNwvYNDaVmstgMPUuKU4XJ2o01JsWnEFpVdAsNiE4n3T6C7zXbk9Pbjb6wGFqqOtx8JZIiokN7w71Dg=="
     }
   },
   "ui": {
@@ -23,6 +24,11 @@
     "code_execution": "disabled",
     "network": false,
     "filesystem": "none"
+  },
+  "update": {
+    "channel": "local",
+    "source": "product/plugins/hello-assistant",
+    "auto_update": false
   },
   "permissions": [
     "plugins:read"
@@ -48,8 +54,8 @@
         {
           "capability": "plugins.capability.run",
           "params": {
-            "plugin_id": "sample.hello",
-            "capability": "hello"
+            "capability": "hello",
+            "plugin_id": "sample.hello"
           },
           "reason": "Run the sample plugin greeting."
         }
