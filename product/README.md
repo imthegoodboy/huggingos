@@ -18,6 +18,7 @@ on the kernel-lab track.
 For the Product Phase 1 kickoff sequence, see [PHASE1.md](PHASE1.md).
 For the Product Phase 2 capability layer, see [PHASE2.md](PHASE2.md).
 For the Product Phase 3 AI runtime bridge, see [PHASE3.md](PHASE3.md).
+For the Product Phase 4 desktop control slice, see [PHASE4.md](PHASE4.md).
 For the product architecture, see [architecture.md](architecture.md).
 
 ## Planned Structure
@@ -53,6 +54,8 @@ The product track currently provides:
   safe workspace note creation, and audit listing.
 - Phase 3 Rust AI bridge with deterministic local planning, redacted provider
   secret readiness, and plan-execute-verify execution through capabilities.
+- Phase 4 desktop capabilities for session status, app listing, confirmed app
+  launch, confirmed browser URL opening, and workspace mode planning.
 
 ## Product Commands
 
@@ -69,6 +72,10 @@ cd product/agent && cargo run -- ai status --json
 cd product/agent && cargo run -- ai plan "show product status" --json
 cd product/agent && cargo run -- ai run "show product status" --json
 cd product/agent && cargo run -- secrets status --json
+cd product/agent && cargo run -- run desktop.status --json
+cd product/agent && cargo run -- run apps.list --json
+cd product/agent && cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+cd product/agent && cargo run -- run workspace.mode.plan --param mode=coding --json
 python3 -m unittest discover -s product/tests -p "test_*.py"
 ```
 
@@ -83,6 +90,10 @@ make product-agent-ai-status
 make product-agent-ai-plan
 make product-agent-ai-run
 make product-agent-secrets
+make product-agent-desktop-status
+make product-agent-apps-list
+make product-agent-browser-dry-run
+make product-agent-workspace-plan
 make product-agent-smoke
 make product-smoke
 ```
@@ -98,6 +109,10 @@ make agent-ai-status
 make agent-ai-plan
 make agent-ai-run
 make agent-secrets
+make agent-desktop-status
+make agent-apps-list
+make agent-browser-dry-run
+make agent-workspace-plan
 make agent-smoke
 make smoke
 ```
@@ -120,9 +135,10 @@ audit log is JSON Lines at the product state path.
 
 The Rust agent can now plan simple natural-language intents through the offline
 `local.rules` provider and execute those plans through the capability control
-plane. It still does not call cloud AI providers, control browsers, launch
-arbitrary shell commands, or manage desktop apps. Those require later provider,
-desktop, and permission work.
+plane. It can detect desktop readiness, list desktop apps, and perform confirmed
+app/browser launch commands from a real graphical Linux session. It still does
+not call cloud AI providers, scrape screens, automate browser DOMs, launch
+arbitrary shell commands, or arrange windows.
 
 The Rust agent is the production path for AI planning, future daemon work, and
 desktop integration. The Python CLI remains a reference control surface for the

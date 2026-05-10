@@ -41,7 +41,7 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 # ISO
 ISO = huggingOs.iso
 
-.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-smoke product-smoke
+.PHONY: all clean iso run qemu help product-status product-doctor product-capabilities product-run-status product-agent-ai-status product-agent-ai-plan product-agent-ai-run product-agent-secrets product-agent-desktop-status product-agent-apps-list product-agent-browser-dry-run product-agent-workspace-plan product-agent-smoke product-smoke
 
 all: $(KERNEL_BIN)
 
@@ -111,6 +111,18 @@ product-agent-ai-run:
 product-agent-secrets:
 	cd product/agent && cargo run -- secrets status --json
 
+product-agent-desktop-status:
+	cd product/agent && cargo run -- run desktop.status --json
+
+product-agent-apps-list:
+	cd product/agent && cargo run -- run apps.list --json
+
+product-agent-browser-dry-run:
+	cd product/agent && cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+
+product-agent-workspace-plan:
+	cd product/agent && cargo run -- run workspace.mode.plan --param mode=coding --json
+
 product-agent-smoke:
 	cd product/agent && cargo test
 
@@ -133,6 +145,10 @@ help:
 	@echo "  product-agent-ai-plan - Build a deterministic local AI plan"
 	@echo "  product-agent-ai-run - Execute a local AI plan through capabilities"
 	@echo "  product-agent-secrets - Show redacted AI secret readiness"
+	@echo "  product-agent-desktop-status - Show Linux desktop readiness"
+	@echo "  product-agent-apps-list - List installed desktop applications"
+	@echo "  product-agent-browser-dry-run - Dry-run browser URL opening"
+	@echo "  product-agent-workspace-plan - Preview a workspace mode plan"
 	@echo "  product-agent-smoke - Run Rust product agent tests"
 	@echo "  product-smoke  - Run Linux product smoke tests"
 	@echo "  clean   - Remove build artifacts"

@@ -2,9 +2,8 @@
 
 This is the Rust production path for the huggingOS local agent runtime.
 
-The Phase 2 Python CLI remains a reference implementation while the Rust runtime
-reaches parity. New production agent, daemon, planner, and desktop integration
-work should start here.
+The Phase 2 Python CLI remains a reference control surface. New production
+agent, daemon, planner, and desktop integration work should start here.
 
 ## Commands
 
@@ -18,6 +17,10 @@ cargo run -- ai status --json
 cargo run -- ai plan "show product status" --json
 cargo run -- ai run "show product status" --json
 cargo run -- secrets status --json
+cargo run -- run desktop.status --json
+cargo run -- run apps.list --json
+cargo run -- run browser.open_url --param url=https://example.com --dry-run --json
+cargo run -- run workspace.mode.plan --param mode=coding --json
 cargo test
 ```
 
@@ -31,6 +34,18 @@ The Rust agent owns the production AI bridge.
 - Secret readiness is reported as present/missing and never prints values.
 - Cloud/local-model providers are declared for status and failure handling, but
   they are not executable until real provider adapters are added.
+
+## Phase 4 Desktop Bridge
+
+Desktop and browser actions are also capabilities:
+
+- `desktop.status` detects graphical-session and backend readiness.
+- `apps.list` reads installed `.desktop` entries.
+- `apps.launch` launches by safe desktop ID and requires confirmation.
+- `browser.open_url` opens HTTP/HTTPS URLs and requires confirmation.
+- `workspace.mode.plan` previews mode plans before window management exists.
+
+Headless CI and WSL should use `--dry-run` for mutating desktop actions.
 
 ## Safety Model
 
