@@ -1,16 +1,31 @@
 # huggingOS
 
-huggingOS is a small bootable 32-bit x86 operating system built from scratch for
-OS development practice. It boots with GRUB, enters protected mode, initializes
-core kernel services, and provides an interactive VGA text-mode shell with a
-heap-backed in-memory file system.
+huggingOS is now planned as a Linux-kernel-based AI operating system layer. The
+goal is a normal working OS experience with real networking, filesystems,
+process isolation, desktop integration, app control, memory, and AI automation.
 
-This repository is now set up as a working, testable hobby OS rather than a
-mock UI. It is not a replacement for a desktop operating system yet: there is no
-network stack, persistent disk driver, browser engine, or user-mode process
-isolation. The current focus is a stable kernel base that can be extended safely.
+This repository has two tracks:
+
+- Product track: the main path under `product/`, built on the Linux kernel and
+  Linux userspace services.
+- Kernel-lab track: the existing bootable 32-bit x86 hobby kernel under
+  `kernel/`, kept for low-level OS experiments and learning.
+
+The current product work is in Phase 1 planning/foundation. The custom kernel is
+already a working QEMU-bootable lab OS, but it is not the production AI OS path.
+For the full roadmap, see [PLAN.md](PLAN.md). For the kernel decision, see
+[docs/adr/0001-kernel-strategy.md](docs/adr/0001-kernel-strategy.md).
 
 ## Current Status
+
+Product track:
+
+- Linux product direction selected.
+- `product/README.md` created as the entry point for the Linux OS layer.
+- Runtime, CLI, service, packaging, and smoke-test structure planned.
+- No committed API keys, provider secrets, or fake AI integrations.
+
+Kernel-lab track:
 
 - Bootable Multiboot ISO via GRUB.
 - 32-bit x86 protected-mode kernel.
@@ -20,17 +35,29 @@ isolation. The current focus is a stable kernel base that can be extended safely
 - PIT timer and RTC clock support.
 - Low-memory first-fit heap allocator with `kmalloc`/`kfree` reuse.
 - RAMFS with nested paths, create/read/write/append/delete/rename/copy support.
-- Interactive shell with Unix-like utilities, logs, environment variables, aliases,
-  history, and file redirection.
+- Interactive shell with Unix-like utilities, logs, environment variables,
+  aliases, history, and file redirection.
 - Built-in `selftest` command for kernel/RAMFS/heap smoke checks.
-- Built-in `assist` / `ai` command for smart command suggestions and quick actions.
+- Built-in `assist` / `ai` command for local deterministic command suggestions.
 
-For the full AI-native OS roadmap, see [PLAN.md](PLAN.md). Future AI builders
-should follow [agent/SKILL.md](agent/SKILL.md) and
+Future AI builders should follow [agent/SKILL.md](agent/SKILL.md) and
 [agent/TASK_CHECKLIST.md](agent/TASK_CHECKLIST.md). Durable gotchas and build
 lessons live in [agent/notes/INDEX.md](agent/notes/INDEX.md).
 
-## Quick Start
+## Product Track
+
+Start with:
+
+```bash
+cd product
+```
+
+Phase 1 will add the first real Linux product commands, including a reproducible
+dev/build path, a `huggingos` CLI, runtime config layout, smoke tests, and CI.
+Until that lands, `product/README.md` is the product-track contract, not a fake
+implementation.
+
+## Kernel-Lab Quick Start
 
 On Windows, the easiest path is WSL with QEMU:
 
@@ -48,9 +75,9 @@ make clean all iso
 make qemu
 ```
 
-The generated bootable image is `huggingOs.iso`.
+The generated bootable lab image is `huggingOs.iso`.
 
-## Verify The OS
+## Verify The Kernel Lab
 
 After boot, run:
 
@@ -128,8 +155,8 @@ moti joke fortune
 
 ## Smart Assistant
 
-`assist` is intentionally local and deterministic. It maps natural-language
-requests to built-in shell commands:
+The kernel-lab `assist` command is intentionally local and deterministic. It maps
+natural-language requests to built-in shell commands:
 
 ```text
 assist memory
@@ -137,12 +164,13 @@ assist run list files
 assist create file notes.txt
 ```
 
-External AI API calls are not enabled yet because huggingOS does not currently
-include a network stack, TLS, DNS, or persistent secret storage. The repo is ready
-for those pieces to be added in later kernel milestones without pretending that
-they exist today.
+External AI API calls belong in the Linux product track after networking,
+secret storage, provider configuration, policy, and audit logging exist. Do not
+add API keys or cloud calls directly to the custom kernel.
 
 ## Build Targets
+
+Kernel-lab targets:
 
 ```bash
 make all      # build build/kernel.bin
@@ -155,9 +183,12 @@ make help     # show build help
 ## Project Layout
 
 ```text
-boot/grub/grub.cfg          GRUB menu configuration
+product/                    Linux product track entry point
+docs/adr/                   Architecture decision records
+agent/                      Agent rules, commands, checklist, and notes
+boot/grub/grub.cfg          GRUB menu configuration for kernel lab
 kernel/boot.asm             Multiboot entry point and stack setup
-kernel/kernel.c             Kernel initialization and main loop
+kernel/kernel.c             Kernel-lab initialization and main loop
 kernel/gdt.*                Global Descriptor Table setup
 kernel/interrupts.*         IDT, ISR, IRQ, and syscall interrupt entry
 kernel/memory/              Heap and memory accounting
@@ -167,15 +198,23 @@ kernel/terminal/            Terminal wrapper and command shell
 kernel/sys/                 Kernel logging
 kernel/syscalls/            Syscall dispatcher
 kernel/lib/                 Freestanding libc-style helpers
-Makefile                    Main build system
+Makefile                    Kernel-lab build system
 ```
 
 ## Current Limitations
 
+Product track:
+
+- No Linux image/rootfs build is implemented yet.
+- No `huggingos` CLI or daemon is implemented yet.
+- No AI provider integration is implemented yet.
+
+Kernel-lab track:
+
 - Single kernel address space; no user mode or process scheduler yet.
 - RAMFS is in-memory only and is cleared on reboot.
 - VESA is a safe stub; graphics are currently VGA text mode.
-- No networking, TCP/IP, DNS, TLS, browser, or external AI API integration yet.
+- No networking, TCP/IP, DNS, TLS, browser, or external AI API integration.
 - No persistent disk filesystem driver yet.
 
 ## Troubleshooting
@@ -195,11 +234,14 @@ QEMU monitor `sendkey` commands work with the interactive shell.
 
 ## Development Notes
 
-The current v2.0 work fixed the most serious stability issue: heap allocations
-previously targeted an unmapped high-half address. The heap now starts after the
-kernel image in low memory, supports split/merge reuse, and is bounded by the
-reported memory size. RAMFS and shell file redirection now use that allocator
-instead of relying on dummy or unsafe behavior.
+The v2.0 kernel-lab work fixed the most serious stability issue: heap
+allocations previously targeted an unmapped high-half address. The heap now
+starts after the linked kernel image in low memory, supports split/merge reuse,
+and is bounded by the reported memory size. RAMFS and shell file redirection now
+use that allocator instead of relying on dummy or unsafe behavior.
+
+The next product work should start in Product Phase 1, not by adding advanced AI
+features to the custom kernel.
 
 ## References
 

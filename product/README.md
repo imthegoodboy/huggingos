@@ -1,0 +1,50 @@
+# huggingOS Product Track
+
+This directory is for the Linux-kernel-based huggingOS product.
+
+The product track is the path toward a normal working AI-native OS:
+
+- Linux kernel and drivers.
+- Linux userspace services.
+- Real filesystems, networking, process isolation, and desktop APIs.
+- AI command center and capability API.
+- Secure runtime config and secret handling.
+- Desktop overlay, app control, memory, and agents.
+
+The existing `kernel/` directory remains the custom kernel-lab track. Do not add
+product AI features to the hobby kernel unless an issue explicitly says to work
+on the kernel-lab track.
+
+## Planned Structure
+
+```text
+product/
+  README.md              Product-track entry point
+  distro/                Base image, package, and rootfs definitions
+  services/              huggingOS daemons and local APIs
+  cli/                   huggingos command-line entrypoint
+  ui/                    Desktop overlay and control center
+  policy/                Permissions, confirmations, audit, and rollback rules
+  tests/                 Product smoke tests
+```
+
+These folders should be created when the matching implementation issue starts.
+Do not fill them with fake placeholders.
+
+## Phase 1 Target
+
+Phase 1 should produce the smallest real Linux product foundation:
+
+- Pick the base image strategy.
+- Add reproducible dev/build commands.
+- Add a real `huggingos` CLI.
+- Add runtime config layout with no committed secrets.
+- Add smoke tests and CI.
+
+## Rules
+
+- No hardcoded API keys or local machine paths.
+- No fake AI provider responses.
+- No fake browser automation.
+- No root-only behavior unless the action truly needs root and explains why.
+- Every OS action should move toward the capability API and audit model.

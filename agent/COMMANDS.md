@@ -2,7 +2,19 @@
 
 Use these commands from the repository root unless a task says otherwise.
 
-## Build
+## Product Track
+
+Use these for Linux product work:
+
+```bash
+gh issue list --label "track:product"
+gh issue list --label "track:product" --milestone "Product Phase 1: Linux Product Foundation"
+```
+
+Product build and smoke commands live in `product/README.md` and the active
+issue. Add them in Product Phase 1 before relying on them.
+
+## Kernel-Lab Build
 
 ```bash
 make clean all iso
@@ -14,7 +26,7 @@ Windows/WSL:
 wsl make clean all iso
 ```
 
-## Run
+## Kernel-Lab Run
 
 ```bash
 make qemu
@@ -26,7 +38,7 @@ Manual QEMU:
 qemu-system-i386 -cdrom huggingOs.iso -m 128M -vga std
 ```
 
-## Smoke Commands Inside huggingOS
+## Smoke Commands Inside Kernel-Lab huggingOS
 
 ```text
 selftest
@@ -40,6 +52,9 @@ dmesg
 ```bash
 gh issue list --state open
 gh issue view <issue-number>
+gh issue list --label "track:product"
+gh issue list --label "track:kernel-lab"
+gh issue list --milestone "Product Phase 1: Linux Product Foundation"
 gh issue list --milestone "Phase 1: Reliable Kernel And Shell Foundation"
 gh pr create --fill
 gh pr view --json url,state,mergeStateStatus,statusCheckRollup
@@ -49,7 +64,7 @@ gh pr view --json url,state,mergeStateStatus,statusCheckRollup
 
 ```bash
 git diff --check
-rg -n "[^\x00-\x7F]" kernel README.md UPDATE.md PLAN.md agent .github docs
+rg -n "[^\x00-\x7F]" kernel product README.md UPDATE.md PLAN.md agent .github docs
 git status -sb
 ```
 
